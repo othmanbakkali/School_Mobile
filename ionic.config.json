@@ -1,0 +1,5 @@
+{
+  "name": "odoo_mobile",
+  "integrations": {},
+  "type": "vue-vite"
+}
