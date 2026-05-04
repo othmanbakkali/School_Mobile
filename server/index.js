@@ -143,7 +143,7 @@ app.post('/api/school/homework', async (req, res) => {
         const yearId = await getCurrentYearId(adminUid);
         let domain = [['student_id', '=', parseInt(student_id)]];
         if (yearId) {
-            domain.unshift('|');
+            domain.push('|');
             domain.push(['year_id', '=', yearId]);
             domain.push(['year_id', '=', false]);
         }
@@ -194,7 +194,7 @@ app.post('/api/school/grades', async (req, res) => {
         const yearId = await getCurrentYearId(adminUid);
         let domain = [['student_id', '=', student_id]];
         if (yearId) {
-            domain.unshift('|');
+            domain.push('|');
             domain.push(['year_id', '=', yearId]);
             domain.push(['year_id', '=', false]);
         }
@@ -403,7 +403,7 @@ app.post('/api/school/schedule', async (req, res) => {
         const yearId = await getCurrentYearId(adminUid);
         let domain = [['level_id', '=', level_id]];
         if (yearId) {
-            domain.unshift('|');
+            domain.push('|');
             domain.push(['year_id', '=', yearId]);
             domain.push(['year_id', '=', false]);
         }
@@ -504,7 +504,7 @@ app.post('/api/school/payments', async (req, res) => {
         const yearId = await getCurrentYearId(adminUid);
         let domain = [['student_id', '=', parseInt(student_id)]];
         if (yearId) {
-            domain.unshift('|');
+            domain.push('|');
             domain.push(['year_id', '=', yearId]);
             domain.push(['year_id', '=', false]);
         }
