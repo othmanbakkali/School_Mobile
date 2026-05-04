@@ -68,6 +68,14 @@ class SchoolStudent(models.Model):
         }
 
 
+class SchoolSubject(models.Model):
+    _name = 'school.subject'
+    _description = 'Matière'
+
+    name = fields.Char(string='Nom de la matière', required=True)
+    code = fields.Char(string='Code')
+
+
 class SchoolAttendance(models.Model):
     _name = 'school.attendance'
     _description = 'Absences et Retards'
@@ -90,7 +98,8 @@ class SchoolHomework(models.Model):
 
     title = fields.Char(string='Titre', required=True)
     description = fields.Text(string='Description')
-    subject = fields.Char(string='Matière')
+    subject = fields.Char(string='Matière (Texte)')
+    subject_id = fields.Many2one('school.subject', string='Matière (Sélection)')
     date_due = fields.Date(string="Date d'échéance")
     level_id = fields.Many2one('school.level', string='Niveau / Classe', help="Sélectionnez un niveau pour envoyer à tous les élèves")
     student_id = fields.Many2one('school.student', string='Élève')
@@ -117,7 +126,8 @@ class SchoolGrade(models.Model):
     _name = 'school.grade'
     _description = 'Notes'
 
-    subject = fields.Char(string='Matière')
+    subject = fields.Char(string='Matière (Texte)')
+    subject_id = fields.Many2one('school.subject', string='Matière (Sélection)')
     semester = fields.Selection([
         ('S1', 'Semestre 1'),
         ('S2', 'Semestre 2'),
@@ -146,7 +156,8 @@ class SchoolTeacher(models.Model):
     _description = 'Professeur'
 
     name = fields.Char(string='Nom complet', required=True)
-    subject = fields.Char(string='Matière principale')
+    subject = fields.Char(string='Matière (Texte)')
+    subject_ids = fields.Many2many('school.subject', string='Matières Enseignées')
     phone = fields.Char(string='Téléphone')
     email = fields.Char(string='Email')
     photo = fields.Binary(string='Photo')
@@ -178,7 +189,8 @@ class SchoolSchedule(models.Model):
     ], string='Jour', required=True)
     start_time = fields.Float(string='Heure de début', required=True)
     end_time = fields.Float(string='Heure de fin', required=True)
-    subject = fields.Char(string='Matière', required=True)
+    subject = fields.Char(string='Matière (Texte)')
+    subject_id = fields.Many2one('school.subject', string='Matière (Sélection)')
     teacher = fields.Char(string='Enseignant (Texte)')
     teacher_id = fields.Many2one('school.teacher', string='Professeur (Sélection)')
     level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True)
@@ -210,3 +222,4 @@ class SchoolConfig(models.Model):
     email = fields.Char(string='Email Administrative')
     staff_ids = fields.Many2many('school.staff', string='Personnel Administratif')
     teacher_ids = fields.Many2many('school.teacher', string='Corps Enseignant')
+    subject_ids = fields.Many2many('school.subject', string='Matières de l\'école')

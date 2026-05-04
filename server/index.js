@@ -115,9 +115,13 @@ app.post('/api/school/homework', async (req, res) => {
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'search_read', 
             [[['student_id', '=', parseInt(student_id)]]], 
-            { fields: ['id', 'title', 'description', 'date_due', 'state', 'subject', 'attachment', 'attachment_name'] }
+            { fields: ['id', 'title', 'description', 'date_due', 'state', 'subject_id', 'subject', 'attachment', 'attachment_name'] }
         ]);
-        res.json(result);
+        const formatted = result.map(h => ({
+            ...h,
+            subject: h.subject_id ? h.subject_id[1] : (h.subject || 'Matière')
+        }));
+        res.json(formatted);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
@@ -152,9 +156,14 @@ app.post('/api/school/grades', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
         const result = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [[['student_id', '=', student_id]]], { fields: ['subject', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [[['student_id', '=', student_id]]], { fields: ['subject_id', 'subject', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
         ]);
-        res.json(result);
+        // Normalisation pour le frontend (utiliser subject_id[1] s'il existe)
+        const formatted = result.map(n => ({
+            ...n,
+            subject: n.subject_id ? n.subject_id[1] : (n.subject || 'Matière')
+        }));
+        res.json(formatted);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
@@ -348,9 +357,14 @@ app.post('/api/school/schedule', async (req, res) => {
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.schedule', 'search_read', 
             [[['level_id', '=', level_id]]], 
-            { fields: ['day_of_week', 'start_time', 'end_time', 'subject', 'teacher'] }
+            { fields: ['day_of_week', 'start_time', 'end_time', 'subject_id', 'subject', 'teacher_id', 'teacher'] }
         ]);
-        res.json(result);
+        const formatted = result.map(s => ({
+            ...s,
+            subject: s.subject_id ? s.subject_id[1] : (s.subject || 'Matière'),
+            teacher: s.teacher_id ? s.teacher_id[1] : (s.teacher || 'Enseignant')
+        }));
+        res.json(formatted);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 

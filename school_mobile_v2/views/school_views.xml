@@ -77,6 +77,12 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_school_subject" model="ir.actions.act_window">
+        <field name="name">Matières</field>
+        <field name="res_model">school.subject</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <!-- MENUS -->
     <!-- Menu Racine -->
     <menuitem id="menu_mobile_v2_root" 
@@ -157,6 +163,12 @@
               action="action_school_staff" 
               sequence="20"/>
 
+    <menuitem id="menu_mobile_v2_subject" 
+              name="Matières" 
+              parent="menu_mobile_v2_config" 
+              action="action_school_subject" 
+              sequence="30"/>
+
     <!-- VUES CLASSES -->
     <record id="view_level_tree" model="ir.ui.view">
         <field name="name">school.level.tree</field>
@@ -204,7 +216,7 @@
         <field name="arch" type="xml">
             <list editable="bottom">
                 <field name="student_id"/>
-                <field name="subject"/>
+                <field name="subject_id"/>
                 <field name="semester"/>
                 <field name="cc1"/>
                 <field name="cc2"/>
@@ -224,7 +236,7 @@
                     <group>
                         <group>
                             <field name="student_id"/>
-                            <field name="subject"/>
+                            <field name="subject_id"/>
                             <field name="semester"/>
                         </group>
                         <group>
@@ -286,7 +298,7 @@
                         <page string="Notes" name="grades">
                             <field name="grade_ids" mode="list">
                                 <list editable="bottom">
-                                    <field name="subject"/>
+                                    <field name="subject_id"/>
                                     <field name="semester"/>
                                     <field name="cc1"/>
                                     <field name="cc2"/>
@@ -336,7 +348,7 @@
                 <field name="day_of_week"/>
                 <field name="start_time" widget="float_time"/>
                 <field name="end_time" widget="float_time"/>
-                <field name="subject"/>
+                <field name="subject_id"/>
                 <field name="teacher_id"/>
                 <field name="level_id"/>
             </list>
@@ -376,8 +388,16 @@
                             <field name="teacher_ids">
                                 <list editable="bottom">
                                     <field name="name"/>
-                                    <field name="subject"/>
+                                    <field name="subject_ids" widget="many2many_tags"/>
                                     <field name="phone"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Matières de l'école">
+                            <field name="subject_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="code"/>
                                 </list>
                             </field>
                         </page>
@@ -399,7 +419,7 @@
                         <h1><field name="name" placeholder="Nom du Professeur"/></h1>
                     </div>
                     <group>
-                        <field name="subject"/>
+                        <field name="subject_ids" widget="many2many_tags"/>
                         <field name="phone"/>
                         <field name="email"/>
                     </group>

@@ -11,3 +11,4 @@ access_school_announcement,school_announcement,model_school_announcement,,1,1,1,
 access_school_config,school_config,model_school_config,,1,1,1,1
 access_school_teacher,school_teacher,model_school_teacher,,1,1,1,1
 access_school_staff,school_staff,model_school_staff,,1,1,1,1
+access_school_subject,school_subject,model_school_subject,,1,1,1,1
