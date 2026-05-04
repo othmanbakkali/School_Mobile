@@ -65,6 +65,18 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_school_teacher" model="ir.actions.act_window">
+        <field name="name">Professeurs</field>
+        <field name="res_model">school.teacher</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_school_staff" model="ir.actions.act_window">
+        <field name="name">Personnel Administratif</field>
+        <field name="res_model">school.staff</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <!-- MENUS -->
     <!-- Menu Racine -->
     <menuitem id="menu_mobile_v2_root" 
@@ -132,6 +144,18 @@
               parent="menu_mobile_v2_root" 
               action="action_school_config" 
               sequence="100"/>
+
+    <menuitem id="menu_mobile_v2_teacher" 
+              name="Professeurs" 
+              parent="menu_mobile_v2_config" 
+              action="action_school_teacher" 
+              sequence="10"/>
+
+    <menuitem id="menu_mobile_v2_staff" 
+              name="Personnel" 
+              parent="menu_mobile_v2_config" 
+              action="action_school_staff" 
+              sequence="20"/>
 
     <!-- VUES CLASSES -->
     <record id="view_level_tree" model="ir.ui.view">
@@ -308,13 +332,99 @@
         <field name="name">school.schedule.tree</field>
         <field name="model">school.schedule</field>
         <field name="arch" type="xml">
-            <list>
+            <list editable="bottom">
                 <field name="day_of_week"/>
                 <field name="start_time" widget="float_time"/>
                 <field name="end_time" widget="float_time"/>
                 <field name="subject"/>
+                <field name="teacher_id"/>
                 <field name="level_id"/>
             </list>
+        </field>
+    </record>
+
+    <!-- CONFIG FORM -->
+    <record id="view_school_config_form" model="ir.ui.view">
+        <field name="name">school.config.form</field>
+        <field name="model">school.config</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group string="École">
+                            <field name="name"/>
+                            <field name="school_year"/>
+                            <field name="logo" widget="image" class="oe_avatar"/>
+                        </group>
+                        <group string="Contact">
+                            <field name="phone"/>
+                            <field name="email"/>
+                            <field name="address"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Personnel Administratif">
+                            <field name="staff_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="role"/>
+                                    <field name="phone"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Corps Enseignant">
+                            <field name="teacher_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="subject"/>
+                                    <field name="phone"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- TEACHER FORM -->
+    <record id="view_school_teacher_form" model="ir.ui.view">
+        <field name="name">school.teacher.form</field>
+        <field name="model">school.teacher</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <field name="photo" widget="image" class="oe_avatar"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Nom du Professeur"/></h1>
+                    </div>
+                    <group>
+                        <field name="subject"/>
+                        <field name="phone"/>
+                        <field name="email"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- STAFF FORM -->
+    <record id="view_school_staff_form" model="ir.ui.view">
+        <field name="name">school.staff.form</field>
+        <field name="model">school.staff</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Nom du Personnel"/></h1>
+                    </div>
+                    <group>
+                        <field name="role"/>
+                        <field name="phone"/>
+                        <field name="email"/>
+                    </group>
+                </sheet>
+            </form>
         </field>
     </record>
 

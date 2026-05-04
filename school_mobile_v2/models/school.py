@@ -141,6 +141,27 @@ class SchoolCanteen(models.Model):
     dessert = fields.Char(string='Dessert')
 
 
+class SchoolTeacher(models.Model):
+    _name = 'school.teacher'
+    _description = 'Professeur'
+
+    name = fields.Char(string='Nom complet', required=True)
+    subject = fields.Char(string='Matière principale')
+    phone = fields.Char(string='Téléphone')
+    email = fields.Char(string='Email')
+    photo = fields.Binary(string='Photo')
+
+
+class SchoolStaff(models.Model):
+    _name = 'school.staff'
+    _description = 'Personnel Administratif'
+
+    name = fields.Char(string='Nom complet', required=True)
+    role = fields.Char(string='Poste / Rôle')
+    phone = fields.Char(string='Téléphone')
+    email = fields.Char(string='Email')
+
+
 class SchoolSchedule(models.Model):
     _name = 'school.schedule'
     _description = 'Emploi du temps'
@@ -158,7 +179,8 @@ class SchoolSchedule(models.Model):
     start_time = fields.Float(string='Heure de début', required=True)
     end_time = fields.Float(string='Heure de fin', required=True)
     subject = fields.Char(string='Matière', required=True)
-    teacher = fields.Char(string='Enseignant')
+    teacher = fields.Char(string='Enseignant (Texte)')
+    teacher_id = fields.Many2one('school.teacher', string='Professeur (Sélection)')
     level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True)
 
 
@@ -186,3 +208,5 @@ class SchoolConfig(models.Model):
     address = fields.Text(string='Adresse')
     phone = fields.Char(string='Téléphone')
     email = fields.Char(string='Email Administrative')
+    staff_ids = fields.Many2many('school.staff', string='Personnel Administratif')
+    teacher_ids = fields.Many2many('school.teacher', string='Corps Enseignant')
