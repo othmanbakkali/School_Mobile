@@ -518,7 +518,7 @@ app.post('/api/school/payments', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/api/school/lost-items', async (req, res) => {
+app.post('/api/school/lost-items', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
         const result = await callOdoo('object', 'execute_kw', [
