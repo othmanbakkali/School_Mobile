@@ -7,7 +7,7 @@ import { defineConfig } from 'vite'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? '/Gold_Project/' : '/',
+  base: '/',
   plugins: [
     vue(),
     legacy()
