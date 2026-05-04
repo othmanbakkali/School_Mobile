@@ -128,7 +128,11 @@ app.post('/api/school/homework', async (req, res) => {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
         let domain = [['student_id', '=', parseInt(student_id)]];
-        if (yearId) domain.push(['year_id', '=', yearId]);
+        if (yearId) {
+            domain.unshift('|');
+            domain.push(['year_id', '=', yearId]);
+            domain.push(['year_id', '=', false]);
+        }
         
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'search_read', 
@@ -175,7 +179,11 @@ app.post('/api/school/grades', async (req, res) => {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
         let domain = [['student_id', '=', student_id]];
-        if (yearId) domain.push(['year_id', '=', yearId]);
+        if (yearId) {
+            domain.unshift('|');
+            domain.push(['year_id', '=', yearId]);
+            domain.push(['year_id', '=', false]);
+        }
 
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [domain], { fields: ['subject_id', 'subject', 'year_id', 'semester_id', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
@@ -380,7 +388,11 @@ app.post('/api/school/schedule', async (req, res) => {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
         let domain = [['level_id', '=', level_id]];
-        if (yearId) domain.push(['year_id', '=', yearId]);
+        if (yearId) {
+            domain.unshift('|');
+            domain.push(['year_id', '=', yearId]);
+            domain.push(['year_id', '=', false]);
+        }
 
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.schedule', 'search_read', 
@@ -484,7 +496,11 @@ app.post('/api/school/payments', async (req, res) => {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
         let domain = [['student_id', '=', parseInt(student_id)]];
-        if (yearId) domain.push(['year_id', '=', yearId]);
+        if (yearId) {
+            domain.unshift('|');
+            domain.push(['year_id', '=', yearId]);
+            domain.push(['year_id', '=', false]);
+        }
 
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.payment', 'search_read', 
