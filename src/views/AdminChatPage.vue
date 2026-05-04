@@ -79,7 +79,7 @@
               v-model="newMessage"
               placeholder="Répondre au parent..."
               auto-grow
-              rows="1"
+              :rows="1"
               class="message-input"
               @keypress.enter.prevent="send"
             ></ion-textarea>

@@ -63,7 +63,7 @@
               v-model="newMessage"
               placeholder="Message"
               auto-grow
-              rows="1"
+              :rows="1"
               class="message-input"
               @keypress.enter.prevent="send"
             ></ion-textarea>

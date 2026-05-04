@@ -16,7 +16,7 @@
         <ion-searchbar 
           v-model="searchQuery" 
           placeholder="Rechercher un élève..." 
-          animated="true"
+          :animated="true"
           class="custom-searchbar"
         ></ion-searchbar>
       </ion-toolbar>
