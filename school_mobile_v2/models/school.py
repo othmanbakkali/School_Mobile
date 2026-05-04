@@ -76,6 +76,27 @@ class SchoolSubject(models.Model):
     code = fields.Char(string='Code')
 
 
+class SchoolYear(models.Model):
+    _name = 'school.year'
+    _description = 'Année Scolaire'
+
+    name = fields.Char(string='Année Scolaire', required=True)
+    active = fields.Boolean(string='Actif', default=True)
+    semester_ids = fields.One2many('school.semester', 'year_id', string='Semestres')
+
+    _sql_constraints = [
+        ('name_unique', 'unique(name)', 'L\'année scolaire doit être unique !')
+    ]
+
+
+class SchoolSemester(models.Model):
+    _name = 'school.semester'
+    _description = 'Semestre'
+
+    name = fields.Char(string='Nom du Semestre', required=True)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', ondelete='cascade')
+
+
 class SchoolAttendance(models.Model):
     _name = 'school.attendance'
     _description = 'Absences et Retards'
@@ -90,6 +111,7 @@ class SchoolAttendance(models.Model):
     duration = fields.Integer(string='Durée (min)')
     reason = fields.Char(string='Motif')
     is_justified = fields.Boolean(string='Justifié', default=False)
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
 
 
 class SchoolHomework(models.Model):
@@ -103,6 +125,7 @@ class SchoolHomework(models.Model):
     date_due = fields.Date(string="Date d'échéance")
     level_id = fields.Many2one('school.level', string='Niveau / Classe', help="Sélectionnez un niveau pour envoyer à tous les élèves")
     student_id = fields.Many2one('school.student', string='Élève')
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
     state = fields.Selection([('draft', 'En cours'), ('done', 'Fait')], default='draft')
     attachment = fields.Binary(string='Pièce Jointe')
     attachment_name = fields.Char(string='Nom du fichier')
@@ -128,10 +151,12 @@ class SchoolGrade(models.Model):
 
     subject = fields.Char(string='Matière (Texte)')
     subject_id = fields.Many2one('school.subject', string='Matière (Sélection)')
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    semester_id = fields.Many2one('school.semester', string='Semestre (Sélection)')
     semester = fields.Selection([
         ('S1', 'Semestre 1'),
         ('S2', 'Semestre 2'),
-    ], string='Semestre', default='S1')
+    ], string='Semestre (Texte)', default='S1')
     cc1 = fields.Float(string='CC1', default=0.0)
     cc2 = fields.Float(string='CC2', default=0.0)
     oral_mark = fields.Float(string='Note Oral', default=0.0)
@@ -194,6 +219,7 @@ class SchoolSchedule(models.Model):
     teacher = fields.Char(string='Enseignant (Texte)')
     teacher_id = fields.Many2one('school.teacher', string='Professeur (Sélection)')
     level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True)
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
 
 
 class SchoolAnnouncement(models.Model):
@@ -208,6 +234,7 @@ class SchoolAnnouncement(models.Model):
     author_id = fields.Many2one('res.users', string='Auteur', default=lambda self: self.env.user)
     attachment = fields.Binary(string='Pièce Jointe')
     attachment_name = fields.Char(string='Nom du fichier')
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
 
 
 class SchoolConfig(models.Model):
@@ -215,7 +242,8 @@ class SchoolConfig(models.Model):
     _description = 'Paramétrage École'
 
     name = fields.Char(string='Nom de l\'école', default='Mon École')
-    school_year = fields.Char(string='Année Scolaire', default='2025-2026')
+    school_year = fields.Char(string='Année Scolaire (Texte)')
+    current_year_id = fields.Many2one('school.year', string='Année Scolaire Actuelle')
     logo = fields.Binary(string='Logo de l\'application')
     address = fields.Text(string='Adresse')
     phone = fields.Char(string='Téléphone')

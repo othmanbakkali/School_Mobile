@@ -156,12 +156,14 @@ app.post('/api/school/grades', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
         const result = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [[['student_id', '=', student_id]]], { fields: ['subject_id', 'subject', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [[['student_id', '=', student_id]]], { fields: ['subject_id', 'subject', 'year_id', 'semester_id', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
         ]);
         // Normalisation pour le frontend (utiliser subject_id[1] s'il existe)
         const formatted = result.map(n => ({
             ...n,
-            subject: n.subject_id ? n.subject_id[1] : (n.subject || 'Matière')
+            subject: n.subject_id ? n.subject_id[1] : (n.subject || 'Matière'),
+            academic_year: n.year_id ? n.year_id[1] : '',
+            semester_name: n.semester_id ? n.semester_id[1] : (n.semester || '')
         }));
         res.json(formatted);
     } catch (error) { res.status(500).json({ error: error.message }); }

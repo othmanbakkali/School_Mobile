@@ -83,6 +83,12 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_school_year" model="ir.actions.act_window">
+        <field name="name">Années Scolaires</field>
+        <field name="res_model">school.year</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <!-- MENUS -->
     <!-- Menu Racine -->
     <menuitem id="menu_mobile_v2_root" 
@@ -169,6 +175,12 @@
               action="action_school_subject" 
               sequence="30"/>
 
+    <menuitem id="menu_mobile_v2_year" 
+              name="Années Scolaires" 
+              parent="menu_mobile_v2_config" 
+              action="action_school_year" 
+              sequence="40"/>
+
     <!-- VUES CLASSES -->
     <record id="view_level_tree" model="ir.ui.view">
         <field name="name">school.level.tree</field>
@@ -216,8 +228,9 @@
         <field name="arch" type="xml">
             <list editable="bottom">
                 <field name="student_id"/>
+                <field name="year_id"/>
                 <field name="subject_id"/>
-                <field name="semester"/>
+                <field name="semester_id"/>
                 <field name="cc1"/>
                 <field name="cc2"/>
                 <field name="oral_mark"/>
@@ -365,7 +378,7 @@
                     <group>
                         <group string="École">
                             <field name="name"/>
-                            <field name="school_year"/>
+                            <field name="current_year_id"/>
                             <field name="logo" widget="image" class="oe_avatar"/>
                         </group>
                         <group string="Contact">
@@ -533,4 +546,31 @@
             </list>
         </field>
     </record>
+    <!-- YEAR FORM -->
+    <record id="view_school_year_form" model="ir.ui.view">
+        <field name="name">school.year.form</field>
+        <field name="model">school.year</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Ex: 2025-2026"/></h1>
+                    </div>
+                    <group>
+                        <field name="active"/>
+                    </group>
+                    <notebook>
+                        <page string="Semestres">
+                            <field name="semester_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
 </odoo>
