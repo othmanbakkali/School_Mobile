@@ -98,6 +98,26 @@
               </div>
             </ion-col>
           </ion-row>
+          <ion-row class="ion-margin-top">
+            <ion-col size="6" class="ion-padding-end">
+              <div class="action-tile payment-tile" @click="router.push('/tabs/tab3')">
+                <div class="icon-box">
+                  <ion-icon :icon="walletOutline"></ion-icon>
+                </div>
+                <h3>Paiements</h3>
+                <p>Suivi mensuel</p>
+              </div>
+            </ion-col>
+            <ion-col size="6" class="ion-padding-start">
+              <div class="action-tile lost-tile" @click="router.push('/tabs/tab3')">
+                <div class="icon-box">
+                  <ion-icon :icon="searchOutline"></ion-icon>
+                </div>
+                <h3>Lost & Found</h3>
+                <p>Objets perdus</p>
+              </div>
+            </ion-col>
+          </ion-row>
         </ion-grid>
 
         <!-- Fil d'actualité -->
@@ -162,7 +182,7 @@ import {
   IonAvatar, IonGrid, IonRow, IonCol, IonSpinner, toastController,
   onIonViewWillEnter
 } from '@ionic/vue';
-import { notificationsOutline, bookOutline, restaurantOutline, logOutOutline, calculatorOutline, megaphoneOutline, documentAttachOutline } from 'ionicons/icons';
+import { notificationsOutline, bookOutline, restaurantOutline, logOutOutline, calculatorOutline, megaphoneOutline, documentAttachOutline, walletOutline, searchOutline } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
@@ -493,6 +513,8 @@ onUnmounted(() => {
 
 .homework-tile .icon-box { background: #eff6ff; color: #3b82f6; }
 .canteen-tile .icon-box { background: #fff7ed; color: #f59e0b; }
+.payment-tile .icon-box { background: #f0fdf4; color: #10b981; }
+.lost-tile .icon-box { background: #fdf2f8; color: #db2777; }
 .admin-tile { flex-direction: row; align-items: center; background: linear-gradient(90deg, #1e293b, #334155); color: white; }
 .admin-tile .icon-box { background: rgba(255, 255, 255, 0.1); color: #8b5cf6; }
 .admin-tile h3 { color: white; margin: 0; }

@@ -124,6 +124,7 @@ class SchoolAttendance(models.Model):
 class SchoolHomework(models.Model):
     _name = 'school.homework'
     _description = 'Devoirs'
+    _order = 'date_due desc'
 
     title = fields.Char(string='Titre', required=True)
     description = fields.Text(string='Description')
