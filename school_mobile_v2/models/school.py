@@ -42,6 +42,30 @@ class SchoolStudent(models.Model):
     grade_ids = fields.One2many('school.grade', 'student_id', string='Notes')
     attendance_ids = fields.One2many('school.attendance', 'student_id', string='Absences/Retards')
     ems_id = fields.Integer(string='ID EMS')
+    album_count = fields.Integer(compute='_compute_album_count', string='Photos Album')
+
+    def _compute_album_count(self):
+        for student in self:
+            student.album_count = self.env['ir.attachment'].search_count([
+                ('res_model', '=', 'school.student'),
+                ('res_id', '=', student.id),
+                ('mimetype', 'ilike', 'image')
+            ])
+
+    def action_view_album(self):
+        self.ensure_one()
+        return {
+            'name': 'Album Photo',
+            'type': 'ir.actions.act_window',
+            'res_model': 'ir.attachment',
+            'view_mode': 'kanban,list,form',
+            'domain': [('res_model', '=', 'school.student'), ('res_id', '=', self.id), ('mimetype', 'ilike', 'image')],
+            'context': {
+                'default_res_model': 'school.student',
+                'default_res_id': self.id,
+            },
+            'target': 'current',
+        }
 
 
 class SchoolAttendance(models.Model):
