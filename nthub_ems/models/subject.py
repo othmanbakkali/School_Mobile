@@ -18,6 +18,8 @@ class Subject(models.Model):
                                         domain="[('department_id', '=', department_id)]")
     instructor_ids = fields.Many2many("res.partner", string='Instructor', domain="[('is_teacher','=',True)]")
     code = fields.Char(string=_("Code"))
+    cc1_full_mark = fields.Integer(string=_("CC1 Full Mark"), default=0)
+    cc2_full_mark = fields.Integer(string=_("CC2 Full Mark"), default=0)
     oral_mark = fields.Integer(string=_("Oral Full Mark"))
     mid_term_mark = fields.Integer(string=_("Mid Term Full Mark"))
     final_full_mark = fields.Integer(string=_("Final Full Mark"))
@@ -116,7 +118,7 @@ class Subject(models.Model):
             mid-term mark, and final full mark.
       """
         for rec in self:
-            rec.total_mark = rec.oral_mark + rec.mid_term_mark + rec.final_full_mark
+            rec.total_mark = rec.cc1_full_mark + rec.cc2_full_mark + rec.oral_mark + rec.mid_term_mark + rec.final_full_mark
 
     def action_show_details(self):
         """

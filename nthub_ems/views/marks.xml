@@ -11,6 +11,9 @@
                     <field name="office_year" widget="text" />
                     <field name="education_record_id" invisible="1" />
                     <field name="subject_id" />
+                    <field name="semester" />
+                    <field name="cc1_mark" />
+                    <field name="cc2_mark" />
                     <field name="oral_mark" />
                     <field name="term_mark" />
                     <field name="final_mark" />
@@ -48,6 +51,9 @@
                                 <field name="education_record_id" invisible="1" />
                             </group>
                             <group>
+                                <field name="semester" widget="radio" options="{'horizontal': true}" readonly="state == 'confirm'" />
+                                <field name="cc1_mark" readonly="state == 'confirm'" />
+                                <field name="cc2_mark" readonly="state == 'confirm'" />
                                 <field name="oral_mark" readonly="state == 'confirm'" />
                                 <field name="term_mark" readonly="state == 'confirm'" />
                                 <field name="final_mark" readonly="state == 'confirm'" />

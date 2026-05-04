@@ -12,6 +12,32 @@
                             <setting help="Define Evaluation Type">
                                 <field name="evaluation_type"/>
                             </setting>
+                            <setting help="Set the current school year">
+                                <field name="school_year"/>
+                            </setting>
+                            <setting help="Upload the application logo">
+                                <field name="school_logo" widget="image"/>
+                            </setting>
+                            <setting help="Enter school identification and contact details">
+                                <div class="content-group">
+                                    <div class="row">
+                                        <label for="school_name" class="col-lg-3 o_light_label"/>
+                                        <field name="school_name" class="oe_inline"/>
+                                    </div>
+                                    <div class="row">
+                                        <label for="school_phone" class="col-lg-3 o_light_label"/>
+                                        <field name="school_phone" class="oe_inline"/>
+                                    </div>
+                                    <div class="row">
+                                        <label for="school_email" class="col-lg-3 o_light_label"/>
+                                        <field name="school_email" class="oe_inline"/>
+                                    </div>
+                                    <div class="row">
+                                        <label for="school_address" class="col-lg-3 o_light_label"/>
+                                        <field name="school_address" class="oe_inline"/>
+                                    </div>
+                                </div>
+                            </setting>
                         </block>
                     </app>
                 </xpath>

@@ -118,6 +118,12 @@ class SchoolGrade(models.Model):
     _description = 'Notes'
 
     subject = fields.Char(string='Matière')
+    semester = fields.Selection([
+        ('S1', 'Semestre 1'),
+        ('S2', 'Semestre 2'),
+    ], string='Semestre', default='S1')
+    cc1 = fields.Float(string='CC1', default=0.0)
+    cc2 = fields.Float(string='CC2', default=0.0)
     oral_mark = fields.Float(string='Note Oral', default=0.0)
     mid_term_mark = fields.Float(string='Note Mid-term', default=0.0)
     final_mark = fields.Float(string='Note Finale', default=0.0)
@@ -168,3 +174,15 @@ class SchoolAnnouncement(models.Model):
     author_id = fields.Many2one('res.users', string='Auteur', default=lambda self: self.env.user)
     attachment = fields.Binary(string='Pièce Jointe')
     attachment_name = fields.Char(string='Nom du fichier')
+
+
+class SchoolConfig(models.Model):
+    _name = 'school.config'
+    _description = 'Paramétrage École'
+
+    name = fields.Char(string='Nom de l\'école', default='Mon École')
+    school_year = fields.Char(string='Année Scolaire', default='2025-2026')
+    logo = fields.Binary(string='Logo de l\'application')
+    address = fields.Text(string='Adresse')
+    phone = fields.Char(string='Téléphone')
+    email = fields.Char(string='Email Administrative')

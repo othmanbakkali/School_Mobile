@@ -59,6 +59,12 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_school_config" model="ir.actions.act_window">
+        <field name="name">Configuration École</field>
+        <field name="res_model">school.config</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <!-- MENUS -->
     <!-- Menu Racine -->
     <menuitem id="menu_mobile_v2_root" 
@@ -121,6 +127,12 @@
               action="action_announcement_v2" 
               sequence="70"/>
 
+    <menuitem id="menu_mobile_v2_config" 
+              name="Configuration" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_config" 
+              sequence="100"/>
+
     <!-- VUES CLASSES -->
     <record id="view_level_tree" model="ir.ui.view">
         <field name="name">school.level.tree</field>
@@ -169,6 +181,9 @@
             <list editable="bottom">
                 <field name="student_id"/>
                 <field name="subject"/>
+                <field name="semester"/>
+                <field name="cc1"/>
+                <field name="cc2"/>
                 <field name="oral_mark"/>
                 <field name="mid_term_mark"/>
                 <field name="final_mark" sum="Moyenne"/>
@@ -186,8 +201,11 @@
                         <group>
                             <field name="student_id"/>
                             <field name="subject"/>
+                            <field name="semester"/>
                         </group>
                         <group>
+                            <field name="cc1"/>
+                            <field name="cc2"/>
                             <field name="oral_mark"/>
                             <field name="mid_term_mark"/>
                             <field name="final_mark"/>
@@ -245,6 +263,9 @@
                             <field name="grade_ids" mode="list">
                                 <list editable="bottom">
                                     <field name="subject"/>
+                                    <field name="semester"/>
+                                    <field name="cc1"/>
+                                    <field name="cc2"/>
                                     <field name="oral_mark"/>
                                     <field name="mid_term_mark"/>
                                     <field name="final_mark" decoration-bf="1"/>

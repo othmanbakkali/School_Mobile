@@ -70,17 +70,45 @@
 
         <!-- ==================== NOTES ==================== -->
         <div v-else-if="selectedSegment === 'notes'" class="notes-view">
-          <div v-if="notes.length === 0" class="empty-state">
-            📝 Aucune note disponible.
+          <!-- Filtre Semestre -->
+          <div class="semester-filter">
+            <ion-segment v-model="selectedSemester" mode="ios" class="mini-segment">
+              <ion-segment-button value="S1">
+                <ion-label>Semestre 1</ion-label>
+              </ion-segment-button>
+              <ion-segment-button value="S2">
+                <ion-label>Semestre 2</ion-label>
+              </ion-segment-button>
+            </ion-segment>
           </div>
-          <div class="premium-card notes-list-card">
-            <div v-for="note in notes" :key="note.id" class="note-item">
-              <div class="note-main">
-                <h4>{{ note.subject || 'Matière' }}</h4>
-                <p>Oral: {{ note.oral_mark }} | Partiel: {{ note.mid_term_mark }}</p>
-              </div>
-              <div class="note-score" :class="getGradeClass(note.final_mark)">
+
+          <div v-if="filteredNotes.length === 0" class="empty-state">
+            📝 Aucune note pour ce semestre.
+          </div>
+          
+          <div v-for="note in filteredNotes" :key="note.id" class="premium-card note-card-detailed">
+            <div class="note-header">
+              <span class="subject-title">{{ note.subject || 'Matière' }}</span>
+              <div class="final-score" :class="getGradeClass(note.final_mark)">
                 {{ note.final_mark }}
+              </div>
+            </div>
+            <div class="marks-grid">
+              <div class="mark-sub">
+                <span class="mark-label">CC1</span>
+                <span class="mark-val">{{ note.cc1 || 0 }}</span>
+              </div>
+              <div class="mark-sub">
+                <span class="mark-label">CC2</span>
+                <span class="mark-val">{{ note.cc2 || 0 }}</span>
+              </div>
+              <div class="mark-sub">
+                <span class="mark-label">Oral</span>
+                <span class="mark-val">{{ note.oral_mark || 0 }}</span>
+              </div>
+              <div class="mark-sub">
+                <span class="mark-label">Partiel</span>
+                <span class="mark-val">{{ note.mid_term_mark || 0 }}</span>
               </div>
             </div>
           </div>
@@ -179,6 +207,11 @@ const attendances = ref<any[]>([]);
 const schedule = ref<any[]>([]);
 const loading = ref(true);
 const activeScheduleDay = ref((new Date().getDay() === 0 ? 6 : new Date().getDay() - 1).toString());
+const selectedSemester = ref('S1');
+
+const filteredNotes = computed(() => {
+  return notes.value.filter(n => n.semester === selectedSemester.value);
+});
 
 // Compteurs absences
 const absenceCount = computed(() => attendances.value.filter(a => a.type === 'absence').length);
@@ -379,12 +412,67 @@ ion-segment-button {
 .done-btn { --color: #10b981; font-weight: 700; font-size: 0.75rem; --padding-end: 0; }
 
 /* Notes */
-.notes-list-card { background: white; padding: 0; }
-.note-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f1f5f9; }
-.note-item:last-child { border-bottom: none; }
-.note-main h4 { margin: 0; font-weight: 700; color: #1e293b; }
-.note-main p { margin: 2px 0 0; font-size: 0.8rem; color: #94a3b8; }
-.note-score { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 1.1rem; font-weight: 800; }
+.semester-filter {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+}
+.mini-segment {
+  max-width: 250px;
+  --background: #e2e8f0;
+}
+.note-card-detailed {
+  margin-bottom: 16px;
+  padding: 16px;
+}
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.subject-title {
+  font-weight: 800;
+  color: #1e293b;
+  font-size: 1.1rem;
+}
+.final-score {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.marks-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.mark-sub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f8fafc;
+  padding: 8px;
+  border-radius: 8px;
+}
+.mark-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+.mark-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #334155;
+  margin-top: 2px;
+}
 .grade-high { background: #f0fdf4; color: #10b981; }
 .grade-mid  { background: #eff6ff; color: #3b82f6; }
 .grade-low  { background: #fef2f2; color: #ef4444; }

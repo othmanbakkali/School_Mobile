@@ -40,6 +40,8 @@
                                 <field name="instructor_ids" options="{'no_open': True, 'no_create': True}" widget="many2many_tags" />
                             </group>
                             <group string="Evaluation Data">
+                                <field name="cc1_full_mark" />
+                                <field name="cc2_full_mark" />
                                 <field name="oral_mark" />
                                 <field name="mid_term_mark" />
                                 <field name="final_full_mark" />

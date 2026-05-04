@@ -16,6 +16,9 @@ class Marks(models.Model):
     sitting_number = fields.Char(string=_("Sitting Number"), related='education_record_id.sitting_number')
     education_record_id = fields.Many2one("education.record", string=_('Education Record'))
     office_year = fields.Integer(string=_('Office Year'))
+    semester = fields.Selection([('S1', 'Semester 1'), ('S2', 'Semester 2')], string=_('Semester'), default='S1')
+    cc1_mark = fields.Integer(string=_("CC1 Mark"))
+    cc2_mark = fields.Integer(string=_("CC2 Mark"))
     subject_id = fields.Many2one("subject", string=_('Subject'), required=True)
     subjects_domain_ids = fields.Many2many("subject", compute='_compute_subjects_domain_ids', store=True)
     oral_mark = fields.Integer(string=_("Oral Mark"))
@@ -217,10 +220,7 @@ class Marks(models.Model):
     If the final mark is greater than 0, it includes it in the calculation; otherwise, it excludes it.
     """
         for rec in self:
-            if rec.final_mark > 0:
-                rec.total_mark = rec.oral_mark + rec.term_mark + rec.final_mark
-            else:
-                rec.total_mark = rec.oral_mark + rec.term_mark
+            rec.total_mark = rec.cc1_mark + rec.cc2_mark + rec.oral_mark + rec.term_mark + (rec.final_mark if rec.final_mark > 0 else 0)
 
     @api.depends('total_mark', 'subject_id')
     def _calc_subject_percentage(self):
