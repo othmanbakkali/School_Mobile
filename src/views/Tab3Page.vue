@@ -73,41 +73,15 @@
 
         <div class="section-container" style="margin-top: 35px;">
           <div class="section-title">
-            <h2>💰 Mes Paiements</h2>
-            <p>Historique des frais de scolarité</p>
+            <h2>📸 Album Photo</h2>
+            <p>Les moments forts de la vie scolaire</p>
           </div>
-          <div v-if="payments.length === 0" class="premium-card ion-padding empty-state-small">
-            <p>Aucun paiement enregistré pour l'année en cours.</p>
+          <div v-if="albumPhotos.length === 0" class="premium-card ion-padding empty-state-small">
+            <p>Aucune photo disponible pour le moment.</p>
           </div>
-          <div v-else class="payments-list">
-            <div v-for="pay in payments" :key="pay.id" class="premium-card payment-item">
-              <div class="pay-month">{{ formatMonth(pay.month) }}</div>
-              <div class="pay-info">
-                <h4>{{ pay.amount }} DHS</h4>
-                <p>{{ formatDate(pay.date) }}</p>
-              </div>
-              <div class="pay-status" :class="pay.state">{{ pay.state === 'paid' ? 'Payé' : 'En attente' }}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-container" style="margin-top: 35px;">
-          <div class="section-title">
-            <h2>🔍 Objets Perdus</h2>
-            <p>Retrouvez vos affaires égarées</p>
-          </div>
-          <div v-if="lostItems.length === 0" class="premium-card ion-padding empty-state-small">
-            <p>Aucun objet perdu signalé récemment.</p>
-          </div>
-          <div v-else class="lost-items-grid">
-            <div v-for="item in lostItems" :key="item.id" class="premium-card lost-item-card">
-              <img v-if="item.photo" :src="'data:image/png;base64,' + item.photo" class="lost-img" />
-              <div v-else class="lost-placeholder">📦</div>
-              <div class="lost-info ion-padding">
-                <h3>{{ item.name }}</h3>
-                <p>{{ item.location || 'Lieu inconnu' }}</p>
-                <small>{{ formatDate(item.date_found) }}</small>
-              </div>
+          <div v-else class="album-scroll">
+            <div v-for="photo in albumPhotos" :key="photo.id" class="album-item" @click="router.push('/tabs/tab4')">
+              <img :src="photo.image_url" />
             </div>
           </div>
         </div>
@@ -162,22 +136,7 @@ const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
 const activeDay = ref('Lun');
 const allMenus = ref<any[]>([]);
 const contacts = ref<any[]>([]);
-const payments = ref<any[]>([]);
-const lostItems = ref<any[]>([]);
-
-const formatMonth = (m: string) => {
-    const months: any = {
-        '01': 'Jan', '02': 'Fév', '03': 'Mar', '04': 'Avr',
-        '05': 'Mai', '06': 'Juin', '07': 'Juil', '08': 'Août',
-        '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Déc'
-    };
-    return months[m] || m;
-};
-
-const formatDate = (d: string) => {
-    if (!d) return '';
-    return new Date(d).toLocaleDateString('fr-FR');
-};
+const albumPhotos = ref<any[]>([]);
 
 const fetchData = async () => {
     const config = odoo.userConfig;
@@ -194,9 +153,8 @@ const fetchData = async () => {
         const studentId = students.find((s: any) => s.id === selectedId)?.id || students[0]?.id;
         
         if (studentId) {
-            payments.value = await odoo.getPayments(studentId);
+            albumPhotos.value = await odoo.getStudentAlbum(studentId);
         }
-        lostItems.value = await odoo.getLostItems();
     } catch (e: any) {
         console.error('Fetch failed', e);
         if (e.message?.includes('401') || e.message?.includes('Not logged in')) {
