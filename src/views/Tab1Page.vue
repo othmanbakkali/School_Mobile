@@ -98,26 +98,6 @@
               </div>
             </ion-col>
           </ion-row>
-          <ion-row class="ion-margin-top">
-            <ion-col size="6" class="ion-padding-end">
-              <div class="action-tile payment-tile" @click="router.push('/tabs/tab3')">
-                <div class="icon-box">
-                  <ion-icon :icon="walletOutline"></ion-icon>
-                </div>
-                <h3>Paiements</h3>
-                <p>Suivi mensuel</p>
-              </div>
-            </ion-col>
-            <ion-col size="6" class="ion-padding-start">
-              <div class="action-tile lost-tile" @click="router.push('/tabs/tab3')">
-                <div class="icon-box">
-                  <ion-icon :icon="searchOutline"></ion-icon>
-                </div>
-                <h3>Lost & Found</h3>
-                <p>Objets perdus</p>
-              </div>
-            </ion-col>
-          </ion-row>
         </ion-grid>
 
         <!-- Fil d'actualité -->
