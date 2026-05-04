@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet } from '@ionic/vue';
-import { homeOutline, schoolOutline, restaurantOutline, walletOutline, searchOutline } from 'ionicons/icons';
+import { homeOutline, schoolOutline, restaurantOutline, imagesOutline } from 'ionicons/icons';
 </script>
 
 <style scoped>
