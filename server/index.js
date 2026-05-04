@@ -484,10 +484,7 @@ app.post('/api/school/admin/incoming-messages', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// Catch-all route to serve the Vue app for any other request (SPA fallback)
-app.use((req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
-});
+app.use(express.static(path.join(__dirname, '../dist')));
 
 const PORT = process.env.PORT || 3000;
 app.post('/api/school/payments', async (req, res) => {
@@ -521,6 +518,11 @@ app.get('/api/school/lost-items', async (req, res) => {
         ]);
         res.json(result);
     } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// Catch-all route to serve the Vue app for any other request (SPA fallback)
+app.use((req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 app.listen(3000, () => {
