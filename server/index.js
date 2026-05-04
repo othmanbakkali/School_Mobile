@@ -1,13 +1,18 @@
-
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Serve static files from the Vue app
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// API routes... (existing routes)
 
 const ODOO_URL = process.env.ODOO_URL;
 const ODOO_DB = process.env.ODOO_DB;
@@ -425,5 +430,10 @@ app.post('/api/school/admin/incoming-messages', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// Catch-all route to serve the Vue app for any other request
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Safe Mode V2 Backend running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Production Backend running on port ${PORT}`));

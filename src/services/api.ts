@@ -1,5 +1,5 @@
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.DEV ? (import.meta.env.VITE_API_URL || 'http://localhost:3000') : '';
 
 export async function apiRequest(path: string, body: any) {
   const url = path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
