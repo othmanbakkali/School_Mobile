@@ -73,6 +73,47 @@
 
         <div class="section-container" style="margin-top: 35px;">
           <div class="section-title">
+            <h2>💰 Mes Paiements</h2>
+            <p>Historique des frais de scolarité</p>
+          </div>
+          <div v-if="payments.length === 0" class="premium-card ion-padding empty-state-small">
+            <p>Aucun paiement enregistré pour l'année en cours.</p>
+          </div>
+          <div v-else class="payments-list">
+            <div v-for="pay in payments" :key="pay.id" class="premium-card payment-item">
+              <div class="pay-month">{{ formatMonth(pay.month) }}</div>
+              <div class="pay-info">
+                <h4>{{ pay.amount }} DHS</h4>
+                <p>{{ formatDate(pay.date) }}</p>
+              </div>
+              <div class="pay-status" :class="pay.state">{{ pay.state === 'paid' ? 'Payé' : 'En attente' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-container" style="margin-top: 35px;">
+          <div class="section-title">
+            <h2>🔍 Objets Perdus</h2>
+            <p>Retrouvez vos affaires égarées</p>
+          </div>
+          <div v-if="lostItems.length === 0" class="premium-card ion-padding empty-state-small">
+            <p>Aucun objet perdu signalé récemment.</p>
+          </div>
+          <div v-else class="lost-items-grid">
+            <div v-for="item in lostItems" :key="item.id" class="premium-card lost-item-card">
+              <img v-if="item.photo" :src="'data:image/png;base64,' + item.photo" class="lost-img" />
+              <div v-else class="lost-placeholder">📦</div>
+              <div class="lost-info ion-padding">
+                <h3>{{ item.name }}</h3>
+                <p>{{ item.location || 'Lieu inconnu' }}</p>
+                <small>{{ formatDate(item.date_found) }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-container" style="margin-top: 35px;">
+          <div class="section-title">
             <h2>💬 Messagerie Directe</h2>
             <p>Discuter avec l'administration en temps réel</p>
           </div>
@@ -121,7 +162,22 @@ const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
 const activeDay = ref('Lun');
 const allMenus = ref<any[]>([]);
 const contacts = ref<any[]>([]);
-const adminMessage = ref('');
+const payments = ref<any[]>([]);
+const lostItems = ref<any[]>([]);
+
+const formatMonth = (m: string) => {
+    const months: any = {
+        '01': 'Jan', '02': 'Fév', '03': 'Mar', '04': 'Avr',
+        '05': 'Mai', '06': 'Juin', '07': 'Juil', '08': 'Août',
+        '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Déc'
+    };
+    return months[m] || m;
+};
+
+const formatDate = (d: string) => {
+    if (!d) return '';
+    return new Date(d).toLocaleDateString('fr-FR');
+};
 
 const fetchData = async () => {
     const config = odoo.userConfig;
@@ -132,6 +188,15 @@ const fetchData = async () => {
     try {
         allMenus.value = await apiRequest('/api/school/canteen', {});
         contacts.value = await apiRequest('/api/school/contacts', {});
+        
+        const students = await apiRequest('/api/school/student', { email: config.email });
+        const selectedId = odoo.selectedStudentId;
+        const studentId = students.find((s: any) => s.id === selectedId)?.id || students[0]?.id;
+        
+        if (studentId) {
+            payments.value = await odoo.getPayments(studentId);
+        }
+        lostItems.value = await odoo.getLostItems();
     } catch (e: any) {
         console.error('Fetch failed', e);
         if (e.message?.includes('401') || e.message?.includes('Not logged in')) {
@@ -376,5 +441,86 @@ const currentMenu = computed(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.payments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.payment-item {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  gap: 15px;
+  background: white;
+}
+
+.pay-month {
+  width: 50px;
+  height: 50px;
+  background: #f0fdf4;
+  color: #16a34a;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.pay-info { flex: 1; }
+.pay-info h4 { margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b; }
+.pay-info p { margin: 2px 0 0; font-size: 0.8rem; color: #94a3b8; }
+
+.pay-status {
+  padding: 6px 12px;
+  border-radius: 50px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.pay-status.paid { background: #dcfce7; color: #16a34a; }
+.pay-status.unpaid { background: #fee2e2; color: #ef4444; }
+
+.lost-items-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.lost-item-card {
+  background: white;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.lost-img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+}
+
+.lost-placeholder {
+  width: 100%;
+  height: 100px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.lost-info h3 { margin: 0; font-size: 0.95rem; font-weight: 700; color: #1e293b; }
+.lost-info p { margin: 2px 0 0; font-size: 0.75rem; color: #64748b; }
+.lost-info small { display: block; margin-top: 5px; color: #94a3b8; font-size: 0.65rem; }
+
+.empty-state-small {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
 }
 </style>

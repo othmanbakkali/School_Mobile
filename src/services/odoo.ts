@@ -150,6 +150,16 @@ class OdooService {
     return apiRequest('/api/school/admin/reply', { student_id: studentId, message });
   }
 
+  async getPayments(studentId: number) {
+    if (!this.config) throw new Error('Not logged in');
+    return apiRequest('/api/school/payments', { student_id: studentId });
+  }
+
+  async getLostItems() {
+    if (!this.config) throw new Error('Not logged in');
+    return apiRequest('/api/school/lost-items', {});
+  }
+
   logout() {
     this.config = null;
     this._selectedStudentId = null;

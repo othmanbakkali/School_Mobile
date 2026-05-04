@@ -42,6 +42,7 @@ class SchoolStudent(models.Model):
     homework_ids = fields.One2many('school.homework', 'student_id', string='Devoirs')
     grade_ids = fields.One2many('school.grade', 'student_id', string='Notes')
     attendance_ids = fields.One2many('school.attendance', 'student_id', string='Absences/Retards')
+    payment_ids = fields.One2many('school.payment', 'student_id', string='Paiements')
     ems_id = fields.Integer(string='ID EMS')
     album_count = fields.Integer(compute='_compute_album_count', string='Photos Album')
 
@@ -257,3 +258,39 @@ class SchoolConfig(models.Model):
     staff_ids = fields.Many2many('school.staff', string='Personnel Administratif')
     teacher_ids = fields.Many2many('school.teacher', string='Corps Enseignant')
     subject_ids = fields.Many2many('school.subject', string='Matières de l\'école')
+class SchoolPayment(models.Model):
+    _name = 'school.payment'
+    _description = 'Paiement Scolarité'
+    _order = 'date desc'
+
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', required=True)
+    month = fields.Selection([
+        ('01', 'Janvier'), ('02', 'Février'), ('03', 'Mars'),
+        ('04', 'Avril'), ('05', 'Mai'), ('06', 'Juin'),
+        ('07', 'Juillet'), ('08', 'Août'), ('09', 'Septembre'),
+        ('10', 'Octobre'), ('11', 'Novembre'), ('12', 'Décembre'),
+    ], string='Mois', required=True)
+    amount = fields.Float(string='Montant', required=True)
+    date = fields.Date(string='Date de paiement', default=fields.Date.today)
+    state = fields.Selection([
+        ('paid', 'Payé'),
+        ('unpaid', 'Non payé'),
+        ('partial', 'Partiel'),
+    ], string='État', default='paid')
+
+
+class SchoolLostItem(models.Model):
+    _name = 'school.lost.item'
+    _description = 'Objets Perdus'
+    _order = 'date_found desc'
+
+    name = fields.Char(string='Objet', required=True)
+    description = fields.Text(string='Description')
+    date_found = fields.Date(string='Trouvé le', default=fields.Date.today)
+    location = fields.Char(string='Lieu')
+    photo = fields.Binary(string='Photo')
+    state = fields.Selection([
+        ('lost', 'Perdu (Au bureau)'),
+        ('claimed', 'Récupéré'),
+    ], string='État', default='lost')

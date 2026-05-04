@@ -478,4 +478,35 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Production Backend running on port ${PORT}`));
+app.post('/api/school/payments', async (req, res) => {
+    const { student_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const yearId = await getCurrentYearId(adminUid);
+        let domain = [['student_id', '=', parseInt(student_id)]];
+        if (yearId) domain.push(['year_id', '=', yearId]);
+
+        const result = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.payment', 'search_read', 
+            [domain], 
+            { fields: ['month', 'amount', 'date', 'state', 'year_id'] }
+        ]);
+        res.json(result);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/api/school/lost-items', async (req, res) => {
+    try {
+        const adminUid = await getAdminUid();
+        const result = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.lost.item', 'search_read', 
+            [[['state', '=', 'lost']]], 
+            { fields: ['name', 'description', 'date_found', 'location', 'photo'] }
+        ]);
+        res.json(result);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.listen(3000, () => {
+    console.log('🚀 Server running on port 3000');
+});

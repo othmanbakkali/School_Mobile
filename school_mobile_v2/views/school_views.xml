@@ -89,6 +89,18 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_school_payment" model="ir.actions.act_window">
+        <field name="name">Paiements Mensuels</field>
+        <field name="res_model">school.payment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_school_lost_item" model="ir.actions.act_window">
+        <field name="name">Objets Perdus</field>
+        <field name="res_model">school.lost.item</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <!-- MENUS -->
     <!-- Menu Racine -->
     <menuitem id="menu_mobile_v2_root" 
@@ -150,6 +162,18 @@
               parent="menu_mobile_v2_root" 
               action="action_announcement_v2" 
               sequence="70"/>
+
+    <menuitem id="menu_mobile_v2_payment" 
+              name="Paiements" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_payment" 
+              sequence="80"/>
+
+    <menuitem id="menu_mobile_v2_lost_item" 
+              name="Objets Perdus" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_lost_item" 
+              sequence="90"/>
 
     <menuitem id="menu_mobile_v2_config" 
               name="Configuration" 
@@ -341,6 +365,17 @@
                                     <field name="title"/>
                                     <field name="subject"/>
                                     <field name="state" widget="badge" decoration-success="state == 'done'"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Paiements" name="payments">
+                            <field name="payment_ids" mode="list">
+                                <list editable="bottom">
+                                    <field name="year_id"/>
+                                    <field name="month"/>
+                                    <field name="amount" sum="Total"/>
+                                    <field name="date"/>
+                                    <field name="state" widget="badge" decoration-success="state == 'paid'"/>
                                 </list>
                             </field>
                         </page>
