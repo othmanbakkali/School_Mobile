@@ -431,7 +431,7 @@ app.post('/api/school/admin/incoming-messages', async (req, res) => {
 });
 
 // Catch-all route to serve the Vue app for any other request
-app.get('(.*)', (req, res) => {
+app.get('/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
