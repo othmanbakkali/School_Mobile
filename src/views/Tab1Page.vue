@@ -159,7 +159,8 @@
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
   IonButtons, IonButton, IonIcon, IonBadge,
-  IonAvatar, IonGrid, IonRow, IonCol, IonSpinner, toastController
+  IonAvatar, IonGrid, IonRow, IonCol, IonSpinner, toastController,
+  onIonViewWillEnter
 } from '@ionic/vue';
 import { notificationsOutline, bookOutline, restaurantOutline, logOutOutline, calculatorOutline, megaphoneOutline, documentAttachOutline } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
@@ -218,7 +219,7 @@ const viewNotifications = async () => {
       {
         text: 'Voir Chat',
         handler: () => {
-          router.push('/tabs/tab1/chat');
+          router.push('/chat');
         }
       }
     ]
@@ -251,7 +252,7 @@ const fetchData = async (isSync = false) => {
           student_id: student.id
         });
 
-      const notifs = await odoo.getNotifications(student.id);
+    const notifs = await odoo.getNotifications(student.id);
       if (isSync && notifs.length > notificationsCount.value) {
         showNotification("Nouvelle activité détectée pour votre enfant !");
       }
@@ -260,8 +261,11 @@ const fetchData = async (isSync = false) => {
       // Fetch Announcements
       announcements.value = await odoo.getAnnouncements(student.level_id?.[0]);
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('Failed to fetch data', e);
+    if (e.message?.includes('401') || e.message?.includes('Not logged in')) {
+      handleLogout();
+    }
   }
 };
 
@@ -269,6 +273,10 @@ const selectStudent = (student: any) => {
   odoo.setSelectedStudentId(student.id);
   fetchData(); 
 };
+
+onIonViewWillEnter(() => {
+  fetchData();
+});
 
 onMounted(() => {
   fetchData();

@@ -23,6 +23,14 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/ChatPage.vue')
   },
   {
+    path: '/admin/inbox',
+    component: () => import('@/views/AdminInboxPage.vue')
+  },
+  {
+    path: '/admin/chat/:id',
+    component: () => import('@/views/AdminChatPage.vue')
+  },
+  {
     path: '/tabs/',
     component: TabsPage,
     children: [
@@ -41,6 +49,10 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'tab3',
         component: () => import('@/views/Tab3Page.vue')
+      },
+      {
+        path: 'tab4',
+        component: () => import('@/views/Tab4Page.vue')
       }
     ]
   }

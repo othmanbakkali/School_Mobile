@@ -9,6 +9,7 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        
         <div class="section-container">
           <div class="section-title">
             <h2>🍽️ Menu Cantine</h2>
@@ -106,7 +107,7 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
-  IonAvatar, IonButton, IonIcon, IonSpinner
+  IonAvatar, IonButton, IonIcon, IonSpinner, onIonViewWillEnter
 } from '@ionic/vue';
 import { chatbubbleEllipsesOutline, callOutline, chatbubblesOutline, chevronForwardOutline } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
@@ -122,33 +123,6 @@ const allMenus = ref<any[]>([]);
 const contacts = ref<any[]>([]);
 const adminMessage = ref('');
 
-const sendMessageToAdmin = async () => {
-    const config = odoo.userConfig;
-    if (!config) return;
-    try {
-        const students = await apiRequest('/api/school/student', { 
-            email: config.email 
-          });
-        const selectedId = odoo.selectedStudentId;
-        const studentId = students.find((s: any) => s.id === selectedId)?.id || students[0]?.id;
-
-        await apiRequest('/api/school/contact-admin', {
-            student_id: studentId,
-            message: adminMessage.value
-        });
-        
-        const toast = await toastController.create({
-            message: 'Votre message a bien été envoyé !',
-            duration: 2000,
-            color: 'success'
-        });
-        await toast.present();
-        adminMessage.value = '';
-    } catch (e) {
-        console.error(e);
-    }
-};
-
 const fetchData = async () => {
     const config = odoo.userConfig;
     if (!config) {
@@ -158,17 +132,24 @@ const fetchData = async () => {
     try {
         allMenus.value = await apiRequest('/api/school/canteen', {});
         contacts.value = await apiRequest('/api/school/contacts', {});
-    } catch (e) {
+    } catch (e: any) {
         console.error('Fetch failed', e);
+        if (e.message?.includes('401') || e.message?.includes('Not logged in')) {
+          odoo.logout();
+          router.replace('/login');
+        }
     }
 };
+
+onIonViewWillEnter(() => {
+  fetchData();
+});
 
 onMounted(() => {
     fetchData();
 });
 
 const currentMenu = computed(() => {
-    // Basic mapping for demo: find menu matching the day or index
     if (allMenus.value.length === 0) return { starter: 'Chargement...', main: '...', dessert: '...' };
     const dayIdx = days.indexOf(activeDay.value);
     return allMenus.value[dayIdx % allMenus.value.length] || allMenus.value[0];
@@ -369,4 +350,31 @@ const currentMenu = computed(() => {
 .chat-text h3 { margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b; }
 .chat-text p { margin: 2px 0 0; font-size: 0.85rem; color: #94a3b8; }
 .arrow-icon { color: #cbd5e1; font-size: 1.2rem; }
+
+.album-scroll {
+  display: flex;
+  gap: 15px;
+  overflow-x: auto;
+  padding-bottom: 15px;
+}
+
+.album-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.album-item {
+  min-width: 200px;
+  max-width: 250px;
+  height: 180px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+.album-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 </style>

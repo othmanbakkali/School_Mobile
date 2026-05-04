@@ -58,6 +58,19 @@ class OdooService {
     return uid;
   }
 
+  async adminLogin(url: string, db: string, user: string, pass: string): Promise<number> {
+    const result = await apiRequest('/api/auth/admin-login', { db, username: user, password: pass });
+
+    if (!result.success) throw new Error(result.message);
+    
+    const uid = result.uid;
+    // We can store config so that isLogged is true, but we should mark it as admin
+    this.config = { url, db, username: user, password: pass, uid, email: 'admin' };
+    localStorage.setItem('odoo_config', JSON.stringify(this.config));
+    localStorage.setItem('is_admin', 'true');
+    return uid;
+  }
+
   async getHomework(studentId: number) {
     if (!this.config) throw new Error('Not logged in');
     return apiRequest('/api/school/homework', { student_id: studentId });
@@ -102,7 +115,6 @@ class OdooService {
   }
 
   async getChatHistory(studentId: number) {
-    if (!this.config) throw new Error('Not logged in');
     return apiRequest('/api/school/chat/history', { student_id: studentId });
   }
 
@@ -112,8 +124,30 @@ class OdooService {
   }
 
   async getIncomingMessages() {
-    if (!this.config) throw new Error('Not logged in');
     return apiRequest('/api/school/admin/incoming-messages', {});
+  }
+
+  async getAllStudentsForAdmin() {
+    return apiRequest('/api/school/admin/students', {});
+  }
+
+  async getStudentAlbum(studentId: number) {
+    if (!this.config) throw new Error('Not logged in');
+    return apiRequest('/api/school/student/album', { student_id: studentId });
+  }
+
+  async uploadPhotoToAlbum(studentId: number, filename: string, base64Data: string) {
+    if (!this.config) throw new Error('Not logged in');
+    return apiRequest('/api/school/admin/album/upload', { student_id: studentId, filename, filedata: base64Data });
+  }
+
+  async deletePhotoFromAlbum(attachmentId: number) {
+    if (!this.config) throw new Error('Not logged in');
+    return apiRequest('/api/school/admin/album/delete', { attachment_id: attachmentId });
+  }
+
+  async adminReply(studentId: number, message: string) {
+    return apiRequest('/api/school/admin/reply', { student_id: studentId, message });
   }
 
   logout() {
@@ -121,6 +155,7 @@ class OdooService {
     this._selectedStudentId = null;
     localStorage.removeItem('odoo_config');
     localStorage.removeItem('selected_student_id');
+    localStorage.removeItem('is_admin');
   }
 }
 

@@ -18,6 +18,11 @@
           <ion-icon aria-hidden="true" :icon="restaurantOutline" />
           <ion-label>Vie Scolaire</ion-label>
         </ion-tab-button>
+
+        <ion-tab-button tab="tab4" href="/tabs/tab4">
+          <ion-icon aria-hidden="true" :icon="imagesOutline" />
+          <ion-label>Album</ion-label>
+        </ion-tab-button>
       </ion-tab-bar>
     </ion-tabs>
   </ion-page>
@@ -25,7 +30,7 @@
 
 <script setup lang="ts">
 import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet } from '@ionic/vue';
-import { homeOutline, schoolOutline, restaurantOutline } from 'ionicons/icons';
+import { homeOutline, schoolOutline, restaurantOutline, imagesOutline } from 'ionicons/icons';
 </script>
 
 <style scoped>

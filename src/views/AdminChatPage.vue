@@ -1,40 +1,59 @@
-
 <template>
   <ion-page>
     <ion-header class="ion-no-border">
-      <ion-toolbar mode="md" class="chat-toolbar">
+      <ion-toolbar mode="md" class="admin-chat-toolbar">
         <ion-buttons slot="start">
-          <ion-back-button default-href="/tabs/tab1"></ion-back-button>
+          <ion-back-button default-href="/admin/inbox"></ion-back-button>
         </ion-buttons>
-        <ion-avatar slot="start" class="admin-avatar">
-          <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Admin" />
+        <ion-avatar slot="start" class="student-avatar">
+          <img :src="'https://api.dicebear.com/7.x/avataaars/svg?seed=' + studentName" />
         </ion-avatar>
         <ion-title>
           <div class="header-title">
-            <span class="name">Direction Scolaire</span>
-            <span class="status">En ligne</span>
+            <span class="name">{{ studentName }}</span>
+            <span class="status">Mode Administration</span>
           </div>
         </ion-title>
+        <ion-buttons slot="end">
+          <input type="file" ref="fileInput" accept="image/*" style="display: none" @change="handleFileUpload" />
+          <ion-button @click="triggerFileInput">
+            <ion-icon :icon="imagesOutline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content ref="content" class="chat-bg" :scroll-events="true">
       <div class="messages-container">
+        
+        <!-- Album Section for Admin -->
+        <div v-if="albumPhotos.length > 0" class="admin-album-section">
+          <div class="section-header">
+            <span>📸 Album de l'élève</span>
+            <span class="count">{{ albumPhotos.length }} photos</span>
+          </div>
+          <div class="album-scroll">
+            <div v-for="photo in albumPhotos" :key="photo.id" class="album-item premium-card">
+              <img :src="photo.image_url" :alt="photo.name" />
+              <div class="photo-delete" @click="deletePhoto(photo.id)">
+                <ion-icon :icon="trashOutline"></ion-icon>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div v-if="loading" class="ion-text-center ion-padding">
           <ion-spinner name="crescent" color="primary"></ion-spinner>
         </div>
         
         <div v-else-if="messages.length === 0" class="empty-chat">
-          <div class="encryption-notice">
-            🔒 Les messages sont enregistrés sur le serveur Odoo de l'école.
-          </div>
-          <p>Commencez la discussion avec l'administration.</p>
+          <p>Aucun message avec ce parent.</p>
         </div>
 
         <template v-else>
           <div v-for="(msg, index) in messages" :key="msg.id" 
                class="message-wrapper" 
-               :class="{ 'sent': msg.is_parent, 'received': !msg.is_parent }">
+               :class="{ 'sent': !msg.is_parent, 'received': msg.is_parent }">
             
             <div v-if="shouldShowDate(index)" class="date-divider">
               <span>{{ formatDateDivider(msg.date) }}</span>
@@ -44,7 +63,7 @@
               <div class="message-text">{{ msg.body }}</div>
               <div class="message-footer">
                 <span class="time">{{ formatTime(msg.date) }}</span>
-                <ion-icon v-if="msg.is_parent" :icon="checkmarkDoneOutline" class="read-icon"></ion-icon>
+                <ion-icon v-if="!msg.is_parent" :icon="checkmarkDoneOutline" class="read-icon"></ion-icon>
               </div>
             </div>
           </div>
@@ -55,13 +74,10 @@
     <ion-footer class="ion-no-border chat-footer">
       <ion-toolbar>
         <div class="input-container">
-          <ion-button fill="clear" color="medium" class="attach-btn">
-            <ion-icon :icon="addOutline"></ion-icon>
-          </ion-button>
           <div class="input-wrapper">
             <ion-textarea
               v-model="newMessage"
-              placeholder="Message"
+              placeholder="Répondre au parent..."
               auto-grow
               rows="1"
               class="message-input"
@@ -86,21 +102,105 @@
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonButtons, IonBackButton, IonAvatar, IonIcon, IonFooter,
-  IonTextarea, IonButton, IonSpinner
+  IonTextarea, IonButton, IonSpinner, toastController, loadingController,
+  alertController
 } from '@ionic/vue';
-import { addOutline, sendSharp, checkmarkDoneOutline } from 'ionicons/icons';
+import { sendSharp, checkmarkDoneOutline, imagesOutline, trashOutline } from 'ionicons/icons';
 import { ref, onMounted, nextTick, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { odoo } from '@/services/odoo';
 
+const route = useRoute();
+const studentId = Number(route.params.id);
+const studentName = route.query.name || `Élève #${studentId}`;
+
 const messages = ref<any[]>([]);
+const albumPhotos = ref<any[]>([]);
 const newMessage = ref('');
 const loading = ref(true);
 const sending = ref(false);
 const content = ref<any>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
 let pollInterval: any = null;
 
+const fetchAlbum = async () => {
+  try {
+    albumPhotos.value = await odoo.getStudentAlbum(studentId);
+  } catch (e) {
+    console.error("Erreur chargement album", e);
+  }
+};
+
+const triggerFileInput = () => {
+  if (fileInput.value) {
+    fileInput.value.click();
+  }
+};
+
+const handleFileUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const base64Data = reader.result as string;
+    
+    const loadingCtrl = await loadingController.create({
+      message: 'Téléchargement de la photo...',
+    });
+    await loadingCtrl.present();
+
+    try {
+      await odoo.uploadPhotoToAlbum(studentId, file.name, base64Data);
+      
+      const toast = await toastController.create({
+        message: 'Photo ajoutée à l\'album de l\'étudiant !',
+        duration: 3000,
+        color: 'success',
+      });
+      await toast.present();
+      fetchAlbum(); // Refresh album
+    } catch (e: any) {
+      console.error(e);
+      const toast = await toastController.create({
+        message: 'Erreur lors de l\'envoi : ' + e.message,
+        duration: 3000,
+        color: 'danger',
+      });
+      await toast.present();
+    } finally {
+      loadingCtrl.dismiss();
+      target.value = ''; // Reset input
+    }
+  };
+  reader.readAsDataURL(file);
+};
+
+const deletePhoto = async (photoId: number) => {
+  const alert = await alertController.create({
+    header: 'Supprimer la photo ?',
+    message: 'Cette action est irréversible.',
+    buttons: [
+      { text: 'Annuler', role: 'cancel' },
+      {
+        text: 'Supprimer',
+        role: 'destructive',
+        handler: async () => {
+          try {
+            await odoo.deletePhotoFromAlbum(photoId);
+            fetchAlbum(); // Refresh
+          } catch (e: any) {
+            console.error(e);
+          }
+        }
+      }
+    ]
+  });
+  await alert.present();
+};
+
 const fetchData = async (silent = false) => {
-  const studentId = odoo.selectedStudentId;
   if (!studentId) return;
   
   if (!silent) loading.value = true;
@@ -117,12 +217,12 @@ const fetchData = async (silent = false) => {
 
 const send = async () => {
   const msg = newMessage.value.trim();
-  const studentId = odoo.selectedStudentId;
   if (!msg || !studentId || sending.value) return;
 
   sending.value = true;
   try {
-    await odoo.sendMessageToAdmin(studentId, msg);
+    // Admin uses adminReply endpoint
+    await odoo.adminReply(studentId, msg);
     newMessage.value = '';
     await fetchData(true);
     scrollToBottom();
@@ -162,9 +262,10 @@ const shouldShowDate = (index: number) => {
   return curr !== prev;
 };
 
-onMounted(() => {
-  fetchData();
-  pollInterval = setInterval(() => fetchData(true), 5000); // Polling every 5s
+onMounted(async () => {
+  await fetchData();
+  fetchAlbum();
+  pollInterval = setInterval(() => fetchData(true), 5000);
 });
 
 onUnmounted(() => {
@@ -173,15 +274,81 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.chat-toolbar {
-  --background: #ffffff;
-  border-bottom: 1px solid #f1f5f9;
+/* Admin Album Section */
+.admin-album-section {
+  padding: 10px 0;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 15px;
 }
 
-.admin-avatar {
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 15px 8px;
+}
+
+.section-header span {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.section-header .count {
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.album-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 0 15px 10px;
+}
+
+.album-scroll::-webkit-scrollbar { display: none; }
+
+.album-item {
+  min-width: 120px;
+  max-width: 120px;
+  height: 90px;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.album-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.admin-chat-toolbar {
+  --background: #1e293b;
+  --color: white;
+}
+
+.student-avatar {
   width: 38px;
   height: 38px;
   margin-right: 10px;
+  border: 2px solid #e2e8f0;
 }
 
 .header-title {
@@ -192,12 +359,12 @@ onUnmounted(() => {
 .header-title .name {
   font-size: 1rem;
   font-weight: 700;
-  color: #1e293b;
+  color: white;
 }
 
 .header-title .status {
   font-size: 0.7rem;
-  color: #10b981;
+  color: #38bdf8;
 }
 
 .chat-bg {
@@ -233,7 +400,7 @@ onUnmounted(() => {
 }
 
 .sent .message-bubble {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   border-bottom-right-radius: 4px;
 }
 
@@ -271,7 +438,7 @@ onUnmounted(() => {
 }
 
 .sent .time {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .received .time {
@@ -283,7 +450,7 @@ onUnmounted(() => {
 }
 
 .sent .read-icon {
-  color: #ffffff;
+  color: #38bdf8;
 }
 
 .date-divider {
@@ -306,17 +473,6 @@ onUnmounted(() => {
   color: #64748b;
 }
 
-.encryption-notice {
-  background: #eff6ff;
-  color: #1e40af;
-  padding: 10px;
-  border-radius: 10px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  margin-bottom: 20px;
-  border: 1px solid #bfdbfe;
-}
-
 .chat-footer {
   background: #ffffff;
   border-top: 1px solid #e5e5e5;
@@ -335,18 +491,6 @@ onUnmounted(() => {
   align-items: flex-end;
   gap: 8px;
   width: 100%;
-}
-
-.attach-btn {
-  --padding-start: 0;
-  --padding-end: 0;
-  margin: 0;
-  height: 40px;
-  --color: #6366f1;
-}
-
-.attach-btn ion-icon {
-  font-size: 1.6rem;
 }
 
 .input-wrapper {

@@ -17,6 +17,15 @@
         </div>
 
         <div class="premium-card login-card glass-effect">
+          <ion-segment v-model="loginMode" mode="md" class="role-segment">
+            <ion-segment-button value="parent">
+              <ion-label>Parent</ion-label>
+            </ion-segment-button>
+            <ion-segment-button value="admin">
+              <ion-label>Administration</ion-label>
+            </ion-segment-button>
+          </ion-segment>
+
           <div class="input-group">
             <div class="input-item">
               <ion-icon :icon="globeOutline"></ion-icon>
@@ -30,12 +39,12 @@
             
             <div class="input-item">
               <ion-icon :icon="personOutline"></ion-icon>
-              <ion-input v-model="username" placeholder="Utilisateur ou Email"></ion-input>
+              <ion-input v-model="username" :placeholder="loginMode === 'parent' ? 'Email Parent' : 'Email Administrateur'"></ion-input>
             </div>
 
             <div class="input-item">
               <ion-icon :icon="lockClosedOutline"></ion-icon>
-              <ion-input v-model="password" type="password" placeholder="Mot de passe"></ion-input>
+              <ion-input v-model="password" type="password" :placeholder="loginMode === 'parent' ? 'Téléphone' : 'Mot de passe'"></ion-input>
             </div>
           </div>
 
@@ -61,7 +70,8 @@
 
 <script setup lang="ts">
 import { 
-  IonPage, IonContent, IonInput, IonButton, IonIcon 
+  IonPage, IonContent, IonInput, IonButton, IonIcon,
+  IonSegment, IonSegmentButton, IonLabel
 } from '@ionic/vue';
 import { schoolOutline, globeOutline, personOutline, lockClosedOutline, arrowForwardOutline, serverOutline } from 'ionicons/icons';
 import { ref } from 'vue';
@@ -74,6 +84,7 @@ const url = ref('http://198.199.75.86:8069');
 const db = ref('');
 const username = ref('');
 const password = ref('');
+const loginMode = ref('parent');
 
 const handleLogin = async () => {
   const loading = await loadingController.create({
@@ -82,8 +93,13 @@ const handleLogin = async () => {
   await loading.present();
 
   try {
-    await odoo.login(url.value, db.value, username.value, password.value);
-    router.push('/selection');
+    if (loginMode.value === 'admin') {
+      await odoo.adminLogin(url.value, db.value, username.value, password.value);
+      router.push('/admin/inbox');
+    } else {
+      await odoo.login(url.value, db.value, username.value, password.value);
+      router.push('/selection');
+    }
   } catch (error: any) {
     const toast = await toastController.create({
       message: 'Erreur: ' + error.message,
@@ -185,6 +201,23 @@ const handleLogin = async () => {
   width: 100%;
   max-width: 400px;
   padding: 30px 20px !important;
+}
+
+.role-segment {
+  margin-bottom: 25px;
+  background: var(--ion-color-step-50, #f8fafc);
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.role-segment ion-segment-button {
+  --color: #64748b;
+  --color-checked: #1e293b;
+  --indicator-color: white;
+  --background-checked: white;
+  min-height: 40px;
+  border-radius: 10px;
+  font-weight: 700;
 }
 
 .input-group {

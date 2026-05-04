@@ -163,7 +163,7 @@
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonSegment, IonSegmentButton, IonLabel, IonIcon, IonSpinner, toastController,
-  IonButton
+  IonButton, onIonViewWillEnter
 } from '@ionic/vue';
 import { timeOutline, checkmarkCircleOutline, personOutline, calendarOutline, documentAttachOutline } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
@@ -262,8 +262,12 @@ const fetchData = async () => {
     } else {
       console.warn('No student found or selected.');
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error('Erreur chargement données scolarité:', e);
+    if (e.message?.includes('401') || e.message?.includes('Not logged in')) {
+      odoo.logout();
+      router.replace('/login');
+    }
   } finally {
     loading.value = false;
   }
@@ -289,6 +293,10 @@ const downloadAttachment = (item: any) => {
   link.download = item.attachment_name || 'devoir_piece_jointe';
   link.click();
 };
+
+onIonViewWillEnter(() => {
+  fetchData();
+});
 
 onMounted(() => { fetchData(); });
 </script>

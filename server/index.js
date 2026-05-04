@@ -6,7 +6,8 @@ require('dotenv').config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 const ODOO_URL = process.env.ODOO_URL;
 const ODOO_DB = process.env.ODOO_DB;
@@ -66,6 +67,27 @@ app.post('/api/auth/login', async (req, res) => {
             res.status(401).json({ success: false, message: "Email ou numéro de téléphone incorrect" });
         }
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+app.post('/api/auth/admin-login', async (req, res) => {
+    const { db, username, password } = req.body;
+    try {
+        const targetDb = db || ODOO_DB;
+        const response = await axios.post(`${ODOO_URL}/jsonrpc`, {
+            jsonrpc: '2.0',
+            method: 'call',
+            params: { service: 'common', method: 'login', args: [targetDb, username, password] },
+            id: 1
+        });
+        
+        if (response.data.result) {
+            res.json({ success: true, uid: response.data.result, is_admin: true });
+        } else {
+            res.status(401).json({ success: false, message: "Identifiants administrateur incorrects" });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 app.post('/api/school/student', async (req, res) => {
@@ -160,7 +182,7 @@ app.post('/api/school/contact-admin', async (req, res) => {
         // 1. Poster le message dans le chatter (Standard Odoo)
         await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'message_post', [parseInt(student_id)], { 
-                body: message,
+                body: `[PARENT_MSG]${message}`,
                 message_type: 'comment',
                 subtype_xmlid: 'mail.mt_comment'
             }
@@ -198,6 +220,23 @@ app.post('/api/school/contact-admin', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+app.post('/api/school/admin/reply', async (req, res) => {
+    const { student_id, message } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'message_post', [parseInt(student_id)], { 
+                body: message,
+                message_type: 'comment',
+                subtype_xmlid: 'mail.mt_comment'
+            }
+        ]);
+
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
 app.post('/api/school/chat/history', async (req, res) => {
     const { student_id } = req.body;
     try {
@@ -209,15 +248,91 @@ app.post('/api/school/chat/history', async (req, res) => {
         ]);
         
         // Nettoyer le corps du message (Odoo envoie du HTML)
-        const cleaned = result.map(m => ({
-            id: m.id,
-            body: m.body.replace(/<[^>]*>?/gm, ''), // Simple HTML strip
-            date: m.date,
-            author: m.author_id ? m.author_id[1] : 'Système',
-            is_parent: m.author_id && m.author_id[1].toLowerCase().includes('parent') // Heuristique simple
-        }));
+        const cleaned = result.map(m => {
+            const rawBody = m.body || '';
+            const is_parent = rawBody.includes('data-sender="parent"') || rawBody.includes('[PARENT_MSG]') || (m.author_id && m.author_id[1].toLowerCase().includes('parent'));
+            
+            let textBody = rawBody.replace(/<[^>]*>?/gm, ''); // Strip real HTML
+            textBody = textBody.replace('&lt;span data-sender="parent" style="display:none;"&gt;&lt;/span&gt;', ''); // Strip escaped HTML
+            textBody = textBody.replace('[PARENT_MSG]', '');
+            textBody = textBody.replace('[PARENT] ', '');
+            
+            return {
+                id: m.id,
+                body: textBody,
+                date: m.date,
+                author: m.author_id ? m.author_id[1] : 'Système',
+                is_parent: is_parent
+            };
+        });
 
         res.json(cleaned);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/school/student/album', async (req, res) => {
+    const { student_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const result = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'ir.attachment', 'search_read', 
+            [[['res_model', '=', 'school.student'], ['res_id', '=', parseInt(student_id)], ['mimetype', 'ilike', 'image']]], 
+            { fields: ['id', 'name', 'create_date', 'datas', 'mimetype'] }
+        ]);
+        
+        const album = result.map(img => ({
+            id: img.id,
+            name: img.name,
+            date: img.create_date,
+            image_url: img.datas ? `data:${img.mimetype || 'image/jpeg'};base64,${img.datas}` : ''
+        })).filter(img => img.image_url);
+        res.json(album);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/school/admin/album/upload', async (req, res) => {
+    const { student_id, filename, filedata } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const base64Data = filedata.includes(',') ? filedata.split(',')[1] : filedata;
+        
+        const attachmentId = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'ir.attachment', 'create', 
+            [{
+                name: filename || 'photo_album.jpg',
+                type: 'binary',
+                datas: base64Data,
+                res_model: 'school.student',
+                res_id: parseInt(student_id),
+                mimetype: 'image/jpeg'
+            }]
+        ]);
+        
+        res.json({ success: true, attachment_id: attachmentId });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/school/admin/album/delete', async (req, res) => {
+    const { attachment_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'ir.attachment', 'unlink', 
+            [[parseInt(attachment_id)]]
+        ]);
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/school/admin/students', async (req, res) => {
+    try {
+        const adminUid = await getAdminUid();
+        const students = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read', 
+            [[]], 
+            { fields: ['id', 'name', 'level_id', 'photo'] }
+        ]);
+        res.json(students);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 

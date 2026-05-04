@@ -13,7 +13,14 @@ export async function apiRequest(path: string, body: any) {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`Erreur Serveur (${response.status}): ${text || 'Pas de réponse'}`);
+      let errorMsg = text;
+      try {
+        const json = JSON.parse(text);
+        if (json.message) errorMsg = json.message;
+      } catch (e) {
+        // Not JSON, keep text
+      }
+      throw new Error(`Erreur Serveur (${response.status}): ${errorMsg || 'Pas de réponse'}`);
     }
 
     const contentType = response.headers.get("content-type");
