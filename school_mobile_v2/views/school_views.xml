@@ -249,8 +249,9 @@
                     <group>
                         <group>
                             <field name="student_id"/>
+                            <field name="year_id"/>
                             <field name="subject_id"/>
-                            <field name="semester"/>
+                            <field name="semester_id"/>
                         </group>
                         <group>
                             <field name="cc1"/>
@@ -301,6 +302,7 @@
                     <group>
                         <group string="Détails">
                             <field name="level_id" options="{'no_open': True, 'no_create': True}"/>
+                            <field name="year_id"/>
                             <field name="parent_id" options="{'no_quick_create': True}"/>
                         </group>
                         <group string="Moyenne">
@@ -552,6 +554,9 @@
         <field name="model">school.year</field>
         <field name="arch" type="xml">
             <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,open,closed"/>
+                </header>
                 <sheet>
                     <div class="oe_title">
                         <h1><field name="name" placeholder="Ex: 2025-2026"/></h1>

@@ -54,6 +54,20 @@ const callOdoo = async (service, method, args, kwargs = {}) => {
     } catch (error) { throw error; }
 };
 
+const getCurrentYearId = async (adminUid) => {
+    const configs = await callOdoo('object', 'execute_kw', [
+        ODOO_DB, adminUid, ADMIN_PASS, 'school.config', 'search_read', [[]], { fields: ['current_year_id'], limit: 1 }
+    ]);
+    if (configs && configs.length > 0 && configs[0].current_year_id) {
+        return configs[0].current_year_id[0];
+    }
+    // Fallback: search for first 'open' year
+    const openYears = await callOdoo('object', 'execute_kw', [
+        ODOO_DB, adminUid, ADMIN_PASS, 'school.year', 'search', [[['state', '=', 'open']]], { limit: 1 }
+    ]);
+    return openYears.length > 0 ? openYears[0] : null;
+};
+
 app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body; // username = email, password = phone
     try {
@@ -112,9 +126,13 @@ app.post('/api/school/homework', async (req, res) => {
     const { student_id } = req.body;
     try {
         const adminUid = await getAdminUid();
+        const yearId = await getCurrentYearId(adminUid);
+        let domain = [['student_id', '=', parseInt(student_id)]];
+        if (yearId) domain.push(['year_id', '=', yearId]);
+        
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'search_read', 
-            [[['student_id', '=', parseInt(student_id)]]], 
+            [domain], 
             { fields: ['id', 'title', 'description', 'date_due', 'state', 'subject_id', 'subject', 'attachment', 'attachment_name'] }
         ]);
         const formatted = result.map(h => ({
@@ -155,8 +173,12 @@ app.post('/api/school/grades', async (req, res) => {
     const { student_id } = req.body;
     try {
         const adminUid = await getAdminUid();
+        const yearId = await getCurrentYearId(adminUid);
+        let domain = [['student_id', '=', student_id]];
+        if (yearId) domain.push(['year_id', '=', yearId]);
+
         const result = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [[['student_id', '=', student_id]]], { fields: ['subject_id', 'subject', 'year_id', 'semester_id', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [domain], { fields: ['subject_id', 'subject', 'year_id', 'semester_id', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
         ]);
         // Normalisation pour le frontend (utiliser subject_id[1] s'il existe)
         const formatted = result.map(n => ({
@@ -356,9 +378,13 @@ app.post('/api/school/schedule', async (req, res) => {
     const { level_id } = req.body;
     try {
         const adminUid = await getAdminUid();
+        const yearId = await getCurrentYearId(adminUid);
+        let domain = [['level_id', '=', level_id]];
+        if (yearId) domain.push(['year_id', '=', yearId]);
+
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.schedule', 'search_read', 
-            [[['level_id', '=', level_id]]], 
+            [domain], 
             { fields: ['day_of_week', 'start_time', 'end_time', 'subject_id', 'subject', 'teacher_id', 'teacher'] }
         ]);
         const formatted = result.map(s => ({

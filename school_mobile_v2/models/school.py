@@ -27,6 +27,7 @@ class SchoolStudent(models.Model):
     name = fields.Char(string='Nom', required=True)
     full_name = fields.Char(string='Prénom & Nom')
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
     parent_id = fields.Many2one('school.parent', string='Parent Responsable')
     average_grade = fields.Float(string='Moyenne', compute='_compute_average_grade', store=True)
     photo = fields.Binary(string='Photo')
@@ -82,6 +83,11 @@ class SchoolYear(models.Model):
 
     name = fields.Char(string='Année Scolaire', required=True)
     active = fields.Boolean(string='Actif', default=True)
+    state = fields.Selection([
+        ('draft', 'Brouillon'),
+        ('open', 'En cours'),
+        ('closed', 'Fermé'),
+    ], string='État', default='open', required=True)
     semester_ids = fields.One2many('school.semester', 'year_id', string='Semestres')
 
     _sql_constraints = [
