@@ -13,12 +13,12 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use((req, res, next) => {
     res.setHeader(
         'Content-Security-Policy',
-        "default-src 'self' https: data:; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:; " +
-        "style-src 'self' 'unsafe-inline' https: fonts.googleapis.com; " +
-        "font-src 'self' https: data: fonts.gstatic.com; " +
-        "img-src 'self' https: data: blob:; " +
-        "connect-src 'self' https: http://198.199.75.86:3000 http://198.199.75.86:8069;"
+        "default-src 'self' http: https: data:; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data:; " +
+        "style-src 'self' 'unsafe-inline' http: https: fonts.googleapis.com; " +
+        "font-src 'self' http: https: data: fonts.gstatic.com; " +
+        "img-src 'self' http: https: data: blob:; " +
+        "connect-src 'self' http: https: data:;"
     );
     next();
 });
@@ -497,10 +497,6 @@ app.post('/api/school/admin/incoming-messages', async (req, res) => {
         res.json(cleaned);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
-app.use(express.static(path.join(__dirname, '../dist')));
-
-const PORT = process.env.PORT || 3000;
 app.post('/api/school/payments', async (req, res) => {
     const { student_id } = req.body;
     try {
@@ -533,6 +529,8 @@ app.get('/api/school/lost-items', async (req, res) => {
         res.json(result);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
+
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // Catch-all route to serve the Vue app for any other request (SPA fallback)
 app.use((req, res) => {
