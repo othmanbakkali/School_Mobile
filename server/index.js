@@ -9,6 +9,8 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+app.use(express.static(path.join(__dirname, '../dist')));
+
 // Custom CSP middleware to allow legacy scripts and data URIs
 app.use((req, res, next) => {
     res.setHeader(
@@ -529,8 +531,6 @@ app.post('/api/school/lost-items', async (req, res) => {
         res.json(result);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
-
-app.use(express.static(path.join(__dirname, '../dist')));
 
 // Catch-all route to serve the Vue app for any other request (SPA fallback)
 app.use((req, res) => {
