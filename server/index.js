@@ -9,7 +9,12 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-app.use(express.static(path.join(__dirname, '../dist')));
+// Serve static assets with no-cache for index.html
+app.use('/assets', (req, res, next) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    next();
+});
+app.use(express.static(path.join(__dirname, '../dist'), { index: false }));
 
 // Custom CSP middleware to allow legacy scripts and data URIs
 app.use((req, res, next) => {
@@ -25,8 +30,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve static files from the Vue app
-app.use(express.static(path.join(__dirname, '../dist')));
 
 // API routes... (existing routes)
 
@@ -534,6 +537,9 @@ app.post('/api/school/lost-items', async (req, res) => {
 
 // Catch-all route to serve the Vue app for any other request (SPA fallback)
 app.use((req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
