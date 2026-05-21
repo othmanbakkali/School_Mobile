@@ -33,10 +33,13 @@ app.use((req, res, next) => {
 
 // API routes... (existing routes)
 
-const ODOO_URL = process.env.ODOO_URL;
+const rawOdooUrl = process.env.ODOO_URL || '';
+// Remove any trailing slash for consistency
+const ODOO_URL = rawOdooUrl.replace(/\/+$/,'');
 const ODOO_DB = process.env.ODOO_DB;
 const ADMIN_USER = process.env.ODOO_ADMIN_USER;
 const ADMIN_PASS = process.env.ODOO_ADMIN_PASS;
+console.log('🚀 Odoo URL configured:', ODOO_URL);
 
 let ADMIN_UID = null;
 
