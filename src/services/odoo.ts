@@ -1,5 +1,5 @@
 
-import { apiRequest } from './api';
+import { apiRequest, setApiBaseUrl } from './api';
 
 export interface OdooConfig {
   url: string;
@@ -19,6 +19,9 @@ class OdooService {
     if (savedConfig) {
       try {
         this.config = JSON.parse(savedConfig);
+        if (this.config && this.config.url) {
+          setApiBaseUrl(this.config.url);
+        }
       } catch (e) {
         localStorage.removeItem('odoo_config');
       }
@@ -48,6 +51,7 @@ class OdooService {
   }
 
   async login(url: string, db: string, user: string, pass: string): Promise<number> {
+    setApiBaseUrl(url);
     const result = await apiRequest('/api/auth/login', { db, username: user, password: pass });
 
     if (!result.success) throw new Error(result.message);
@@ -59,6 +63,7 @@ class OdooService {
   }
 
   async adminLogin(url: string, db: string, user: string, pass: string): Promise<number> {
+    setApiBaseUrl(url);
     const result = await apiRequest('/api/auth/admin-login', { db, username: user, password: pass });
 
     if (!result.success) throw new Error(result.message);
@@ -166,6 +171,7 @@ class OdooService {
     localStorage.removeItem('odoo_config');
     localStorage.removeItem('selected_student_id');
     localStorage.removeItem('is_admin');
+    localStorage.removeItem('api_base_url');
   }
 }
 

@@ -148,14 +148,13 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
-  IonAvatar, IonButton, IonIcon, IonSpinner, onIonViewWillEnter
+  IonAvatar, IonButton, IonIcon, onIonViewWillEnter
 } from '@ionic/vue';
 import { chatbubbleEllipsesOutline, callOutline, chatbubblesOutline, chevronForwardOutline } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
-import { toastController } from '@ionic/vue';
 
 const router = useRouter();
 const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];

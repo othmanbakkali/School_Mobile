@@ -64,16 +64,14 @@ const getAdminUid = async () => {
 };
 
 const callOdoo = async (service, method, args, kwargs = {}) => {
-    try {
-        const response = await axios.post(`${ODOO_URL}/jsonrpc`, {
-            jsonrpc: '2.0',
-            method: 'call',
-            params: { service, method, args, kwargs },
-            id: Math.floor(Math.random() * 1000)
-        });
-        if (response.data.error) throw new Error(response.data.error.data.message);
-        return response.data.result;
-    } catch (error) { throw error; }
+    const response = await axios.post(`${ODOO_URL}/jsonrpc`, {
+        jsonrpc: '2.0',
+        method: 'call',
+        params: { service, method, args, kwargs },
+        id: Math.floor(Math.random() * 1000)
+    });
+    if (response.data.error) throw new Error(response.data.error.data.message);
+    return response.data.result;
 };
 
 const getCurrentYearId = async (adminUid) => {
@@ -149,7 +147,7 @@ app.post('/api/school/homework', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
-        let domain = [['student_id', '=', parseInt(student_id)]];
+        const domain = [['student_id', '=', parseInt(student_id)]];
         if (yearId) {
             domain.push('|');
             domain.push(['year_id', '=', yearId]);
@@ -200,7 +198,7 @@ app.post('/api/school/grades', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
-        let domain = [['student_id', '=', student_id]];
+        const domain = [['student_id', '=', student_id]];
         if (yearId) {
             domain.push('|');
             domain.push(['year_id', '=', yearId]);
@@ -409,7 +407,7 @@ app.post('/api/school/schedule', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
-        let domain = [['level_id', '=', level_id]];
+        const domain = [['level_id', '=', level_id]];
         if (yearId) {
             domain.push('|');
             domain.push(['year_id', '=', yearId]);
@@ -510,7 +508,7 @@ app.post('/api/school/payments', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
-        let domain = [['student_id', '=', parseInt(student_id)]];
+        const domain = [['student_id', '=', parseInt(student_id)]];
         if (yearId) {
             domain.push('|');
             domain.push(['year_id', '=', yearId]);

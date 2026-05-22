@@ -50,7 +50,6 @@ import {
 import { locationOutline, calendarOutline } from 'ionicons/icons';
 import { ref } from 'vue';
 import { odoo } from '@/services/odoo';
-import { useRouter } from 'vue-router';
 
 const items = ref<any[]>([]);
 const loading = ref(true);

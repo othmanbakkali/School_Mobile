@@ -190,10 +190,10 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonSegment, IonSegmentButton, IonLabel, IonIcon, IonSpinner, toastController,
+  IonSegment, IonSegmentButton, IonLabel, IonIcon, IonSpinner,
   IonButton, onIonViewWillEnter
 } from '@ionic/vue';
-import { timeOutline, checkmarkCircleOutline, personOutline, calendarOutline, documentAttachOutline } from 'ionicons/icons';
+import { timeOutline, personOutline, documentAttachOutline } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
@@ -263,12 +263,6 @@ const fetchData = async () => {
   }
   loading.value = true;
   try {
-    const base = {
-      db: config.db,
-      uid: config.uid,
-      password: config.password,
-    };
-
     const students = await apiRequest('/api/school/student', { email: config.email });
 
     if (students && students.length > 0) {

@@ -46,9 +46,7 @@ import {
 import { ref } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
-import { useRouter } from 'vue-router';
 
-const router = useRouter();
 const payments = ref<any[]>([]);
 const loading = ref(true);
 
