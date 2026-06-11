@@ -94,7 +94,7 @@
           <ion-grid class="ion-no-padding">
             <ion-row>
               <ion-col size="6" class="ion-padding-end">
-                <div class="action-tile homework-tile" @click="router.push('/tabs/scolarite?tab=homework')">
+                <div class="action-tile homework-tile" @click="router.push('/tabs/homework')">
                   <div class="icon-box">
                     <ion-icon :icon="bookOutline"></ion-icon>
                   </div>
@@ -137,7 +137,7 @@
           <!-- Derniers Résultats -->
           <div class="section-header" style="margin-top: 25px;">
             <h2>Derniers Résultats</h2>
-            <ion-button fill="clear" size="small" @click="router.push('/tabs/scolarite?tab=notes')">Voir tout</ion-button>
+            <ion-button fill="clear" size="small" @click="router.push('/tabs/notes')">Voir tout</ion-button>
           </div>
 
           <div class="results-list">

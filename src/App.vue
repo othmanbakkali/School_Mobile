@@ -112,10 +112,10 @@ const studentClass = computed(() => {
 
 const menuItems = [
   { label: 'Tableau de bord', icon: globeOutline, path: '/tabs/dashboard' },
-  { label: 'Emploi du temps', icon: calendarOutline, path: '/tabs/scolarite?tab=schedule' },
-  { label: 'Devoirs à faire', icon: documentTextOutline, path: '/tabs/scolarite?tab=homework' },
-  { label: 'Notes & Évaluations', icon: ribbonOutline, path: '/tabs/scolarite?tab=notes' },
-  { label: 'Absences & Retards', icon: alertCircleOutline, path: '/tabs/scolarite?tab=absences' },
+  { label: 'Emploi du temps', icon: calendarOutline, path: '/tabs/schedule' },
+  { label: 'Devoirs à faire', icon: documentTextOutline, path: '/tabs/homework' },
+  { label: 'Notes & Évaluations', icon: ribbonOutline, path: '/tabs/notes' },
+  { label: 'Absences & Retards', icon: alertCircleOutline, path: '/tabs/absences' },
   { label: 'Cahier de transmission', icon: heartOutline, path: '/tabs/transmission' },
   { label: 'Suivi pédagogique', icon: schoolOutline, path: '/tabs/suivi-pedagogique' },
   { label: 'Ressources', icon: bookmarkOutline, path: '/tabs/ressources' },

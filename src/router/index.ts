@@ -43,8 +43,20 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/DashboardPage.vue')
       },
       {
-        path: 'scolarite',
-        component: () => import('@/views/ScolaritePage.vue')
+        path: 'homework',
+        component: () => import('@/views/HomeworkPage.vue')
+      },
+      {
+        path: 'schedule',
+        component: () => import('@/views/SchedulePage.vue')
+      },
+      {
+        path: 'notes',
+        component: () => import('@/views/NotesPage.vue')
+      },
+      {
+        path: 'absences',
+        component: () => import('@/views/AbsencesPage.vue')
       },
       {
         path: 'vie-scolaire',
