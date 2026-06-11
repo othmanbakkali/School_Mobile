@@ -28,16 +28,6 @@
 
           <div class="input-group">
             <div class="input-item">
-              <ion-icon :icon="globeOutline"></ion-icon>
-              <ion-input v-model="url" placeholder="URL de l'école"></ion-input>
-            </div>
-
-            <div class="input-item">
-              <ion-icon :icon="serverOutline"></ion-icon>
-              <ion-input v-model="db" placeholder="Base de données (ex: odoo)"></ion-input>
-            </div>
-            
-            <div class="input-item">
               <ion-icon :icon="personOutline"></ion-icon>
               <ion-input v-model="username" :placeholder="loginMode === 'parent' ? 'Email Parent' : 'Email Administrateur'"></ion-input>
             </div>
@@ -80,8 +70,8 @@ import { odoo } from '@/services/odoo';
 import { loadingController, toastController } from '@ionic/vue';
 
 const router = useRouter();
-const url = ref('http://198.199.75.86:8069');
-const db = ref('');
+const url = ref(import.meta.env.VITE_ODOO_URL || 'http://198.199.75.86:8069');
+const db = ref(import.meta.env.VITE_ODOO_DB || 'school');
 const username = ref('');
 const password = ref('');
 const loginMode = ref('parent');

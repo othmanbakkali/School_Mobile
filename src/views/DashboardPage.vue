@@ -159,27 +159,27 @@
         <!-- ==================== TAB 2: SCHOOL LIFE ==================== -->
         <div v-else-if="selectedSegment === 'school-life'" class="fade-in">
           <!-- Transport Info Banner Link -->
-          <div class="action-tile transport-tile-full premium-card ion-padding" @click="router.push('/tabs/transport')" style="cursor: pointer; display: flex; align-items: center; gap: 15px; border-left: 5px solid #d97706; background: linear-gradient(135deg, rgba(217, 119, 6, 0.05) 0%, rgba(245, 158, 11, 0.06) 100%); margin-bottom: 15px;">
-            <div class="icon-box" style="background: #fffbeb; color: #d97706; padding: 10px; border-radius: 12px; font-size: 1.5rem; display: flex;">
+          <div class="premium-card ion-padding transport-banner" @click="router.push('/tabs/transport')">
+            <div class="icon-box transport-icon">
               <ion-icon :icon="busOutline"></ion-icon>
             </div>
-            <div style="flex: 1;">
-              <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #1e293b;">Transport Scolaire</h3>
-              <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b;">Suivre la navette de votre enfant en temps réel</p>
+            <div class="banner-info">
+              <h3>Transport Scolaire</h3>
+              <p>Suivre la navette de votre enfant en temps réel</p>
             </div>
-            <div style="color: #cbd5e1; font-weight: 800;">→</div>
+            <div class="banner-arrow">→</div>
           </div>
 
           <!-- Wallet Info Banner Link -->
-          <div class="action-tile wallet-tile-full premium-card ion-padding" @click="router.push('/tabs/wallet')" style="cursor: pointer; display: flex; align-items: center; gap: 15px; border-left: 5px solid #8b5cf6; background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(167, 139, 250, 0.06) 100%); margin-bottom: 25px;">
-            <div class="icon-box" style="background: #f5f3ff; color: #8b5cf6; padding: 10px; border-radius: 12px; font-size: 1.5rem; display: flex;">
+          <div class="premium-card ion-padding wallet-banner" @click="router.push('/tabs/wallet')">
+            <div class="icon-box wallet-icon">
               <ion-icon :icon="swapHorizontalOutline"></ion-icon>
             </div>
-            <div style="flex: 1;">
-              <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #1e293b;">Portefeuille Étudiant</h3>
-              <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b;">Gérer le solde de la cantine et faire un rechargement</p>
+            <div class="banner-info">
+              <h3>Portefeuille Étudiant</h3>
+              <p>Gérer le solde de la cantine et faire un rechargement</p>
             </div>
-            <div style="color: #cbd5e1; font-weight: 800;">→</div>
+            <div class="banner-arrow">→</div>
           </div>
 
           <!-- Fil d'actualité -->
@@ -803,5 +803,87 @@ onUnmounted(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Full-width Banners (Transport & Wallet) */
+.transport-banner, .wallet-banner {
+  cursor: pointer;
+  display: flex;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 22px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+}
+
+.transport-banner {
+  border-left: 5px solid #d97706;
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.05) 0%, rgba(245, 158, 11, 0.06) 100%);
+}
+
+.wallet-banner {
+  border-left: 5px solid #8b5cf6;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(167, 139, 250, 0.06) 100%);
+  margin-bottom: 25px;
+}
+
+.transport-banner:active, .wallet-banner:active {
+  transform: scale(0.97);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.transport-icon {
+  background: #fffbeb;
+  color: #d97706;
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 1.5rem;
+  display: flex;
+}
+
+.wallet-icon {
+  background: #f5f3ff;
+  color: #8b5cf6;
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 1.5rem;
+  display: flex;
+}
+
+.banner-info {
+  flex: 1;
+}
+
+.banner-info h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.banner-info p {
+  margin: 3px 0 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.banner-arrow {
+  color: #cbd5e1;
+  font-weight: 800;
+  font-size: 1.1rem;
+  transition: transform 0.2s ease;
+}
+
+.transport-banner:active .banner-arrow,
+.wallet-banner:active .banner-arrow {
+  transform: translateX(4px);
 }
 </style>
