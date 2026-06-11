@@ -1,9 +1,9 @@
-
 <template>
   <ion-page>
     <ion-header class="ion-no-border">
       <ion-toolbar class="transparent-toolbar" mode="md">
         <ion-buttons slot="start">
+          <ion-menu-button color="dark"></ion-menu-button>
           <ion-button class="profile-btn">
             <ion-avatar>
               <img :src="studentData?.photo ? `data:image/png;base64,${studentData.photo}` : 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (studentData?.display_name || studentData?.name || 'Student')" />
@@ -180,7 +180,7 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
-  IonButtons, IonButton, IonIcon, IonBadge,
+  IonButtons, IonButton, IonIcon, IonBadge, IonMenuButton,
   IonAvatar, IonGrid, IonRow, IonCol, IonSpinner, toastController,
   onIonViewWillEnter
 } from '@ionic/vue';

@@ -32,7 +32,7 @@
         <div class="menu-items-content">
           <div v-for="item in menuItems" :key="item.label" 
                class="menu-item-row" 
-               :class="{ active: currentRoute === item.path || (item.path === '/tabs/scolarite' && currentRoute.includes('scolarite')) }" 
+               :class="{ active: isItemActive(item) }" 
                @click="handleItemClick(item)">
             <ion-icon :icon="item.icon" class="menu-item-icon"></ion-icon>
             <span class="menu-item-label">{{ item.label }}</span>
@@ -64,14 +64,16 @@ import {
   bookmarkOutline, 
   mailOutline, 
   imagesOutline, 
-  createOutline, 
   cardOutline, 
   cartOutline, 
   swapHorizontalOutline, 
   personOutline, 
   archiveOutline, 
-  informationCircleOutline,
-  busOutline
+  busOutline,
+  calendarOutline,
+  alertCircleOutline,
+  restaurantOutline,
+  ribbonOutline
 } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -85,6 +87,17 @@ const route = useRoute();
 const studentData = ref<any>(null);
 const currentRoute = computed(() => route.path);
 
+const isItemActive = (item: any) => {
+  const [path, queryStr] = item.path.split('?');
+  if (route.path !== path) return false;
+  if (!queryStr) return true;
+  const params = new URLSearchParams(queryStr);
+  for (const [key, value] of params.entries()) {
+    if (route.query[key] !== value) return false;
+  }
+  return true;
+};
+
 const studentNameParts = computed(() => {
   if (!studentData.value) return ['CHARGEMENT...'];
   const name = studentData.value.display_name || studentData.value.full_name || studentData.value.name || '';
@@ -97,21 +110,23 @@ const studentClass = computed(() => {
 });
 
 const menuItems = [
-  { label: 'Nouveautés', icon: globeOutline, path: '/tabs/dashboard' },
+  { label: 'Tableau de bord', icon: globeOutline, path: '/tabs/dashboard' },
+  { label: 'Emploi du temps', icon: calendarOutline, path: '/tabs/scolarite?tab=schedule' },
+  { label: 'Devoirs à faire', icon: documentTextOutline, path: '/tabs/scolarite?tab=homework' },
+  { label: 'Notes & Évaluations', icon: ribbonOutline, path: '/tabs/scolarite?tab=notes' },
+  { label: 'Absences & Retards', icon: alertCircleOutline, path: '/tabs/scolarite?tab=absences' },
   { label: 'Cahier de transmission', icon: heartOutline, path: '/tabs/transmission' },
-  { label: 'Devoirs', icon: documentTextOutline, path: '/tabs/scolarite' },
   { label: 'Suivi pédagogique', icon: schoolOutline, path: '/tabs/suivi-pedagogique' },
   { label: 'Ressources', icon: bookmarkOutline, path: '/tabs/ressources' },
-  { label: 'Messages', icon: mailOutline, path: '/chat' },
-  { label: 'Album Photo', icon: imagesOutline, path: '/tabs/album' },
-  { label: 'Mes demandes', icon: createOutline, path: '/tabs/vie-scolaire' },
+  { label: 'Cantine scolaire', icon: restaurantOutline, path: '/tabs/vie-scolaire' },
   { label: 'Transport scolaire', icon: busOutline, path: '/tabs/transport' },
-  { label: 'État des paiements', icon: cardOutline, path: '/tabs/payments' },
   { label: 'Boutique de l\'école', icon: cartOutline, path: '/tabs/shop' },
-  { label: 'Student wallet', icon: swapHorizontalOutline, path: '/tabs/wallet' },
-  { label: 'Mon compte', icon: personOutline, path: '/tabs/account' },
+  { label: 'Wallet étudiant', icon: swapHorizontalOutline, path: '/tabs/wallet' },
+  { label: 'Paiements', icon: cardOutline, path: '/tabs/payments' },
   { label: 'Objets perdus', icon: archiveOutline, path: '/tabs/lost-items' },
-  { label: 'Contact', icon: informationCircleOutline, path: '/tabs/vie-scolaire' }
+  { label: 'Messagerie', icon: mailOutline, path: '/chat' },
+  { label: 'Album Photo', icon: imagesOutline, path: '/tabs/album' },
+  { label: 'Mon compte', icon: personOutline, path: '/tabs/account' }
 ];
 
 const fetchStudentInfo = async () => {

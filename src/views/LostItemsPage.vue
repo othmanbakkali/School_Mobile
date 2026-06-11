@@ -2,6 +2,9 @@
   <ion-page>
     <ion-header class="ion-no-border">
       <ion-toolbar mode="md">
+        <ion-buttons slot="start">
+          <ion-menu-button color="dark"></ion-menu-button>
+        </ion-buttons>
         <ion-title>Objets Perdus</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -45,7 +48,7 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
-  IonSpinner, IonIcon, onIonViewWillEnter
+  IonSpinner, IonIcon, IonButtons, IonMenuButton, onIonViewWillEnter
 } from '@ionic/vue';
 import { locationOutline, calendarOutline } from 'ionicons/icons';
 import { ref } from 'vue';

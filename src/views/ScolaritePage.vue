@@ -3,6 +3,9 @@
   <ion-page>
     <ion-header class="ion-no-border">
       <ion-toolbar mode="md">
+        <ion-buttons slot="start">
+          <ion-menu-button color="dark"></ion-menu-button>
+        </ion-buttons>
         <ion-title>Scolarité</ion-title>
       </ion-toolbar>
       <div class="segment-container">
@@ -191,15 +194,16 @@
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonSegment, IonSegmentButton, IonLabel, IonIcon, IonSpinner,
-  IonButton, onIonViewWillEnter
+  IonButton, IonButtons, IonMenuButton, onIonViewWillEnter
 } from '@ionic/vue';
 import { timeOutline, personOutline, documentAttachOutline } from 'ionicons/icons';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 
 const router = useRouter();
+const route = useRoute();
 const selectedSegment = ref('homework');
 const homeworks = ref<any[]>([]);
 const notes = ref<any[]>([]);
@@ -322,10 +326,24 @@ const downloadAttachment = (item: any) => {
 };
 
 onIonViewWillEnter(() => {
+  if (route.query.tab) {
+    selectedSegment.value = route.query.tab as string;
+  }
   fetchData();
 });
 
-onMounted(() => { fetchData(); });
+watch(() => route.query.tab, (newTab) => {
+  if (newTab) {
+    selectedSegment.value = newTab as string;
+  }
+});
+
+onMounted(() => {
+  if (route.query.tab) {
+    selectedSegment.value = route.query.tab as string;
+  }
+  fetchData();
+});
 </script>
 
 <style scoped>

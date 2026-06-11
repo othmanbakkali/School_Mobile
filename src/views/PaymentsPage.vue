@@ -2,6 +2,9 @@
   <ion-page>
     <ion-header class="ion-no-border">
       <ion-toolbar mode="md">
+        <ion-buttons slot="start">
+          <ion-menu-button color="dark"></ion-menu-button>
+        </ion-buttons>
         <ion-title>Paiements</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -41,7 +44,7 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
-  IonSpinner, onIonViewWillEnter
+  IonSpinner, IonButtons, IonMenuButton, onIonViewWillEnter
 } from '@ionic/vue';
 import { ref } from 'vue';
 import { odoo } from '@/services/odoo';

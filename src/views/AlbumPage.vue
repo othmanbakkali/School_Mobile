@@ -2,6 +2,9 @@
   <ion-page>
     <ion-header class="ion-no-border">
       <ion-toolbar mode="md">
+        <ion-buttons slot="start">
+          <ion-menu-button color="dark"></ion-menu-button>
+        </ion-buttons>
         <ion-title>Album Photo</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -36,7 +39,7 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
-  IonIcon, IonSpinner, IonButton, onIonViewWillEnter
+  IonIcon, IonSpinner, IonButton, IonButtons, IonMenuButton, onIonViewWillEnter
 } from '@ionic/vue';
 import { imagesOutline, downloadOutline } from 'ionicons/icons';
 import { ref, onMounted } from 'vue';

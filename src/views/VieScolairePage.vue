@@ -3,6 +3,9 @@
   <ion-page>
     <ion-header class="ion-no-border">
       <ion-toolbar mode="md">
+        <ion-buttons slot="start">
+          <ion-menu-button color="dark"></ion-menu-button>
+        </ion-buttons>
         <ion-title>Vie Scolaire</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -148,7 +151,7 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
-  IonAvatar, IonButton, IonIcon, onIonViewWillEnter
+  IonAvatar, IonButton, IonIcon, IonButtons, IonMenuButton, onIonViewWillEnter
 } from '@ionic/vue';
 import { chatbubbleEllipsesOutline, callOutline, chatbubblesOutline, chevronForwardOutline } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
