@@ -119,6 +119,24 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_school_transport" model="ir.actions.act_window">
+        <field name="name">Transport Scolaire</field>
+        <field name="res_model">school.transport</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_school_wallet_transaction" model="ir.actions.act_window">
+        <field name="name">Transactions Portefeuille</field>
+        <field name="res_model">school.wallet.transaction</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_school_shop_product" model="ir.actions.act_window">
+        <field name="name">Boutique - Produits</field>
+        <field name="res_model">school.shop.product</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
 
     <!-- MENUS -->
     <!-- Menu Racine -->
@@ -211,6 +229,24 @@
               parent="menu_mobile_v2_root" 
               action="action_school_pedagogical_comment" 
               sequence="96"/>
+
+    <menuitem id="menu_mobile_v2_transport" 
+              name="Transport" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_transport" 
+              sequence="97"/>
+
+    <menuitem id="menu_mobile_v2_shop" 
+              name="Boutique" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_shop_product" 
+              sequence="98"/>
+
+    <menuitem id="menu_mobile_v2_wallet_transaction" 
+              name="Transactions Wallet" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_wallet_transaction" 
+              sequence="99"/>
 
 
     <menuitem id="menu_mobile_v2_config" 
@@ -366,6 +402,8 @@
                             <field name="level_id" options="{'no_open': True, 'no_create': True}"/>
                             <field name="year_id"/>
                             <field name="parent_id" options="{'no_quick_create': True}"/>
+                            <field name="transport_id"/>
+                            <field name="wallet_balance"/>
                         </group>
                         <group string="Moyenne">
                             <field name="average_grade" readonly="1" decoration-bf="1" decoration-success="average_grade >= 10" decoration-danger="average_grade &lt; 10"/>
@@ -414,6 +452,16 @@
                                     <field name="amount" sum="Total"/>
                                     <field name="date"/>
                                     <field name="state" widget="badge" decoration-success="state == 'paid'"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Transactions Wallet" name="wallet_transactions">
+                            <field name="wallet_transaction_ids" mode="list">
+                                <list editable="bottom">
+                                    <field name="date"/>
+                                    <field name="amount"/>
+                                    <field name="type"/>
+                                    <field name="description"/>
                                 </list>
                             </field>
                         </page>
@@ -776,6 +824,104 @@
                     </group>
                     <separator string="Commentaire"/>
                     <field name="text"/>
+                </sheet>
+    <!-- VUES TRANSPORT -->
+    <record id="view_transport_tree" model="ir.ui.view">
+        <field name="name">school.transport.tree</field>
+        <field name="model">school.transport</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="driver_name"/>
+                <field name="driver_phone"/>
+                <field name="vehicle_info"/>
+                <field name="pickup_time"/>
+                <field name="dropoff_time"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_transport_form" model="ir.ui.view">
+        <field name="name">school.transport.form</field>
+        <field name="model">school.transport</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Nom de la Ligne"/></h1>
+                    </div>
+                    <group>
+                        <group string="Chauffeur &amp; Véhicule">
+                            <field name="driver_name"/>
+                            <field name="driver_phone"/>
+                            <field name="vehicle_info"/>
+                        </group>
+                        <group string="Horaires">
+                            <field name="pickup_time"/>
+                            <field name="dropoff_time"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Élèves inscrits" name="students">
+                            <field name="student_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="level_id"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- VUES WALLET TRANSACTIONS -->
+    <record id="view_wallet_transaction_tree" model="ir.ui.view">
+        <field name="name">school.wallet.transaction.tree</field>
+        <field name="model">school.wallet.transaction</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="date"/>
+                <field name="student_id"/>
+                <field name="amount"/>
+                <field name="type"/>
+                <field name="description"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- VUES SHOP PRODUCTS -->
+    <record id="view_shop_product_tree" model="ir.ui.view">
+        <field name="name">school.shop.product.tree</field>
+        <field name="model">school.shop.product</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="price"/>
+                <field name="category"/>
+                <field name="stock"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_shop_product_form" model="ir.ui.view">
+        <field name="name">school.shop.product.form</field>
+        <field name="model">school.shop.product</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <field name="photo" widget="image" class="oe_avatar"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Nom de l'article"/></h1>
+                    </div>
+                    <group>
+                        <field name="price"/>
+                        <field name="category"/>
+                        <field name="stock"/>
+                    </group>
+                    <separator string="Description"/>
+                    <field name="description"/>
                 </sheet>
             </form>
         </field>

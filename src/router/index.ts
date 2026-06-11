@@ -73,6 +73,22 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'suivi-pedagogique',
         component: () => import('@/views/SuiviPedagogiquePage.vue')
+      },
+      {
+        path: 'transport',
+        component: () => import('@/views/TransportPage.vue')
+      },
+      {
+        path: 'wallet',
+        component: () => import('@/views/WalletPage.vue')
+      },
+      {
+        path: 'shop',
+        component: () => import('@/views/ShopPage.vue')
+      },
+      {
+        path: 'account',
+        component: () => import('@/views/AccountPage.vue')
       }
     ]
   }

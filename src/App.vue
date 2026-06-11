@@ -70,7 +70,8 @@ import {
   swapHorizontalOutline, 
   personOutline, 
   archiveOutline, 
-  informationCircleOutline 
+  informationCircleOutline,
+  busOutline
 } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -104,10 +105,11 @@ const menuItems = [
   { label: 'Messages', icon: mailOutline, path: '/chat' },
   { label: 'Album Photo', icon: imagesOutline, path: '/tabs/album' },
   { label: 'Mes demandes', icon: createOutline, path: '/tabs/vie-scolaire' },
+  { label: 'Transport scolaire', icon: busOutline, path: '/tabs/transport' },
   { label: 'État des paiements', icon: cardOutline, path: '/tabs/payments' },
-  { label: 'Boutique de l\'école', icon: cartOutline, path: 'placeholder_boutique' },
-  { label: 'Student wallet', icon: swapHorizontalOutline, path: 'placeholder_wallet' },
-  { label: 'Mon compte', icon: personOutline, path: 'placeholder_account' },
+  { label: 'Boutique de l\'école', icon: cartOutline, path: '/tabs/shop' },
+  { label: 'Student wallet', icon: swapHorizontalOutline, path: '/tabs/wallet' },
+  { label: 'Mon compte', icon: personOutline, path: '/tabs/account' },
   { label: 'Objets perdus', icon: archiveOutline, path: '/tabs/lost-items' },
   { label: 'Contact', icon: informationCircleOutline, path: '/tabs/vie-scolaire' }
 ];

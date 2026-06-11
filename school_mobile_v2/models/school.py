@@ -44,6 +44,9 @@ class SchoolStudent(models.Model):
     attendance_ids = fields.One2many('school.attendance', 'student_id', string='Absences/Retards')
     payment_ids = fields.One2many('school.payment', 'student_id', string='Paiements')
     ems_id = fields.Integer(string='ID EMS')
+    transport_id = fields.Many2one('school.transport', string='Ligne de Transport')
+    wallet_balance = fields.Float(string='Solde Portefeuille', default=150.00)
+    wallet_transaction_ids = fields.One2many('school.wallet.transaction', 'student_id', string='Transactions Portefeuille')
     album_count = fields.Integer(compute='_compute_album_count', string='Photos Album')
 
     def _compute_album_count(self):
@@ -360,4 +363,51 @@ class SchoolPedagogicalComment(models.Model):
     ], string='Sentiment', required=True, default='neutral')
     text = fields.Text(string='Commentaire', required=True)
     year_id = fields.Many2one('school.year', string='Année Scolaire')
+
+
+class SchoolTransport(models.Model):
+    _name = 'school.transport'
+    _description = 'Transport Scolaire'
+    _order = 'name'
+
+    name = fields.Char(string='Nom de la Ligne', required=True)
+    driver_name = fields.Char(string='Chauffeur')
+    driver_phone = fields.Char(string='Téléphone Chauffeur')
+    vehicle_info = fields.Char(string='Véhicule (Matricule/Modèle)')
+    pickup_time = fields.Char(string='Heure de Ramassage')
+    dropoff_time = fields.Char(string='Heure de Retour')
+    student_ids = fields.One2many('school.student', 'transport_id', string='Élèves inscrits')
+
+
+class SchoolWalletTransaction(models.Model):
+    _name = 'school.wallet.transaction'
+    _description = 'Transactions Portefeuille'
+    _order = 'date desc'
+
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
+    date = fields.Datetime(string='Date & Heure', default=fields.Datetime.now, required=True)
+    amount = fields.Float(string='Montant', required=True)
+    type = fields.Selection([
+        ('credit', 'Rechargement'),
+        ('debit', 'Achat boutique'),
+    ], string='Type', required=True, default='debit')
+    description = fields.Char(string='Description', required=True)
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
+
+
+class SchoolShopProduct(models.Model):
+    _name = 'school.shop.product'
+    _description = 'Boutique - Produits'
+    _order = 'name'
+
+    name = fields.Char(string='Nom de l\'article', required=True)
+    price = fields.Float(string='Prix (MAD)', required=True)
+    category = fields.Selection([
+        ('uniform', 'Uniforme'),
+        ('book', 'Livre / Manuel'),
+        ('material', 'Fourniture scolaire'),
+    ], string='Catégorie', default='uniform', required=True)
+    description = fields.Text(string='Description')
+    photo = fields.Binary(string='Photo')
+    stock = fields.Integer(string='Stock disponible', default=10)
 
