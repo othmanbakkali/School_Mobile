@@ -74,7 +74,8 @@ import {
   alertCircleOutline,
   restaurantOutline,
   ribbonOutline,
-  gameControllerOutline
+  gameControllerOutline,
+  trophyOutline
 } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -124,6 +125,7 @@ const menuItems = [
   { label: 'Boutique de l\'école', icon: cartOutline, path: '/tabs/shop' },
   { label: 'Wallet étudiant', icon: swapHorizontalOutline, path: '/tabs/wallet' },
   { label: 'Jeux éducatifs', icon: gameControllerOutline, path: '/tabs/games' },
+  { label: 'Espace Réussite', icon: trophyOutline, path: '/tabs/success' },
   { label: 'Paiements', icon: cardOutline, path: '/tabs/payments' },
   { label: 'Objets perdus', icon: archiveOutline, path: '/tabs/lost-items' },
   { label: 'Messagerie', icon: mailOutline, path: '/chat' },

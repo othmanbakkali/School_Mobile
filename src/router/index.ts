@@ -103,6 +103,10 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/SeriousGamesPage.vue')
       },
       {
+        path: 'success',
+        component: () => import('@/views/SuccessHubPage.vue')
+      },
+      {
         path: 'account',
         component: () => import('@/views/AccountPage.vue')
       }
