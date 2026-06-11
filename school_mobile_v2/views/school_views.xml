@@ -825,6 +825,10 @@
                     <separator string="Commentaire"/>
                     <field name="text"/>
                 </sheet>
+            </form>
+        </field>
+    </record>
+
     <!-- VUES TRANSPORT -->
     <record id="view_transport_tree" model="ir.ui.view">
         <field name="name">school.transport.tree</field>
