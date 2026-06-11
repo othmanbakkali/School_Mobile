@@ -87,6 +87,10 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/ShopPage.vue')
       },
       {
+        path: 'games',
+        component: () => import('@/views/SeriousGamesPage.vue')
+      },
+      {
         path: 'account',
         component: () => import('@/views/AccountPage.vue')
       }

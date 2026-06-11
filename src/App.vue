@@ -73,7 +73,8 @@ import {
   calendarOutline,
   alertCircleOutline,
   restaurantOutline,
-  ribbonOutline
+  ribbonOutline,
+  gameControllerOutline
 } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -122,6 +123,7 @@ const menuItems = [
   { label: 'Transport scolaire', icon: busOutline, path: '/tabs/transport' },
   { label: 'Boutique de l\'école', icon: cartOutline, path: '/tabs/shop' },
   { label: 'Wallet étudiant', icon: swapHorizontalOutline, path: '/tabs/wallet' },
+  { label: 'Jeux éducatifs', icon: gameControllerOutline, path: '/tabs/games' },
   { label: 'Paiements', icon: cardOutline, path: '/tabs/payments' },
   { label: 'Objets perdus', icon: archiveOutline, path: '/tabs/lost-items' },
   { label: 'Messagerie', icon: mailOutline, path: '/chat' },

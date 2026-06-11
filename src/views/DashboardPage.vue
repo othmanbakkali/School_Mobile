@@ -21,6 +21,18 @@
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
+
+      <!-- Glassmorphic segment tabs to declutter dashboard -->
+      <div class="segment-container" v-if="studentData" style="padding: 0 10px 10px 10px;">
+        <ion-segment v-model="selectedSegment" mode="md" class="custom-segment">
+          <ion-segment-button value="overview">
+            <ion-label>Aperçu Élève</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="school-life">
+            <ion-label>Vie Scolaire</ion-label>
+          </ion-segment-button>
+        </ion-segment>
+      </div>
     </ion-header>
 
     <ion-content :fullscreen="true" class="ion-padding">
@@ -46,125 +58,154 @@
           </div>
         </div>
 
-        <!-- Student Stats Card -->
-        <div class="premium-card stats-card ion-padding">
-          <div class="student-header">
-            <div class="name-tag">
-              <h3>{{ studentData.display_name || studentData.full_name || studentData.name || 'Chargement...' }}</h3>
-              <p>Classe: {{ studentData.level_id?.[1] || 'Non définie' }}</p>
-            </div>
-            <div class="attendance-badge">
-              <div class="dot"></div>
-              <span>En classe</span>
-            </div>
-          </div>
-          
-          <div class="stats-grid">
-            <div class="stat-item">
-              <span class="stat-label">Moyenne</span>
-              <span class="stat-value">{{ studentData.average_grade?.toFixed(2) || '0.00' }}<small>/20</small></span>
-            </div>
-            <div class="divider"></div>
-            <div class="stat-item">
-              <span class="stat-label">Absences</span>
-              <span class="stat-value">--</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- ... Quick Actions Grid ... -->
-        <div class="section-header">
-          <h2>Actions Rapides</h2>
-        </div>
-
-        <ion-grid class="ion-no-padding">
-          <ion-row>
-            <ion-col size="6" class="ion-padding-end">
-              <div class="action-tile homework-tile" @click="router.push('/tabs/scolarite')">
-                <div class="icon-box">
-                  <ion-icon :icon="bookOutline"></ion-icon>
-                </div>
-                <h3>Devoirs</h3>
-                <p>À vérifier</p>
+        <!-- ==================== TAB 1: OVERVIEW ==================== -->
+        <div v-if="selectedSegment === 'overview'" class="fade-in">
+          <!-- Student Stats Card -->
+          <div class="premium-card stats-card ion-padding">
+            <div class="student-header">
+              <div class="name-tag">
+                <h3>{{ studentData.display_name || studentData.full_name || studentData.name || 'Chargement...' }}</h3>
+                <p>Classe: {{ studentData.level_id?.[1] || 'Non définie' }}</p>
               </div>
-            </ion-col>
-            <ion-col size="6" class="ion-padding-start">
-              <div class="action-tile canteen-tile" @click="router.push('/tabs/vie-scolaire')">
-                <div class="icon-box">
-                  <ion-icon :icon="restaurantOutline"></ion-icon>
-                </div>
-                <h3>Cantine</h3>
-                <p>Menu Jour</p>
+              <div class="attendance-badge">
+                <div class="dot"></div>
+                <span>En classe</span>
               </div>
-            </ion-col>
-          </ion-row>
-          <ion-row class="ion-margin-top">
-            <ion-col size="6" class="ion-padding-end">
-              <div class="action-tile payment-tile" @click="router.push('/tabs/payments')">
-                <div class="icon-box">
-                  <ion-icon :icon="walletOutline"></ion-icon>
-                </div>
-                <h3>Paiements</h3>
-                <p>Suivi mensuel</p>
+            </div>
+            
+            <div class="stats-grid">
+              <div class="stat-item">
+                <span class="stat-label">Moyenne</span>
+                <span class="stat-value">{{ studentData.average_grade?.toFixed(2) || '0.00' }}<small>/20</small></span>
               </div>
-            </ion-col>
-            <ion-col size="6" class="ion-padding-start">
-              <div class="action-tile lost-tile" @click="router.push('/tabs/lost-items')">
-                <div class="icon-box">
-                  <ion-icon :icon="searchOutline"></ion-icon>
-                </div>
-                <h3>Objets Perdus</h3>
-                <p>Section Trouvés</p>
+              <div class="divider"></div>
+              <div class="stat-item" @click="router.push('/tabs/wallet')" style="cursor: pointer;">
+                <span class="stat-label">Wallet</span>
+                <span class="stat-value">{{ studentData.wallet_balance || '0.00' }}<small> DHS</small></span>
               </div>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
-
-
-        <!-- Fil d'actualité -->
-        <div class="section-header">
-          <h2>Fil d'actualité</h2>
-          <ion-button fill="clear" size="small" @click="router.push('/tabs/vie-scolaire')">Voir tout</ion-button>
-        </div>
-
-        <div v-if="announcements.length === 0" class="empty-state-card">
-          <p>Aucune actualité pour le moment.</p>
-        </div>
-
-        <div v-for="ann in announcements" :key="ann.id" class="premium-card news-card">
-          <div class="news-header">
-            <div class="news-info">
-              <h3>{{ ann.title }}</h3>
-              <p>{{ formatDatetime(ann.date) }}</p>
             </div>
-            <ion-icon :icon="megaphoneOutline" class="news-icon"></ion-icon>
           </div>
-          <div class="news-content">
-            <p>{{ ann.content }}</p>
+
+          <!-- Quick Actions Grid -->
+          <div class="section-header">
+            <h2>Actions Rapides</h2>
           </div>
-          <div v-if="ann.attachment" class="attachment-box" @click="downloadAttachment(ann)">
-            <ion-icon :icon="documentAttachOutline"></ion-icon>
-            <span>{{ ann.attachment_name || 'Pièce jointe' }}</span>
+
+          <ion-grid class="ion-no-padding">
+            <ion-row>
+              <ion-col size="6" class="ion-padding-end">
+                <div class="action-tile homework-tile" @click="router.push('/tabs/scolarite?tab=homework')">
+                  <div class="icon-box">
+                    <ion-icon :icon="bookOutline"></ion-icon>
+                  </div>
+                  <h3>Devoirs</h3>
+                  <p>À vérifier</p>
+                </div>
+              </ion-col>
+              <ion-col size="6" class="ion-padding-start">
+                <div class="action-tile canteen-tile" @click="router.push('/tabs/vie-scolaire')">
+                  <div class="icon-box">
+                    <ion-icon :icon="restaurantOutline"></ion-icon>
+                  </div>
+                  <h3>Cantine</h3>
+                  <p>Menu Jour</p>
+                </div>
+              </ion-col>
+            </ion-row>
+            <ion-row class="ion-margin-top">
+              <ion-col size="6" class="ion-padding-end">
+                <div class="action-tile payment-tile" @click="router.push('/tabs/payments')">
+                  <div class="icon-box">
+                    <ion-icon :icon="walletOutline"></ion-icon>
+                  </div>
+                  <h3>Paiements</h3>
+                  <p>Suivi mensuel</p>
+                </div>
+              </ion-col>
+              <ion-col size="6" class="ion-padding-start">
+                <div class="action-tile lost-tile" @click="router.push('/tabs/lost-items')">
+                  <div class="icon-box">
+                    <ion-icon :icon="searchOutline"></ion-icon>
+                  </div>
+                  <h3>Objets Perdus</h3>
+                  <p>Section Trouvés</p>
+                </div>
+              </ion-col>
+            </ion-row>
+          </ion-grid>
+
+          <!-- Derniers Résultats -->
+          <div class="section-header" style="margin-top: 25px;">
+            <h2>Derniers Résultats</h2>
+            <ion-button fill="clear" size="small" @click="router.push('/tabs/scolarite?tab=notes')">Voir tout</ion-button>
+          </div>
+
+          <div class="results-list">
+            <div v-for="grade in recentGrades" :key="grade.id" class="premium-card grade-item">
+              <div class="subject-icon" style="background: rgba(99, 102, 241, 0.1)">
+                <ion-icon :icon="calculatorOutline" style="color: #6366f1"></ion-icon>
+              </div>
+              <div class="grade-info">
+                <h4>{{ grade.subject_id?.[1] || 'Évaluation' }}</h4>
+                <p>Oral: {{ grade.oral_mark }} | Final: {{ grade.final_mark }}</p>
+              </div>
+              <div class="grade-pill" :style="{ background: (grade.final_mark >= 10 ? '#10b981' : '#ef4444') }">
+                {{ grade.final_mark }}/20
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="section-header">
-          <h2>Derniers Résultats</h2>
-          <ion-button fill="clear" size="small" @click="router.push('/tabs/scolarite')">Voir tout</ion-button>
-        </div>
-
-
-        <div class="results-list">
-          <div v-for="grade in recentGrades" :key="grade.id" class="premium-card grade-item">
-            <div class="subject-icon" style="background: rgba(99, 102, 241, 0.1)">
-              <ion-icon :icon="calculatorOutline" style="color: #6366f1"></ion-icon>
+        <!-- ==================== TAB 2: SCHOOL LIFE ==================== -->
+        <div v-else-if="selectedSegment === 'school-life'" class="fade-in">
+          <!-- Transport Info Banner Link -->
+          <div class="action-tile transport-tile-full premium-card ion-padding" @click="router.push('/tabs/transport')" style="cursor: pointer; display: flex; align-items: center; gap: 15px; border-left: 5px solid #d97706; background: linear-gradient(135deg, rgba(217, 119, 6, 0.05) 0%, rgba(245, 158, 11, 0.06) 100%); margin-bottom: 15px;">
+            <div class="icon-box" style="background: #fffbeb; color: #d97706; padding: 10px; border-radius: 12px; font-size: 1.5rem; display: flex;">
+              <ion-icon :icon="busOutline"></ion-icon>
             </div>
-            <div class="grade-info">
-              <h4>{{ grade.subject_id?.[1] || 'Évaluation' }}</h4>
-              <p>Oral: {{ grade.oral_mark }} | Final: {{ grade.final_mark }}</p>
+            <div style="flex: 1;">
+              <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #1e293b;">Transport Scolaire</h3>
+              <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b;">Suivre la navette de votre enfant en temps réel</p>
             </div>
-            <div class="grade-pill" :style="{ background: (grade.final_mark >= 10 ? '#10b981' : '#ef4444') }">
-              {{ grade.final_mark }}/20
+            <div style="color: #cbd5e1; font-weight: 800;">→</div>
+          </div>
+
+          <!-- Wallet Info Banner Link -->
+          <div class="action-tile wallet-tile-full premium-card ion-padding" @click="router.push('/tabs/wallet')" style="cursor: pointer; display: flex; align-items: center; gap: 15px; border-left: 5px solid #8b5cf6; background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(167, 139, 250, 0.06) 100%); margin-bottom: 25px;">
+            <div class="icon-box" style="background: #f5f3ff; color: #8b5cf6; padding: 10px; border-radius: 12px; font-size: 1.5rem; display: flex;">
+              <ion-icon :icon="swapHorizontalOutline"></ion-icon>
+            </div>
+            <div style="flex: 1;">
+              <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #1e293b;">Portefeuille Étudiant</h3>
+              <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b;">Gérer le solde de la cantine et faire un rechargement</p>
+            </div>
+            <div style="color: #cbd5e1; font-weight: 800;">→</div>
+          </div>
+
+          <!-- Fil d'actualité -->
+          <div class="section-header">
+            <h2>Actualités de l'École</h2>
+            <ion-button fill="clear" size="small" @click="router.push('/tabs/transmission')">Voir dans liaison</ion-button>
+          </div>
+
+          <div v-if="announcements.length === 0" class="empty-state-card">
+            <p>Aucune actualité pour le moment.</p>
+          </div>
+
+          <div v-for="ann in announcements" :key="ann.id" class="premium-card news-card">
+            <div class="news-header">
+              <div class="news-info">
+                <h3>{{ ann.title }}</h3>
+                <p>{{ formatDatetime(ann.date) }}</p>
+              </div>
+              <ion-icon :icon="megaphoneOutline" class="news-icon"></ion-icon>
+            </div>
+            <div class="news-content">
+              <p>{{ ann.content }}</p>
+            </div>
+            <div v-if="ann.attachment" class="attachment-box" @click="downloadAttachment(ann)">
+              <ion-icon :icon="documentAttachOutline"></ion-icon>
+              <span>{{ ann.attachment_name || 'Pièce jointe' }}</span>
             </div>
           </div>
         </div>
@@ -182,15 +223,17 @@ import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
   IonButtons, IonButton, IonIcon, IonBadge, IonMenuButton,
   IonAvatar, IonGrid, IonRow, IonCol, IonSpinner, toastController,
+  IonSegment, IonSegmentButton, IonLabel,
   onIonViewWillEnter
 } from '@ionic/vue';
-import { notificationsOutline, bookOutline, restaurantOutline, logOutOutline, calculatorOutline, megaphoneOutline, documentAttachOutline, walletOutline, searchOutline } from 'ionicons/icons';
+import { notificationsOutline, bookOutline, restaurantOutline, logOutOutline, calculatorOutline, megaphoneOutline, documentAttachOutline, walletOutline, searchOutline, busOutline, swapHorizontalOutline } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { onMounted, ref, onUnmounted } from 'vue';
 
 const router = useRouter();
+const selectedSegment = ref('overview');
 const studentData = ref<any>(null);
 const allStudents = ref<any[]>([]);
 const recentGrades = ref<any[]>([]);
