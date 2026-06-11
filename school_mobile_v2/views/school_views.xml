@@ -101,6 +101,25 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_school_cahier_transmission" model="ir.actions.act_window">
+        <field name="name">Cahier de Transmission</field>
+        <field name="res_model">school.cahier.transmission</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_school_resources" model="ir.actions.act_window">
+        <field name="name">Ressources Pédagogiques</field>
+        <field name="res_model">school.resources</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_school_pedagogical_comment" model="ir.actions.act_window">
+        <field name="name">Commentaires Pédagogiques</field>
+        <field name="res_model">school.pedagogical.comment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+
     <!-- MENUS -->
     <!-- Menu Racine -->
     <menuitem id="menu_mobile_v2_root" 
@@ -174,6 +193,25 @@
               parent="menu_mobile_v2_root" 
               action="action_school_lost_item" 
               sequence="90"/>
+
+    <menuitem id="menu_mobile_v2_cahier_transmission" 
+              name="Cahier de Transmission" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_cahier_transmission" 
+              sequence="92"/>
+
+    <menuitem id="menu_mobile_v2_resources" 
+              name="Ressources" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_resources" 
+              sequence="94"/>
+
+    <menuitem id="menu_mobile_v2_pedagogical_comment" 
+              name="Commentaires Pédagogiques" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_pedagogical_comment" 
+              sequence="96"/>
+
 
     <menuitem id="menu_mobile_v2_config" 
               name="Configuration" 
@@ -613,4 +651,135 @@
         </field>
     </record>
 
+    <!-- VUES CAHIER TRANSMISSION -->
+    <record id="view_cahier_transmission_tree" model="ir.ui.view">
+        <field name="name">school.cahier.transmission.tree</field>
+        <field name="model">school.cahier.transmission</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="date"/>
+                <field name="student_id"/>
+                <field name="type"/>
+                <field name="title"/>
+                <field name="author"/>
+                <field name="requires_signature"/>
+                <field name="signed"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_cahier_transmission_form" model="ir.ui.view">
+        <field name="name">school.cahier.transmission.form</field>
+        <field name="model">school.cahier.transmission</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="student_id"/>
+                            <field name="type"/>
+                            <field name="title"/>
+                            <field name="author"/>
+                        </group>
+                        <group>
+                            <field name="date"/>
+                            <field name="requires_signature"/>
+                            <field name="signed" invisible="not requires_signature"/>
+                            <field name="year_id"/>
+                        </group>
+                    </group>
+                    <separator string="Contenu"/>
+                    <field name="content"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- VUES RESSOURCES -->
+    <record id="view_resources_tree" model="ir.ui.view">
+        <field name="name">school.resources.tree</field>
+        <field name="model">school.resources</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="date"/>
+                <field name="name"/>
+                <field name="subject"/>
+                <field name="teacher"/>
+                <field name="type"/>
+                <field name="level_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_resources_form" model="ir.ui.view">
+        <field name="name">school.resources.form</field>
+        <field name="model">school.resources</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="subject"/>
+                            <field name="teacher"/>
+                            <field name="type"/>
+                        </group>
+                        <group>
+                            <field name="mimetype"/>
+                            <field name="date"/>
+                            <field name="size"/>
+                            <field name="level_id"/>
+                            <field name="year_id"/>
+                        </group>
+                    </group>
+                    <group string="Fichier ou Lien">
+                        <field name="url"/>
+                        <field name="datas" filename="name"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- VUES COMMENTAIRES PEDAGOGIQUES -->
+    <record id="view_pedagogical_comment_tree" model="ir.ui.view">
+        <field name="name">school.pedagogical.comment.tree</field>
+        <field name="model">school.pedagogical.comment</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="date"/>
+                <field name="student_id"/>
+                <field name="teacher"/>
+                <field name="subject"/>
+                <field name="sentiment"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_pedagogical_comment_form" model="ir.ui.view">
+        <field name="name">school.pedagogical.comment.form</field>
+        <field name="model">school.pedagogical.comment</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="student_id"/>
+                            <field name="teacher"/>
+                            <field name="subject"/>
+                        </group>
+                        <group>
+                            <field name="date"/>
+                            <field name="sentiment"/>
+                            <field name="year_id"/>
+                        </group>
+                    </group>
+                    <separator string="Commentaire"/>
+                    <field name="text"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
 </odoo>
+

@@ -61,7 +61,20 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'tab4',
         component: () => import('@/views/Tab4Page.vue')
+      },
+      {
+        path: 'transmission',
+        component: () => import('@/views/CahierTransmissionPage.vue')
+      },
+      {
+        path: 'ressources',
+        component: () => import('@/views/RessourcesPage.vue')
+      },
+      {
+        path: 'suivi-pedagogique',
+        component: () => import('@/views/SuiviPedagogiquePage.vue')
       }
+
     ]
   }
 ]

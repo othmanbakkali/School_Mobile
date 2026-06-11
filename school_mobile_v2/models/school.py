@@ -295,3 +295,69 @@ class SchoolLostItem(models.Model):
         ('lost', 'Perdu (Au bureau)'),
         ('claimed', 'Récupéré'),
     ], string='État', default='lost')
+
+
+class SchoolCahierTransmission(models.Model):
+    _name = 'school.cahier.transmission'
+    _description = 'Cahier de Transmission'
+    _order = 'date desc'
+
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
+    type = fields.Selection([
+        ('info', 'Information'),
+        ('warning', 'Avertissement'),
+        ('urgent', 'Urgent'),
+        ('homework', 'Devoir'),
+        ('event', 'Événement'),
+    ], string='Type', required=True, default='info')
+    title = fields.Char(string='Titre', required=True)
+    content = fields.Text(string='Contenu', required=True)
+    author = fields.Char(string='Auteur', default='Direction')
+    date = fields.Datetime(string='Date', default=fields.Datetime.now)
+    requires_signature = fields.Boolean(string='Signature requise', default=False)
+    signed = fields.Boolean(string='Signé', default=False)
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
+
+
+class SchoolResource(models.Model):
+    _name = 'school.resources'
+    _description = 'Ressources Pédagogiques'
+    _order = 'date desc'
+
+    name = fields.Char(string='Nom', required=True)
+    subject = fields.Char(string='Matière')
+    teacher = fields.Char(string='Enseignant')
+    type = fields.Selection([
+        ('pdf', 'PDF'),
+        ('video', 'Vidéo'),
+        ('image', 'Image'),
+        ('doc', 'Document'),
+        ('excel', 'Tableur'),
+        ('powerpoint', 'Présentation'),
+    ], string='Type', required=True, default='pdf')
+    mimetype = fields.Char(string='Mimetype')
+    date = fields.Date(string='Date', default=fields.Date.today)
+    size = fields.Char(string='Taille')
+    url = fields.Char(string='URL')
+    datas = fields.Binary(string='Fichier (Données)')
+    level_id = fields.Many2one('school.level', string='Niveau / Classe')
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
+
+
+class SchoolPedagogicalComment(models.Model):
+    _name = 'school.pedagogical.comment'
+    _description = 'Commentaires Pédagogiques'
+    _order = 'date desc'
+
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
+    teacher = fields.Char(string='Enseignant', required=True)
+    subject = fields.Char(string='Matière')
+    date = fields.Date(string='Date', default=fields.Date.today)
+    sentiment = fields.Selection([
+        ('positive', 'Bien'),
+        ('negative', 'À améliorer'),
+        ('neutral', 'Neutre'),
+    ], string='Sentiment', required=True, default='neutral')
+    text = fields.Text(string='Commentaire', required=True)
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
+

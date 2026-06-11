@@ -16,3 +16,6 @@ access_school_year,school_year,model_school_year,,1,1,1,1
 access_school_semester,school_semester,model_school_semester,,1,1,1,1
 access_school_payment,school_payment,model_school_payment,,1,1,1,1
 access_school_lost_item,school_lost_item,model_school_lost_item,,1,1,1,1
+access_school_cahier_transmission,school_cahier_transmission,model_school_cahier_transmission,,1,1,1,1
+access_school_resources,school_resources,model_school_resources,,1,1,1,1
+access_school_pedagogical_comment,school_pedagogical_comment,model_school_pedagogical_comment,,1,1,1,1
