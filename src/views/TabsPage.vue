@@ -4,12 +4,12 @@
     <ion-tabs>
       <ion-router-outlet></ion-router-outlet>
       <ion-tab-bar slot="bottom" class="custom-tab-bar">
-        <ion-tab-button tab="tab1" href="/tabs/tab1">
+        <ion-tab-button tab="dashboard" href="/tabs/dashboard">
           <ion-icon aria-hidden="true" :icon="homeOutline" />
           <ion-label>Accueil</ion-label>
         </ion-tab-button>
 
-        <ion-tab-button tab="tab2" href="/tabs/tab2">
+        <ion-tab-button tab="scolarite" href="/tabs/scolarite">
           <ion-icon aria-hidden="true" :icon="schoolOutline" />
           <ion-label>Scolarité</ion-label>
         </ion-tab-button>
@@ -24,16 +24,17 @@
           <ion-label>Objets</ion-label>
         </ion-tab-button>
 
-        <ion-tab-button tab="tab3" href="/tabs/tab3">
+        <ion-tab-button tab="vie-scolaire" href="/tabs/vie-scolaire">
           <ion-icon aria-hidden="true" :icon="restaurantOutline" />
           <ion-label>Vie</ion-label>
         </ion-tab-button>
 
-        <ion-tab-button tab="tab4" href="/tabs/tab4">
+        <ion-tab-button tab="album" href="/tabs/album">
           <ion-icon aria-hidden="true" :icon="imagesOutline" />
           <ion-label>Album</ion-label>
         </ion-tab-button>
       </ion-tab-bar>
+
     </ion-tabs>
   </ion-page>
 </template>

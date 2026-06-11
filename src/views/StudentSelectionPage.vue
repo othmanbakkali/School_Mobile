@@ -66,7 +66,7 @@ const fetchData = async () => {
     // Si un seul enfant, on le sélectionne direct et on va aux tabs
     if (data.length === 1) {
       odoo.setSelectedStudentId(data[0].id);
-      router.replace('/tabs/tab1');
+      router.replace('/tabs/dashboard');
     }
   } catch (e) {
     console.error('Failed to fetch students', e);
@@ -77,7 +77,7 @@ const fetchData = async () => {
 
 const selectStudent = (id: number) => {
   odoo.setSelectedStudentId(id);
-  router.replace('/tabs/tab1');
+  router.replace('/tabs/dashboard');
 };
 
 const handleLogout = () => {

@@ -80,7 +80,7 @@
         <ion-grid class="ion-no-padding">
           <ion-row>
             <ion-col size="6" class="ion-padding-end">
-              <div class="action-tile homework-tile" @click="router.push('/tabs/tab2')">
+              <div class="action-tile homework-tile" @click="router.push('/tabs/scolarite')">
                 <div class="icon-box">
                   <ion-icon :icon="bookOutline"></ion-icon>
                 </div>
@@ -89,7 +89,7 @@
               </div>
             </ion-col>
             <ion-col size="6" class="ion-padding-start">
-              <div class="action-tile canteen-tile" @click="router.push('/tabs/tab3')">
+              <div class="action-tile canteen-tile" @click="router.push('/tabs/vie-scolaire')">
                 <div class="icon-box">
                   <ion-icon :icon="restaurantOutline"></ion-icon>
                 </div>
@@ -100,7 +100,7 @@
           </ion-row>
           <ion-row class="ion-margin-top">
             <ion-col size="6" class="ion-padding-end">
-              <div class="action-tile payment-tile" @click="router.push('/tabs/tab3')">
+              <div class="action-tile payment-tile" @click="router.push('/tabs/payments')">
                 <div class="icon-box">
                   <ion-icon :icon="walletOutline"></ion-icon>
                 </div>
@@ -109,7 +109,7 @@
               </div>
             </ion-col>
             <ion-col size="6" class="ion-padding-start">
-              <div class="action-tile lost-tile" @click="router.push('/tabs/tab3')">
+              <div class="action-tile lost-tile" @click="router.push('/tabs/lost-items')">
                 <div class="icon-box">
                   <ion-icon :icon="searchOutline"></ion-icon>
                 </div>
@@ -120,10 +120,11 @@
           </ion-row>
         </ion-grid>
 
+
         <!-- Fil d'actualité -->
         <div class="section-header">
           <h2>Fil d'actualité</h2>
-          <ion-button fill="clear" size="small" @click="router.push('/tabs/tab3')">Voir tout</ion-button>
+          <ion-button fill="clear" size="small" @click="router.push('/tabs/vie-scolaire')">Voir tout</ion-button>
         </div>
 
         <div v-if="announcements.length === 0" class="empty-state-card">
@@ -149,8 +150,9 @@
 
         <div class="section-header">
           <h2>Derniers Résultats</h2>
-          <ion-button fill="clear" size="small" @click="router.push('/tabs/tab2')">Voir tout</ion-button>
+          <ion-button fill="clear" size="small" @click="router.push('/tabs/scolarite')">Voir tout</ion-button>
         </div>
+
 
         <div class="results-list">
           <div v-for="grade in recentGrades" :key="grade.id" class="premium-card grade-item">

@@ -4,7 +4,7 @@
     <ion-header class="ion-no-border">
       <ion-toolbar mode="md" class="chat-toolbar">
         <ion-buttons slot="start">
-          <ion-back-button default-href="/tabs/tab1"></ion-back-button>
+          <ion-back-button default-href="/tabs/dashboard"></ion-back-button>
         </ion-buttons>
         <ion-avatar slot="start" class="admin-avatar">
           <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Admin" />

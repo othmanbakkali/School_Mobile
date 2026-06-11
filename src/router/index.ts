@@ -36,19 +36,19 @@ const routes: Array<RouteRecordRaw> = [
     children: [
       {
         path: '',
-        redirect: '/tabs/tab1'
+        redirect: '/tabs/dashboard'
       },
       {
-        path: 'tab1',
-        component: () => import('@/views/Tab1Page.vue')
+        path: 'dashboard',
+        component: () => import('@/views/DashboardPage.vue')
       },
       {
-        path: 'tab2',
-        component: () => import('@/views/Tab2Page.vue')
+        path: 'scolarite',
+        component: () => import('@/views/ScolaritePage.vue')
       },
       {
-        path: 'tab3',
-        component: () => import('@/views/Tab3Page.vue')
+        path: 'vie-scolaire',
+        component: () => import('@/views/VieScolairePage.vue')
       },
       {
         path: 'payments',
@@ -59,8 +59,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/LostItemsPage.vue')
       },
       {
-        path: 'tab4',
-        component: () => import('@/views/Tab4Page.vue')
+        path: 'album',
+        component: () => import('@/views/AlbumPage.vue')
       },
       {
         path: 'transmission',
@@ -74,7 +74,6 @@ const routes: Array<RouteRecordRaw> = [
         path: 'suivi-pedagogique',
         component: () => import('@/views/SuiviPedagogiquePage.vue')
       }
-
     ]
   }
 ]
@@ -91,7 +90,7 @@ router.beforeEach((to, from, next) => {
   const hasStudent = !!odoo.selectedStudentId;
 
   if (to.path === '/login' && isLogged) {
-    next(hasStudent ? '/tabs/tab1' : '/selection');
+    next(hasStudent ? '/tabs/dashboard' : '/selection');
   } else if (to.path.startsWith('/tabs') && !isLogged) {
     next('/login');
   } else if (to.path.startsWith('/tabs') && isLogged && !hasStudent) {

@@ -32,7 +32,7 @@
         <div class="menu-items-content">
           <div v-for="item in menuItems" :key="item.label" 
                class="menu-item-row" 
-               :class="{ active: currentRoute === item.path || (item.path === '/tabs/tab2' && currentRoute.includes('tab2')) }" 
+               :class="{ active: currentRoute === item.path || (item.path === '/tabs/scolarite' && currentRoute.includes('scolarite')) }" 
                @click="handleItemClick(item)">
             <ion-icon :icon="item.icon" class="menu-item-icon"></ion-icon>
             <span class="menu-item-label">{{ item.label }}</span>
@@ -96,20 +96,20 @@ const studentClass = computed(() => {
 });
 
 const menuItems = [
-  { label: 'Nouveautés', icon: globeOutline, path: '/tabs/tab1' },
+  { label: 'Nouveautés', icon: globeOutline, path: '/tabs/dashboard' },
   { label: 'Cahier de transmission', icon: heartOutline, path: '/tabs/transmission' },
-  { label: 'Devoirs', icon: documentTextOutline, path: '/tabs/tab2' },
+  { label: 'Devoirs', icon: documentTextOutline, path: '/tabs/scolarite' },
   { label: 'Suivi pédagogique', icon: schoolOutline, path: '/tabs/suivi-pedagogique' },
   { label: 'Ressources', icon: bookmarkOutline, path: '/tabs/ressources' },
   { label: 'Messages', icon: mailOutline, path: '/chat' },
-  { label: 'Album Photo', icon: imagesOutline, path: '/tabs/tab4' },
-  { label: 'Mes demandes', icon: createOutline, path: '/tabs/tab3' },
+  { label: 'Album Photo', icon: imagesOutline, path: '/tabs/album' },
+  { label: 'Mes demandes', icon: createOutline, path: '/tabs/vie-scolaire' },
   { label: 'État des paiements', icon: cardOutline, path: '/tabs/payments' },
   { label: 'Boutique de l\'école', icon: cartOutline, path: 'placeholder_boutique' },
   { label: 'Student wallet', icon: swapHorizontalOutline, path: 'placeholder_wallet' },
   { label: 'Mon compte', icon: personOutline, path: 'placeholder_account' },
   { label: 'Objets perdus', icon: archiveOutline, path: '/tabs/lost-items' },
-  { label: 'Contact', icon: informationCircleOutline, path: '/tabs/tab3' }
+  { label: 'Contact', icon: informationCircleOutline, path: '/tabs/vie-scolaire' }
 ];
 
 const fetchStudentInfo = async () => {
