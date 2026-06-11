@@ -10,13 +10,16 @@
       <div class="segment-container">
         <ion-segment v-model="activeSegment" mode="md" class="custom-segment">
           <ion-segment-button value="badges">
-            <ion-label>🏆 Mes Badges</ion-label>
+            <ion-label>🏆 Badges</ion-label>
           </ion-segment-button>
           <ion-segment-button value="revision">
             <ion-label>🤖 Révision IA</ion-label>
           </ion-segment-button>
           <ion-segment-button value="quests">
-            <ion-label>⚡ Défis du Jour</ion-label>
+            <ion-label>⚡ Défis</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="analytics">
+            <ion-label>📈 Analyses</ion-label>
           </ion-segment-button>
         </ion-segment>
       </div>
@@ -167,6 +170,123 @@
                 <div class="quest-xp-reward">+{{ quest.xp }} XP</div>
               </div>
               <span class="quest-icon">{{ quest.emoji }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== TAB 4: ANALYTICS & SMART TIPS ==================== -->
+        <div v-else-if="activeSegment === 'analytics'" class="analytics-view">
+          <div class="analytics-intro premium-card ion-padding text-center">
+            <h2>Suivi Comportemental & Assiduité</h2>
+            <p>Indicateurs de progression générés à partir du dossier scolaire en temps réel.</p>
+          </div>
+
+          <!-- Circular Progress Rings Grid -->
+          <div class="charts-flex-row">
+            <!-- Metric 1: Comportement -->
+            <div class="metric-card premium-card text-center">
+              <div class="circle-chart-container">
+                <svg viewBox="0 0 36 36" class="circular-chart green">
+                  <path class="circle-bg"
+                    d="M18 2.0845
+                      a 15.9155 15.9155 0 0 1 0 31.831
+                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path class="circle"
+                    stroke-dasharray="90, 100"
+                    d="M18 2.0845
+                      a 15.9155 15.9155 0 0 1 0 31.831
+                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <div class="percentage-label">18/20</div>
+              </div>
+              <h4>Comportement</h4>
+              <span class="status-tag status-high">Excellent</span>
+            </div>
+
+            <!-- Metric 2: Présence & Ponctualité -->
+            <div class="metric-card premium-card text-center">
+              <div class="circle-chart-container">
+                <svg viewBox="0 0 36 36" class="circular-chart orange">
+                  <path class="circle-bg"
+                    d="M18 2.0845
+                      a 15.9155 15.9155 0 0 1 0 31.831
+                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path class="circle"
+                    stroke-dasharray="95, 100"
+                    d="M18 2.0845
+                      a 15.9155 15.9155 0 0 1 0 31.831
+                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <div class="percentage-label">95%</div>
+              </div>
+              <h4>Ponctualité</h4>
+              <span class="status-tag status-mid">À surveiller</span>
+            </div>
+
+            <!-- Metric 3: Assiduité / Devoirs -->
+            <div class="metric-card premium-card text-center">
+              <div class="circle-chart-container">
+                <svg viewBox="0 0 36 36" class="circular-chart purple">
+                  <path class="circle-bg"
+                    d="M18 2.0845
+                      a 15.9155 15.9155 0 0 1 0 31.831
+                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path class="circle"
+                    stroke-dasharray="92, 100"
+                    d="M18 2.0845
+                      a 15.9155 15.9155 0 0 1 0 31.831
+                      a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <div class="percentage-label">92%</div>
+              </div>
+              <h4>Devoirs faits</h4>
+              <span class="status-tag status-high">Très bon</span>
+            </div>
+          </div>
+
+          <!-- Smart Recommendations for Parents -->
+          <div class="section-header" style="margin-top: 25px;">
+            <h2>💡 Conseils d'Amélioration Personnalisés</h2>
+          </div>
+
+          <div class="tips-list">
+            <div class="tip-detail-card premium-card ion-padding text-left behavior-tip">
+              <div class="tip-card-header">
+                <span class="tip-icon">🤝</span>
+                <h3>Comportement & Participation</h3>
+              </div>
+              <p>Shams fait preuve d'une camaraderie remarquable et participe activement en classe avec dynamisme et respect.</p>
+              <div class="ai-recommendation-box">
+                🎯 <strong>Conseil :</strong> "Pour cultiver sa confiance, encouragez Shams à animer le club d'éco-citoyenneté ou à s'impliquer dans les projets d'entraide extrascolaires."
+              </div>
+            </div>
+
+            <div class="tip-detail-card premium-card ion-padding text-left presence-tip">
+              <div class="tip-card-header">
+                <span class="tip-icon">⏰</span>
+                <h3>Ponctualité & Présence</h3>
+              </div>
+              <p>Taux de présence parfait (100%), mais <strong>2 retards mineurs</strong> signalés à l'entrée le matin.</p>
+              <div class="ai-recommendation-box">
+                🎯 <strong>Conseil :</strong> "Pour éviter les retards causés par le trafic du matin, décalez le réveil ou l'heure de départ de la maison de seulement 10 minutes."
+              </div>
+            </div>
+
+            <div class="tip-detail-card premium-card ion-padding text-left diligence-tip">
+              <div class="tip-card-header">
+                <span class="tip-icon">📚</span>
+                <h3>Assiduité & Devoirs</h3>
+              </div>
+              <p>Très bon investissement avec 92% des devoirs rendus. 2 devoirs récents sont encore en état 'En cours'.</p>
+              <div class="ai-recommendation-box">
+                🎯 <strong>Conseil :</strong> "Instaurez un rituel quotidien de 30 minutes au retour de l'école (vers 18h) pour passer en revue la liste des devoirs de l'application."
+              </div>
             </div>
           </div>
         </div>
@@ -910,5 +1030,146 @@ ion-segment-button {
   width: 100%; padding: 14px;
   border-radius: 14px; font-weight: 800;
   cursor: pointer; font-size: 0.95rem;
+}
+
+/* Analytics Tab & Progress Ring Styles */
+.analytics-intro {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.06) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  margin-bottom: 20px;
+  border-radius: 20px;
+}
+.analytics-intro h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 850;
+  color: #1e293b;
+}
+.analytics-intro p {
+  margin: 5px 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.charts-flex-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.metric-card {
+  flex: 1;
+  padding: 16px 8px !important;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.metric-card h4 {
+  margin: 10px 0 6px 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+/* SVG progress circle styling */
+.circle-chart-container {
+  position: relative;
+  width: 60px;
+  height: 60px;
+}
+.circular-chart {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.circle-bg {
+  fill: none;
+  stroke: #f1f5f9;
+  stroke-width: 3.5;
+}
+.circle {
+  fill: none;
+  stroke-width: 3.8;
+  stroke-linecap: round;
+  animation: progressCircle 1.2s ease-out forwards;
+}
+@keyframes progressCircle {
+  0% { stroke-dasharray: 0, 100; }
+}
+
+.circular-chart.green .circle { stroke: #10b981; }
+.circular-chart.orange .circle { stroke: #f59e0b; }
+.circular-chart.purple .circle { stroke: #8b5cf6; }
+
+.percentage-label {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: #334155;
+}
+
+.status-tag {
+  font-size: 0.65rem;
+  font-weight: 750;
+  padding: 2px 6px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  margin-top: auto;
+}
+.status-tag.status-high { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.status-tag.status-mid { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+
+/* Recommendation Cards styling */
+.tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.tip-detail-card {
+  background: white;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.02);
+}
+.tip-detail-card.behavior-tip { border-left: 5px solid #10b981; }
+.tip-detail-card.presence-tip { border-left: 5px solid #f59e0b; }
+.tip-detail-card.diligence-tip { border-left: 5px solid #8b5cf6; }
+
+.tip-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.tip-icon {
+  font-size: 1.4rem;
+}
+.tip-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 850;
+  color: #1e293b;
+}
+.tip-detail-card p {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.5;
+  font-weight: 550;
+}
+.ai-recommendation-box {
+  background: #f8fafc;
+  border: 1px dashed #e2e8f0;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  color: #334155;
+  line-height: 1.45;
+}
+.ai-recommendation-box strong {
+  color: #5c2d54;
 }
 </style>
