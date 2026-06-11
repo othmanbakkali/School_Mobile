@@ -60,7 +60,9 @@
               <h3>{{ p.name }}</h3>
               <div class="product-price-row">
                 <span class="price-val">{{ p.price.toFixed(2) }} MAD</span>
-                <span class="stock-val" :class="{ low: p.stock <= 3 }">Stock: {{ p.stock }}</span>
+                <span class="stock-badge-pill" :class="{ 'in-stock': p.stock > 5, 'low-stock': p.stock > 0 && p.stock <= 5, 'out-stock': p.stock <= 0 }">
+                  {{ p.stock > 0 ? p.stock + ' dispo' : 'Épuisé' }}
+                </span>
               </div>
             </div>
           </div>
@@ -261,24 +263,27 @@ onMounted(() => {
 
 .premium-card {
   background: white;
-  border-radius: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  border-radius: 24px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
   margin-bottom: 0;
+  border: 1px solid rgba(0,0,0,0.02);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: floatIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .shop-balance-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%); /* High contrast green gradient */
   color: white;
-  padding: 14px 20px;
-  border-radius: 18px;
+  padding: 16px 20px;
+  border-radius: 20px;
   margin-top: 5px;
   margin-bottom: 25px;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 10px 25px -8px rgba(16, 185, 129, 0.25);
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .shop-balance-bar:active {
@@ -288,24 +293,28 @@ onMounted(() => {
 .balance-text span {
   display: block;
   font-size: 0.75rem;
-  opacity: 0.8;
-  font-weight: 600;
+  opacity: 0.85;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .balance-text strong {
-  font-size: 1.1rem;
-  font-weight: 800;
+  font-size: 1.15rem;
+  font-weight: 850;
+  margin-top: 4px;
+  display: block;
 }
 
 .balance-action ion-icon {
-  font-size: 1.4rem;
+  font-size: 1.55rem;
 }
 
 .category-scroll {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   overflow-x: auto;
-  padding-bottom: 12px;
+  padding-bottom: 14px;
   margin-bottom: 25px;
   scrollbar-width: none;
 }
@@ -315,76 +324,84 @@ onMounted(() => {
 }
 
 .cat-chip {
-  padding: 10px 18px;
+  padding: 11px 20px;
   border-radius: 50px;
-  border: 1.5px solid #e2e8f0;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #64748b;
+  border: 1.8px solid #e2e8f0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #475569;
   white-space: nowrap;
   background: white;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .cat-chip.active {
   background: #5c2d54;
   color: white;
   border-color: #5c2d54;
-  box-shadow: 0 4px 10px rgba(92, 45, 84, 0.15);
+  box-shadow: 0 8px 18px rgba(92, 45, 84, 0.2);
+  transform: translateY(-2px);
 }
 
 .products-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 15px;
+  gap: 16px;
 }
 
 .product-card {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s;
   cursor: pointer;
 }
 
 .product-card:active {
-  transform: scale(0.96);
+  transform: scale(0.96) translateY(2px);
 }
 
 .product-img-box {
   position: relative;
   width: 100%;
-  height: 120px;
-  background: #f1f5f9;
+  height: 130px;
+  background: #f8fafc;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .product-img-box img {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 90%;
+  max-height: 90%;
   object-fit: contain;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.product-card:hover .product-img-box img {
+  transform: scale(1.08);
 }
 
 .product-category-badge {
   position: absolute;
   top: 8px;
   left: 8px;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(92, 45, 84, 0.85);
+  backdrop-filter: blur(4px);
   color: white;
-  font-size: 0.6rem;
-  font-weight: 700;
+  font-size: 0.62rem;
+  font-weight: 800;
   padding: 4px 8px;
-  border-radius: 8px;
+  border-radius: 6px;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .product-info-box h3 {
-  margin: 0 0 6px 0;
-  font-size: 0.85rem;
-  font-weight: 700;
+  margin: 0 0 8px 0;
+  font-size: 0.9rem;
+  font-weight: 800;
   color: #1e293b;
   white-space: nowrap;
   overflow: hidden;
@@ -398,25 +415,39 @@ onMounted(() => {
 }
 
 .price-val {
-  font-size: 0.9rem;
-  font-weight: 800;
+  font-size: 0.95rem;
+  font-weight: 850;
   color: #5c2d54;
 }
 
-.stock-val {
+/* Dynamic Tricolor Stock Badge styling */
+.stock-badge-pill {
   font-size: 0.65rem;
-  font-weight: 700;
-  color: #94a3b8;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 8px;
+  text-transform: uppercase;
 }
 
-.stock-val.low {
-  color: #ef4444;
+.stock-badge-pill.in-stock {
+  background: #dcfce7;
+  color: #15803d; /* Compliant green contrast */
 }
 
-/* Modal styling */
+.stock-badge-pill.low-stock {
+  background: #ffedd5;
+  color: #c2410c; /* Compliant orange/brown contrast */
+}
+
+.stock-badge-pill.out-stock {
+  background: #fee2e2;
+  color: #b91c1c; /* Compliant red contrast */
+}
+
+/* Modal styling with glass effects */
 .product-modal {
-  --height: 480px;
-  --border-radius: 30px;
+  --height: 520px;
+  --border-radius: 32px;
   --align-items: flex-end;
 }
 
@@ -427,59 +458,67 @@ onMounted(() => {
 }
 
 .modal-img-box {
-  height: 150px;
+  height: 160px;
   background: #f8fafc;
-  border-radius: 20px;
+  border-radius: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   margin-bottom: 20px;
+  border: 1px solid #f1f5f9;
 }
 
 .modal-img-box img {
-  max-height: 100%;
+  max-height: 90%;
   object-fit: contain;
 }
 
 .modal-meta h2 {
-  font-size: 1.25rem;
-  font-weight: 800;
+  font-size: 1.35rem;
+  font-weight: 850;
   color: #0f172a;
-  margin: 0 0 5px 0;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.5px;
 }
 
 .modal-price {
-  font-size: 1.3rem;
-  font-weight: 800;
+  font-size: 1.4rem;
+  font-weight: 900;
   color: #5c2d54;
   display: block;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .stock-badge-row {
-  margin-bottom: 15px;
+  margin-bottom: 18px;
 }
 
 .stock-badge {
-  background: #dcfce7;
-  color: #16a34a;
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 5px 12px;
   border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stock-badge:not(.out) {
+  background: #dcfce7;
+  color: #15803d;
 }
 
 .stock-badge.out {
   background: #fee2e2;
-  color: #ef4444;
+  color: #b91c1c;
 }
 
 .product-desc {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   color: #475569;
-  line-height: 1.6;
+  line-height: 1.65;
   margin: 0;
+  font-weight: 500;
 }
 
 .modal-purchase-footer {
@@ -489,31 +528,38 @@ onMounted(() => {
 
 .wallet-check-note {
   text-align: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #ef4444;
-  margin-bottom: 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #b91c1c;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .buy-btn {
-  --border-radius: 16px;
+  --border-radius: 18px;
   height: 52px;
-  font-weight: 700;
+  font-weight: 800;
   --background: #5c2d54;
+  margin: 0;
+  box-shadow: 0 8px 20px rgba(92, 45, 84, 0.25);
 }
 
 .empty-state-card {
   text-align: center;
-  padding: 50px 20px;
+  padding: 60px 20px;
   background: white;
-  border-radius: 20px;
+  border-radius: 24px;
   color: #94a3b8;
+  border: 1px solid rgba(0,0,0,0.02);
 }
 
 .empty-icon {
-  font-size: 3rem;
+  font-size: 3.5rem;
   color: #cbd5e1;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   display: block;
 }
 
@@ -522,7 +568,13 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 50px 0;
+  padding: 60px 0;
   color: #64748b;
+}
+
+/* Animations */
+@keyframes floatIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

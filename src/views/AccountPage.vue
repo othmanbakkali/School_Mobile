@@ -188,9 +188,11 @@ onMounted(() => {
 
 .premium-card {
   background: white;
-  border-radius: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  border-radius: 24px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
   margin-bottom: 20px;
+  border: 1px solid rgba(0,0,0,0.02);
+  animation: floatIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .account-header {
@@ -199,83 +201,96 @@ onMounted(() => {
   align-items: center;
   text-align: center;
   margin-top: 10px;
+  animation-delay: 0.05s;
 }
 
 .avatar-large {
-  width: 80px;
-  height: 80px;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
   background: linear-gradient(135deg, #5c2d54 0%, #3a1934 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 1.6rem;
-  box-shadow: 0 8px 20px rgba(92, 45, 84, 0.15);
-  margin-bottom: 12px;
+  font-weight: 850;
+  font-size: 1.7rem;
+  box-shadow: 0 10px 25px rgba(92, 45, 84, 0.2);
+  margin-bottom: 14px;
+  border: 3px solid white;
 }
 
 .account-header h2 {
-  font-size: 1.25rem;
+  font-size: 1.3rem;
   font-weight: 800;
-  color: #1e293b;
+  color: #0f172a;
   margin: 0;
+  letter-spacing: -0.4px;
 }
 
 .account-header p {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  font-weight: 600;
-  margin: 4px 0 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 700;
+  margin: 6px 0 0 0;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
 }
 
 .section-label {
   font-size: 0.8rem;
-  font-weight: 700;
-  color: #64748b;
+  font-weight: 800;
+  color: #5c2d54;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 25px 5px 12px 5px;
+  letter-spacing: 0.8px;
+  margin: 30px 4px 12px 4px;
+}
+
+.form-card {
+  animation-delay: 0.15s;
 }
 
 .form-group {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .form-group label {
   display: block;
   font-size: 0.75rem;
-  font-weight: 700;
-  color: #64748b;
-  margin-bottom: 6px;
+  font-weight: 800;
+  color: #5c2d54;
+  margin-bottom: 8px;
   text-transform: uppercase;
+  letter-spacing: 0.6px;
 }
 
 .form-input {
   width: 100%;
   border: 2px solid #e2e8f0;
-  padding: 12px 16px;
-  border-radius: 14px;
+  padding: 14px 18px;
+  border-radius: 16px;
   outline: none;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #334155;
+  font-size: 0.98rem;
+  font-weight: 650;
+  color: #1e293b;
+  background: #f8fafc;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .form-input:focus {
   border-color: #5c2d54;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(92, 45, 84, 0.08);
 }
 
 .save-btn {
-  --border-radius: 14px;
-  height: 48px;
-  font-weight: 700;
+  --border-radius: 16px;
+  height: 52px;
+  font-weight: 800;
   --background: #5c2d54;
   margin-top: 25px;
   margin-bottom: 0;
+  box-shadow: 0 8px 20px rgba(92, 45, 84, 0.2);
 }
 
 .children-list {
@@ -287,18 +302,21 @@ onMounted(() => {
 .child-card {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 14px 18px;
+  gap: 16px;
+  padding: 16px 20px;
   margin-bottom: 0;
+  border-radius: 22px;
+  animation-delay: 0.25s;
 }
 
 .child-avatar {
-  width: 50px;
-  height: 50px;
-  border-radius: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
   overflow: hidden;
   background: #f1f5f9;
   flex-shrink: 0;
+  border: 1.5px solid #e2e8f0;
 }
 
 .child-avatar img {
@@ -313,25 +331,26 @@ onMounted(() => {
 
 .child-info h3 {
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #1e293b;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
 }
 
 .child-info p {
-  margin: 2px 0 0 0;
-  font-size: 0.8rem;
-  color: #94a3b8;
-  font-weight: 500;
+  margin: 4px 0 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
 }
 
 .child-grade-badge {
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(16, 185, 129, 0.12);
   color: #10b981;
   padding: 6px 12px;
   border-radius: 10px;
   font-size: 0.85rem;
-  font-weight: 800;
+  font-weight: 850;
+  box-shadow: inset 0 0 2px rgba(16, 185, 129, 0.2);
 }
 
 .loading-center {
@@ -339,7 +358,13 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 50px 0;
+  padding: 60px 0;
   color: #64748b;
+}
+
+/* Animations */
+@keyframes floatIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>
