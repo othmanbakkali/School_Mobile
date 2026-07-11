@@ -28,6 +28,23 @@
           </div>
         </div>
 
+        <!-- Language Switcher Bar -->
+        <div class="language-switcher-bar">
+          <button 
+            class="lang-btn" 
+            :class="{ active: locale === 'fr' }" 
+            @click="setLocale('fr')">
+            🇫🇷 FR
+          </button>
+          <div class="lang-divider"></div>
+          <button 
+            class="lang-btn" 
+            :class="{ active: locale === 'ar' }" 
+            @click="setLocale('ar')">
+            🇲🇦 AR
+          </button>
+        </div>
+
         <!-- Menu List Content -->
         <div class="menu-items-content">
           <div v-for="item in menuItems" :key="item.label" 
@@ -82,9 +99,12 @@ import { useRouter, useRoute } from 'vue-router';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import PWAInstall from '@/components/PWAInstall.vue';
+import { useI18n } from '@/services/translationService';
 
 const router = useRouter();
 const route = useRoute();
+
+const { t, setLocale, locale } = useI18n();
 
 const studentData = ref<any>(null);
 const currentRoute = computed(() => route.path);
@@ -101,37 +121,37 @@ const isItemActive = (item: any) => {
 };
 
 const studentNameParts = computed(() => {
-  if (!studentData.value) return ['CHARGEMENT...'];
+  if (!studentData.value) return [t('common.loading').toUpperCase()];
   const name = studentData.value.display_name || studentData.value.full_name || studentData.value.name || '';
   return name.toUpperCase().split(' ').filter((p: string) => p.trim() !== '');
 });
 
 const studentClass = computed(() => {
-  if (!studentData.value || !studentData.value.level_id) return 'Non assignée';
-  return studentData.value.level_id[1] || 'Non assignée';
+  if (!studentData.value || !studentData.value.level_id) return t('common.noData');
+  return studentData.value.level_id[1] || t('common.noData');
 });
 
-const menuItems = [
-  { label: 'Tableau de bord', icon: globeOutline, path: '/tabs/dashboard' },
-  { label: 'Emploi du temps', icon: calendarOutline, path: '/tabs/schedule' },
-  { label: 'Devoirs à faire', icon: documentTextOutline, path: '/tabs/homework' },
-  { label: 'Notes & Évaluations', icon: ribbonOutline, path: '/tabs/notes' },
-  { label: 'Absences & Retards', icon: alertCircleOutline, path: '/tabs/absences' },
-  { label: 'Cahier de transmission', icon: heartOutline, path: '/tabs/transmission' },
-  { label: 'Suivi pédagogique', icon: schoolOutline, path: '/tabs/suivi-pedagogique' },
-  { label: 'Ressources', icon: bookmarkOutline, path: '/tabs/ressources' },
-  { label: 'Cantine scolaire', icon: restaurantOutline, path: '/tabs/vie-scolaire' },
-  { label: 'Transport scolaire', icon: busOutline, path: '/tabs/transport' },
-  { label: 'Boutique de l\'école', icon: cartOutline, path: '/tabs/shop' },
-  { label: 'Wallet étudiant', icon: swapHorizontalOutline, path: '/tabs/wallet' },
-  { label: 'Jeux éducatifs', icon: gameControllerOutline, path: '/tabs/games' },
-  { label: 'Espace Réussite', icon: trophyOutline, path: '/tabs/success' },
-  { label: 'Paiements', icon: cardOutline, path: '/tabs/payments' },
-  { label: 'Objets perdus', icon: archiveOutline, path: '/tabs/lost-items' },
-  { label: 'Messagerie', icon: mailOutline, path: '/chat' },
-  { label: 'Album Photo', icon: imagesOutline, path: '/tabs/album' },
-  { label: 'Mon compte', icon: personOutline, path: '/tabs/account' }
-];
+const menuItems = computed(() => [
+  { label: t('menu.dashboard'), icon: globeOutline, path: '/tabs/dashboard' },
+  { label: t('menu.schedule'), icon: calendarOutline, path: '/tabs/schedule' },
+  { label: t('menu.homework'), icon: documentTextOutline, path: '/tabs/homework' },
+  { label: t('menu.notes'), icon: ribbonOutline, path: '/tabs/notes' },
+  { label: t('menu.absences'), icon: alertCircleOutline, path: '/tabs/absences' },
+  { label: t('menu.transmission'), icon: heartOutline, path: '/tabs/transmission' },
+  { label: t('menu.suivi'), icon: schoolOutline, path: '/tabs/suivi-pedagogique' },
+  { label: t('menu.ressources'), icon: bookmarkOutline, path: '/tabs/ressources' },
+  { label: t('menu.canteen'), icon: restaurantOutline, path: '/tabs/vie-scolaire' },
+  { label: t('menu.transport'), icon: busOutline, path: '/tabs/transport' },
+  { label: t('menu.shop'), icon: cartOutline, path: '/tabs/shop' },
+  { label: t('menu.wallet'), icon: swapHorizontalOutline, path: '/tabs/wallet' },
+  { label: t('menu.games'), icon: gameControllerOutline, path: '/tabs/games' },
+  { label: t('menu.success'), icon: trophyOutline, path: '/tabs/success' },
+  { label: t('menu.payments'), icon: cardOutline, path: '/tabs/payments' },
+  { label: t('menu.lostItems'), icon: archiveOutline, path: '/tabs/lost-items' },
+  { label: t('menu.chat'), icon: mailOutline, path: '/chat' },
+  { label: t('menu.album'), icon: imagesOutline, path: '/tabs/album' },
+  { label: t('menu.account'), icon: personOutline, path: '/tabs/account' }
+]);
 
 const fetchStudentInfo = async () => {
   const config = odoo.userConfig;
@@ -315,5 +335,42 @@ onMounted(() => {
   --background: #5c2d54;
   --color: #ffffff;
   font-weight: 600;
+}
+
+/* Glassmorphic Language Switcher */
+.language-switcher-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin: 15px 20px 5px 20px;
+  background: rgba(92, 45, 84, 0.04);
+  border: 1px solid rgba(92, 45, 84, 0.12);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.lang-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #5c2d54;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease-in-out;
+}
+
+.lang-btn.active {
+  background: #5c2d54;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(92, 45, 84, 0.2);
+}
+
+.lang-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(92, 45, 84, 0.15);
 }
 </style>

@@ -34,9 +34,17 @@ import '@ionic/vue/css/palettes/dark.system.css';
 /* Theme variables */
 import './theme/variables.css';
 
+import { useI18n } from '@/services/translationService';
+
 const app = createApp(App)
   .use(IonicVue)
   .use(router);
+
+const { t, initLocale } = useI18n();
+initLocale(); // Initialize saved language and RTL/LTR direction
+
+// Register global t function for template interpolation
+app.config.globalProperties.t = t;
 
 router.isReady().then(() => {
   app.mount('#app');

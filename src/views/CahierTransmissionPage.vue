@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-menu-button color="dark"></ion-menu-button>
         </ion-buttons>
-        <ion-title>Cahier de Transmission</ion-title>
+        <ion-title>{{ t('transmission.title') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -24,19 +24,19 @@
             </div>
           </div>
           <div class="hero-text-3d">
-            <h1>Cahier de Transmission</h1>
-            <p>Liaison parents-enseignants & Actualités de l'école</p>
+            <h1>{{ t('transmission.title') }}</h1>
+            <p>{{ t('transmission.subtitle') }}</p>
           </div>
         </div>
 
         <div v-if="loading" class="loading-center">
           <ion-spinner name="crescent" color="primary" />
-          <p>Chargement des messages...</p>
+          <p>{{ t('transmission.loading') }}</p>
         </div>
 
         <div v-else-if="entries.length === 0" class="empty-state-card">
           <ion-icon :icon="bookOutline" class="empty-icon"></ion-icon>
-          <p>Aucun message dans le cahier de transmission.</p>
+          <p>{{ t('transmission.empty') }}</p>
         </div>
 
         <div v-else class="cards-list-3d">
@@ -63,6 +63,12 @@
               <h3 class="depth-title">{{ entry.title || entry.subject || 'Message' }}</h3>
               <p class="depth-text">{{ entry.content || entry.body || entry.description }}</p>
               
+              <!-- Dynamic Instant Translation Widget -->
+              <TranslationWidget 
+                v-if="entry.content || entry.body || entry.description" 
+                :text="(entry.title || entry.subject || '') + ': ' + (entry.content || entry.body || entry.description)" 
+              />
+
               <!-- Attachment Section for announcements -->
               <div v-if="entry.attachment" class="attachment-box depth-attachment" @click.stop="downloadAttachment(entry)">
                 <ion-icon :icon="documentAttachOutline"></ion-icon>
@@ -85,10 +91,10 @@
               <div v-if="entry.requires_signature" class="signature-row depth-sig">
                 <ion-chip :color="entry.signed ? 'success' : 'warning'" class="sig-chip">
                   <ion-icon :icon="entry.signed ? checkmarkCircleOutline : alertCircleOutline"></ion-icon>
-                  <ion-label>{{ entry.signed ? 'Lu et signé' : 'Signature requise' }}</ion-label>
+                  <ion-label>{{ entry.signed ? t('transmission.signed') : t('transmission.signatureRequired') }}</ion-label>
                 </ion-chip>
                 <ion-button v-if="!entry.signed" size="small" class="sign-btn" @click.stop="signEntry(entry)">
-                  Signer
+                  {{ t('transmission.signBtn') }}
                 </ion-button>
               </div>
             </div>
@@ -117,6 +123,10 @@ import { ref, onMounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
+import { useI18n } from '@/services/translationService';
+import TranslationWidget from '@/components/TranslationWidget.vue';
+
+const { t, locale } = useI18n();
 
 const router = useRouter();
 const entries = ref<any[]>([]);
@@ -136,14 +146,14 @@ const getTypeIcon = (type: string) => {
 
 const getTypeLabel = (type: string) => {
   const labels: any = { 
-    info: 'Information', 
-    warning: 'Avertissement', 
-    urgent: 'Urgent', 
-    homework: 'Devoir', 
-    event: 'Événement',
-    actualite: 'Actualité'
+    info: locale.value === 'ar' ? 'معلومة' : 'Information', 
+    warning: locale.value === 'ar' ? 'تحذير' : 'Avertissement', 
+    urgent: locale.value === 'ar' ? 'عاجل' : 'Urgent', 
+    homework: locale.value === 'ar' ? 'واجب' : 'Devoir', 
+    event: locale.value === 'ar' ? 'فعالية' : 'Événement',
+    actualite: locale.value === 'ar' ? 'خبر' : 'Actualité'
   };
-  return labels[type] || 'Message';
+  return labels[type] || (locale.value === 'ar' ? 'رسالة' : 'Message');
 };
 
 const formatDate = (d: string) => {
@@ -156,7 +166,7 @@ const signEntry = async (entry: any) => {
     await apiRequest('/api/school/cahier-transmission/sign', { entry_id: entry.id });
     entry.signed = true;
     const toast = await toastController.create({ 
-      message: 'Signé avec succès !', 
+      message: t('transmission.signedSuccess'), 
       duration: 2000, 
       color: 'success', 
       position: 'top' 

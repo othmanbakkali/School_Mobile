@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-menu-button color="dark"></ion-menu-button>
         </ion-buttons>
-        <ion-title>Devoirs à Faire</ion-title>
+        <ion-title>{{ t('homework.title') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -13,16 +13,16 @@
       <!-- Loading State -->
       <div v-if="loading" class="loading-center">
         <ion-spinner name="crescent" color="primary"/>
-        <p>Chargement des devoirs...</p>
+        <p>{{ t('homework.loading') }}</p>
       </div>
 
-      <div v-else class="fade-in">
+      <div class="fade-in" v-else>
         <div v-if="homeworks.length === 0" class="empty-state">
-          📚 Aucun devoir en cours.
+          📚 {{ t('homework.empty') }}
         </div>
         <div v-for="item in homeworks" :key="item.id" class="premium-card homework-card ion-padding">
           <div class="hw-top">
-            <span class="subject-badge">{{ item.subject || 'Matière' }}</span>
+            <span class="subject-badge">{{ item.subject || t('homework.subject') }}</span>
             <div class="due-timer">
               <ion-icon :icon="timeOutline"></ion-icon>
               <span>{{ formatDate(item.date_due) }}</span>
@@ -30,14 +30,16 @@
           </div>
           <h3>{{ item.title }}</h3>
           <p>{{ item.description }}</p>
+          <TranslationWidget v-if="item.description || item.title" :text="item.title + ': ' + item.description" />
+          
           <div class="hw-bottom">
             <div class="status-indicator">
               <div class="status-dot" :class="item.state"></div>
-              <span>{{ item.state === 'draft' ? 'En cours' : 'Fait' }}</span>
+              <span>{{ item.state === 'draft' ? t('homework.statusDraft') : t('homework.statusDone') }}</span>
             </div>
             <div v-if="item.attachment" class="hw-attachment" @click.stop="downloadAttachment(item)">
               <ion-icon :icon="documentAttachOutline"></ion-icon>
-              <span>Fichier</span>
+              <span>{{ t('homework.attachment') }}</span>
             </div>
             <ion-button 
               v-if="item.state === 'draft'"
@@ -46,7 +48,7 @@
               class="done-btn"
               @click.stop="toggleStatus(item)"
             >
-              ✓ Marquer comme fait
+              ✓ {{ t('homework.markDone') }}
             </ion-button>
           </div>
         </div>
@@ -65,6 +67,10 @@ import { ref, onMounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
+import { useI18n } from '@/services/translationService';
+import TranslationWidget from '@/components/TranslationWidget.vue';
+
+const { t } = useI18n();
 
 const router = useRouter();
 const homeworks = ref<any[]>([]);

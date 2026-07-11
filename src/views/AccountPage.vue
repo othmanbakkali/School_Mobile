@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-menu-button color="dark"></ion-menu-button>
         </ion-buttons>
-        <ion-title>Mon Compte</ion-title>
+        <ion-title>{{ t('account.title') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -13,7 +13,7 @@
       <div class="fade-in" v-if="loading">
         <div class="loading-center">
           <ion-spinner name="crescent" color="primary"></ion-spinner>
-          <p>Chargement du compte...</p>
+          <p>{{ t('account.loading') }}</p>
         </div>
       </div>
 
@@ -23,36 +23,67 @@
           <div class="avatar-large">
             {{ parentInitials }}
           </div>
-          <h2>{{ parentData?.name || 'Parent d\'élève' }}</h2>
+          <h2>{{ parentData?.name || t('account.title') }}</h2>
           <p>Compte Parent Associé</p>
         </div>
 
+        <!-- Language Choice Section -->
+        <div class="section-label">🌐 {{ t('account.appLanguage') }}</div>
+        <div class="premium-card lang-selection-card ion-padding">
+          <div class="lang-tiles-grid">
+            <div 
+              class="lang-tile" 
+              :class="{ active: locale === 'fr' }"
+              @click="setLocale('fr')"
+            >
+              <div class="lang-flag">🇫🇷</div>
+              <div class="lang-info-box">
+                <h4>{{ t('common.french') }}</h4>
+                <p>Français</p>
+              </div>
+              <div class="checked-circle" v-if="locale === 'fr'">✓</div>
+            </div>
+            <div 
+              class="lang-tile" 
+              :class="{ active: locale === 'ar' }"
+              @click="setLocale('ar')"
+            >
+              <div class="lang-flag">🇲🇦</div>
+              <div class="lang-info-box">
+                <h4>{{ t('common.arabic') }}</h4>
+                <p>العربية (RTL)</p>
+              </div>
+              <div class="checked-circle" v-if="locale === 'ar'">✓</div>
+            </div>
+          </div>
+        </div>
+
         <!-- Details Form -->
-        <div class="section-label">📋 Informations Personnelles</div>
+        <div class="section-label">📋 {{ t('account.personalInfo') }}</div>
         <div class="premium-card form-card ion-padding">
           <div class="form-group">
-            <label>Nom Complet</label>
+            <label>{{ t('account.fullName') }}</label>
             <input type="text" v-model="editName" class="form-input" placeholder="Votre nom" />
           </div>
           
           <div class="form-group">
-            <label>Adresse Email</label>
+            <label>{{ t('account.email') }}</label>
             <input type="email" v-model="editEmail" class="form-input" placeholder="Votre email" />
           </div>
 
           <div class="form-group">
-            <label>Numéro de Téléphone</label>
+            <label>{{ t('account.phone') }}</label>
             <input type="tel" v-model="editPhone" class="form-input" placeholder="Votre téléphone" />
           </div>
 
           <ion-button expand="block" color="primary" class="save-btn" :disabled="saving" @click="handleSave">
-            <span v-if="!saving">Sauvegarder les modifications</span>
+            <span v-if="!saving">{{ t('account.saveBtn') }}</span>
             <ion-spinner name="crescent" color="light" v-else></ion-spinner>
           </ion-button>
         </div>
 
         <!-- Children List -->
-        <div class="section-label">👶 Enfants Inscrits</div>
+        <div class="section-label">👶 {{ t('account.children') }}</div>
         <div class="children-list">
           <div v-for="child in children" :key="child.id" class="child-card premium-card ion-padding">
             <div class="child-avatar">
@@ -60,7 +91,7 @@
             </div>
             <div class="child-info">
               <h3>{{ child.name }}</h3>
-              <p>Classe : {{ child.level_id?.[1] || 'Non définie' }}</p>
+              <p>{{ t('account.class') }} : {{ child.level_id?.[1] || t('common.noData') }}</p>
             </div>
             <div class="child-grade-badge" v-if="child.average_grade">
               {{ child.average_grade.toFixed(2) }}/20
@@ -82,6 +113,9 @@ import {
 import { ref, computed, onMounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
+import { useI18n } from '@/services/translationService';
+
+const { t, setLocale, locale } = useI18n();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -155,7 +189,7 @@ const handleSave = async () => {
       parentData.value.phone = editPhone.value;
       
       const toast = await toastController.create({
-        message: "Informations enregistrées avec succès !",
+        message: t('common.saved'),
         duration: 3000,
         color: 'success',
         position: 'bottom'
@@ -165,7 +199,7 @@ const handleSave = async () => {
   } catch (error) {
     console.error('Save profile error', error);
     const toast = await toastController.create({
-      message: "Erreur lors de l'enregistrement des informations.",
+      message: t('common.translateError') || "Erreur de sauvegarde",
       duration: 3000,
       color: 'danger',
       position: 'bottom'
@@ -360,6 +394,69 @@ onMounted(() => {
   justify-content: center;
   padding: 60px 0;
   color: #64748b;
+}
+
+/* Language Tiles */
+.lang-tiles-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lang-tile {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px 18px;
+  cursor: pointer;
+  background: #f8fafc;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lang-tile.active {
+  border-color: #5c2d54;
+  background: rgba(92, 45, 84, 0.03);
+  box-shadow: 0 4px 15px rgba(92, 45, 84, 0.05);
+}
+
+.lang-flag {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.lang-info-box {
+  flex: 1;
+}
+
+.lang-info-box h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 850;
+  color: #1e293b;
+}
+
+.lang-info-box p {
+  margin: 2px 0 0 0;
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.checked-circle {
+  background: #5c2d54;
+  color: white;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 900;
+  box-shadow: 0 2px 8px rgba(92, 45, 84, 0.25);
 }
 
 /* Animations */
