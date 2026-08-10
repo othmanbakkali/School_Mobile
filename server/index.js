@@ -9,6 +9,16 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Force no-cache for Service Worker files so browsers update immediately
+app.use((req, res, next) => {
+    if (req.path === '/sw.js' || req.path === '/registerSW.js') {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+    }
+    next();
+});
+
 // Serve static assets with no-cache for index.html
 app.use('/assets', (req, res, next) => {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
