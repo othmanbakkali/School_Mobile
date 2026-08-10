@@ -25,6 +25,23 @@
     <meta name="apple-mobile-web-app-title" content="Ionic App" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' http: https: data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data:; style-src 'self' 'unsafe-inline' http: https:; font-src 'self' http: https: data:; img-src 'self' data: http: https: blob:; connect-src 'self' http: https: data:;">
+    <script>
+      (function() {
+        if (window.location.protocol === 'https:') {
+          localStorage.removeItem('api_base_url');
+          try {
+            var cfg = localStorage.getItem('odoo_config');
+            if (cfg && cfg.indexOf('http:') !== -1) {
+              var parsed = JSON.parse(cfg);
+              if (parsed && parsed.url && parsed.url.startsWith('http:')) {
+                parsed.url = window.location.origin;
+                localStorage.setItem('odoo_config', JSON.stringify(parsed));
+              }
+            }
+          } catch(e) {}
+        }
+      })();
+    </script>
   </head>
 
   <body>

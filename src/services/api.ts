@@ -1,4 +1,15 @@
 export function setApiBaseUrl(url: string) {
+  const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
+  const isCapacitor = typeof window !== 'undefined' && window.location && (
+    window.location.origin.startsWith('capacitor://') ||
+    !!(window as any).Capacitor?.isNativePlatform?.()
+  );
+
+  if (isHttps && !isCapacitor && url.startsWith('http:')) {
+    localStorage.removeItem('api_base_url');
+    return;
+  }
+
   let baseUrl = url;
   try {
     const parsed = new URL(url);
@@ -21,31 +32,23 @@ export function getApiBaseUrl(): string {
     !!(window as any).Capacitor?.isNativePlatform?.()
   );
 
-  const saved = localStorage.getItem('api_base_url');
-  if (saved) {
-    // If loaded over HTTPS in a web browser, avoid insecure http:// URLs to prevent Mixed Content errors
-    if (isHttps && !isCapacitor && saved.startsWith('http://')) {
-      try {
-        const parsedSaved = new URL(saved);
-        if (parsedSaved.hostname === window.location.hostname) {
-          return `https://${parsedSaved.host}`;
-        }
-      } catch (e) {
-        // invalid URL
-      }
-      return '';
+  // When running as a web application over HTTPS, ALWAYS return empty string for relative paths
+  // to prevent any Mixed Content issues with HTTP IP targets.
+  if (isHttps && !isCapacitor) {
+    const saved = localStorage.getItem('api_base_url');
+    if (saved && saved.startsWith('http:')) {
+      localStorage.removeItem('api_base_url');
     }
-    return saved;
+    return '';
   }
+
+  const saved = localStorage.getItem('api_base_url');
+  if (saved) return saved;
 
   const envApiUrl = import.meta.env.VITE_API_URL || '';
 
   if (import.meta.env.DEV || (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost') || isCapacitor) {
     return envApiUrl || 'http://localhost:3000';
-  }
-
-  if (isHttps && !isCapacitor && envApiUrl.startsWith('http://')) {
-    return '';
   }
 
   return envApiUrl;
@@ -61,16 +64,11 @@ export async function apiRequest(path: string, body: any) {
     !!(window as any).Capacitor?.isNativePlatform?.()
   );
 
-  // Safeguard: Automatically fix Mixed Content when page is served over HTTPS
-  if (isHttps && !isCapacitor && url.startsWith('http://')) {
+  // Force rewrite any http:// URL to relative path when loaded over HTTPS in a browser
+  if (isHttps && !isCapacitor && url.startsWith('http:')) {
     try {
       const parsed = new URL(url);
-      if (parsed.hostname === window.location.hostname) {
-        url = `https://${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}`;
-      } else {
-        // Fallback to relative path on current HTTPS host proxy
-        url = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-      }
+      url = `${parsed.pathname}${parsed.search}${parsed.hash}`;
     } catch (e) {
       url = url.replace(/^http:\/\/[^\/]+/, '');
     }
