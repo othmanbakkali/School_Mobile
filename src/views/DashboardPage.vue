@@ -22,7 +22,7 @@
         </ion-buttons>
       </ion-toolbar>
 
-      <!-- Glassmorphic segment tabs to declutter dashboard -->
+      <!-- Glassmorphic segment tabs -->
       <div class="segment-container" v-if="studentData" style="padding: 0 10px 10px 10px;">
         <ion-segment v-model="selectedSegment" mode="md" class="custom-segment">
           <ion-segment-button value="overview">
@@ -86,49 +86,30 @@
             </div>
           </div>
 
-          <!-- Quick Actions Grid -->
+          <!-- Customizable Quick Actions Grid -->
           <div class="section-header">
-            <h2>Actions Rapides</h2>
+            <h2>Mes Raccourcis</h2>
+            <ion-button fill="clear" size="small" class="customize-btn" @click="showShortcutModal = true">
+              <ion-icon :icon="settingsOutline" slot="start"></ion-icon>
+              Personnaliser
+            </ion-button>
           </div>
 
           <ion-grid class="ion-no-padding">
             <ion-row>
-              <ion-col size="6" class="ion-padding-end">
-                <div class="action-tile homework-tile" @click="router.push('/tabs/homework')">
+              <ion-col 
+                v-for="shortcut in activeShortcuts" 
+                :key="shortcut.id" 
+                size="6" 
+                size-md="3" 
+                class="ion-padding-tiny"
+              >
+                <div class="action-tile" :class="shortcut.colorClass" @click="router.push(shortcut.path)">
                   <div class="icon-box">
-                    <ion-icon :icon="bookOutline"></ion-icon>
+                    <ion-icon :icon="shortcut.icon"></ion-icon>
                   </div>
-                  <h3>Devoirs</h3>
-                  <p>À vérifier</p>
-                </div>
-              </ion-col>
-              <ion-col size="6" class="ion-padding-start">
-                <div class="action-tile canteen-tile" @click="router.push('/tabs/vie-scolaire')">
-                  <div class="icon-box">
-                    <ion-icon :icon="restaurantOutline"></ion-icon>
-                  </div>
-                  <h3>Cantine</h3>
-                  <p>Menu Jour</p>
-                </div>
-              </ion-col>
-            </ion-row>
-            <ion-row class="ion-margin-top">
-              <ion-col size="6" class="ion-padding-end">
-                <div class="action-tile payment-tile" @click="router.push('/tabs/payments')">
-                  <div class="icon-box">
-                    <ion-icon :icon="walletOutline"></ion-icon>
-                  </div>
-                  <h3>Paiements</h3>
-                  <p>Suivi mensuel</p>
-                </div>
-              </ion-col>
-              <ion-col size="6" class="ion-padding-start">
-                <div class="action-tile lost-tile" @click="router.push('/tabs/lost-items')">
-                  <div class="icon-box">
-                    <ion-icon :icon="searchOutline"></ion-icon>
-                  </div>
-                  <h3>Objets Perdus</h3>
-                  <p>Section Trouvés</p>
+                  <h3>{{ shortcut.title }}</h3>
+                  <p>{{ shortcut.subtitle }}</p>
                 </div>
               </ion-col>
             </ion-row>
@@ -214,6 +195,57 @@
         <ion-spinner name="crescent"></ion-spinner>
         <p>Chargement des données de l'élève...</p>
       </div>
+
+      <!-- Modal de Personnalisation des Raccourcis -->
+      <ion-modal :is-open="showShortcutModal" @didDismiss="showShortcutModal = false" class="shortcut-modal">
+        <ion-header>
+          <ion-toolbar mode="md">
+            <ion-title>Personnaliser mes raccourcis</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="showShortcutModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+
+        <ion-content class="ion-padding">
+          <p class="modal-desc">Sélectionnez les accès rapides à afficher sur votre tableau de bord :</p>
+
+          <ion-list lines="full" class="shortcut-selection-list">
+            <ion-item 
+              v-for="item in ALL_SHORTCUTS" 
+              :key="item.id" 
+              button 
+              @click="toggleShortcut(item.id)"
+              class="shortcut-item"
+            >
+              <div class="modal-shortcut-icon" :class="item.colorClass" slot="start">
+                <ion-icon :icon="item.icon"></ion-icon>
+              </div>
+              <ion-label>
+                <h2>{{ item.title }}</h2>
+                <p>{{ item.subtitle }}</p>
+              </ion-label>
+              <ion-checkbox 
+                slot="end" 
+                :checked="isShortcutSelected(item.id)"
+                @click.stop="toggleShortcut(item.id)"
+              ></ion-checkbox>
+            </ion-item>
+          </ion-list>
+
+          <div class="modal-actions ion-margin-top">
+            <ion-button expand="block" color="primary" class="save-shortcuts-btn" @click="saveShortcuts">
+              Enregistrer mes choix
+            </ion-button>
+            <ion-button expand="block" fill="clear" color="medium" @click="resetDefaultShortcuts">
+              Réinitialiser par défaut
+            </ion-button>
+          </div>
+        </ion-content>
+      </ion-modal>
+
     </ion-content>
   </ion-page>
 </template>
@@ -224,13 +256,20 @@ import {
   IonButtons, IonButton, IonIcon, IonBadge, IonMenuButton,
   IonAvatar, IonGrid, IonRow, IonCol, IonSpinner, toastController,
   IonSegment, IonSegmentButton, IonLabel,
+  IonModal, IonList, IonItem, IonCheckbox,
   onIonViewWillEnter
 } from '@ionic/vue';
-import { notificationsOutline, bookOutline, restaurantOutline, logOutOutline, calculatorOutline, megaphoneOutline, documentAttachOutline, walletOutline, searchOutline, busOutline, swapHorizontalOutline } from 'ionicons/icons';
+import { 
+  notificationsOutline, bookOutline, restaurantOutline, logOutOutline, 
+  calculatorOutline, megaphoneOutline, documentAttachOutline, walletOutline, 
+  searchOutline, busOutline, swapHorizontalOutline, settingsOutline, closeOutline,
+  journalOutline, calendarClearOutline, timeOutline, chatbubblesOutline,
+  cartOutline, trophyOutline, gameControllerOutline, folderOpenOutline
+} from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
-import { onMounted, ref, onUnmounted } from 'vue';
+import { onMounted, ref, computed, onUnmounted } from 'vue';
 
 const router = useRouter();
 const selectedSegment = ref('overview');
@@ -240,6 +279,81 @@ const recentGrades = ref<any[]>([]);
 const announcements = ref<any[]>([]);
 const notificationsCount = ref(0);
 let syncInterval: any = null;
+
+// Catalog of all available shortcuts
+const ALL_SHORTCUTS = [
+  { id: 'homework', title: 'Devoirs', subtitle: 'À vérifier', path: '/tabs/homework', icon: bookOutline, colorClass: 'homework-tile' },
+  { id: 'transmission', title: 'Transmission', subtitle: 'Cahier de liaison', path: '/tabs/transmission', icon: journalOutline, colorClass: 'transmission-tile' },
+  { id: 'canteen', title: 'Cantine', subtitle: 'Menu du Jour', path: '/tabs/vie-scolaire', icon: restaurantOutline, colorClass: 'canteen-tile' },
+  { id: 'payments', title: 'Paiements', subtitle: 'Suivi mensuel', path: '/tabs/payments', icon: walletOutline, colorClass: 'payment-tile' },
+  { id: 'absences', title: 'Absences', subtitle: 'Retards & Motifs', path: '/tabs/absences', icon: calendarClearOutline, colorClass: 'absences-tile' },
+  { id: 'notes', title: 'Notes', subtitle: 'Évaluations', path: '/tabs/notes', icon: calculatorOutline, colorClass: 'notes-tile' },
+  { id: 'schedule', title: 'Emploi du temps', subtitle: 'Planning des cours', path: '/tabs/schedule', icon: timeOutline, colorClass: 'schedule-tile' },
+  { id: 'transport', title: 'Transport', subtitle: 'Navette en direct', path: '/tabs/transport', icon: busOutline, colorClass: 'transport-tile' },
+  { id: 'wallet', title: 'Portefeuille', subtitle: 'Solde & Recharge', path: '/tabs/wallet', icon: swapHorizontalOutline, colorClass: 'wallet-tile' },
+  { id: 'lost-items', title: 'Objets Perdus', subtitle: 'Section Trouvés', path: '/tabs/lost-items', icon: searchOutline, colorClass: 'lost-tile' },
+  { id: 'chat', title: 'Messagerie', subtitle: 'Discussion Directe', path: '/chat', icon: chatbubblesOutline, colorClass: 'chat-tile' },
+  { id: 'shop', title: 'Boutique', subtitle: 'Fournitures & Uniformes', path: '/tabs/shop', icon: cartOutline, colorClass: 'shop-tile' },
+  { id: 'success-hub', title: 'Success Hub', subtitle: 'Badges & Mérites', path: '/tabs/success-hub', icon: trophyOutline, colorClass: 'success-tile' },
+  { id: 'serious-games', title: 'Jeux Éducatifs', subtitle: 'Quiz & Défis', path: '/tabs/serious-games', icon: gameControllerOutline, colorClass: 'games-tile' },
+  { id: 'ressources', title: 'Ressources', subtitle: 'Documents & Cours', path: '/tabs/ressources', icon: folderOpenOutline, colorClass: 'ressources-tile' },
+];
+
+const DEFAULT_SHORTCUT_IDS = ['homework', 'transmission', 'canteen', 'payments', 'notes', 'transport'];
+const userShortcutIds = ref<string[]>([]);
+const showShortcutModal = ref(false);
+
+const loadSavedShortcuts = () => {
+  try {
+    const saved = localStorage.getItem('user_dashboard_shortcuts');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        userShortcutIds.value = parsed;
+        return;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load saved shortcuts', e);
+  }
+  userShortcutIds.value = [...DEFAULT_SHORTCUT_IDS];
+};
+
+const activeShortcuts = computed(() => {
+  return ALL_SHORTCUTS.filter(s => userShortcutIds.value.includes(s.id));
+});
+
+const isShortcutSelected = (id: string) => {
+  return userShortcutIds.value.includes(id);
+};
+
+const toggleShortcut = (id: string) => {
+  const index = userShortcutIds.value.indexOf(id);
+  if (index > -1) {
+    if (userShortcutIds.value.length > 1) {
+      userShortcutIds.value.splice(index, 1);
+    }
+  } else {
+    userShortcutIds.value.push(id);
+  }
+};
+
+const saveShortcuts = async () => {
+  localStorage.setItem('user_dashboard_shortcuts', JSON.stringify(userShortcutIds.value));
+  showShortcutModal.value = false;
+  const toast = await toastController.create({
+    message: 'Vos raccourcis ont été mis à jour avec succès !',
+    duration: 2000,
+    color: 'success',
+    position: 'top'
+  });
+  await toast.present();
+};
+
+const resetDefaultShortcuts = () => {
+  userShortcutIds.value = [...DEFAULT_SHORTCUT_IDS];
+  saveShortcuts();
+};
 
 const handleLogout = () => {
   if (syncInterval) clearInterval(syncInterval);
@@ -263,7 +377,6 @@ const formatDatetime = (dateStr: string) => {
 };
 
 const downloadAttachment = (ann: any) => {
-  // Simuler le téléchargement
   const link = document.createElement('a');
   link.href = `data:application/octet-stream;base64,${ann.attachment}`;
   link.download = ann.attachment_name || 'piece_jointe';
@@ -309,7 +422,6 @@ const fetchData = async (isSync = false) => {
       const student = students.find((s: any) => s.id === selectedId) || students[0];
       studentData.value = student;
       
-      // Mettre à jour l'ID global si jamais il était nul
       if (!selectedId) odoo.setSelectedStudentId(student.id);
 
       // Fetch Grades
@@ -317,7 +429,7 @@ const fetchData = async (isSync = false) => {
           student_id: student.id
         });
 
-    const notifs = await odoo.getNotifications(student.id);
+      const notifs = await odoo.getNotifications(student.id);
       if (isSync && notifs.length > notificationsCount.value) {
         showNotification("Nouvelle activité détectée pour votre enfant !");
       }
@@ -340,12 +452,13 @@ const selectStudent = (student: any) => {
 };
 
 onIonViewWillEnter(() => {
+  loadSavedShortcuts();
   fetchData();
 });
 
 onMounted(() => {
+  loadSavedShortcuts();
   fetchData();
-  // Synchronisation automatique toutes les 60 secondes
   syncInterval = setInterval(() => {
     fetchData(true);
   }, 60000);
@@ -578,59 +691,121 @@ onUnmounted(() => {
   letter-spacing: -0.4px;
 }
 
+.customize-btn {
+  --color: #5c2d54;
+  font-weight: 750;
+  font-size: 0.85rem;
+}
+
+.ion-padding-tiny {
+  padding: 6px;
+}
+
 .action-tile {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  padding: 22px 20px;
-  border-radius: 22px;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding: 18px 16px;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  gap: 10px;
+  height: 100%;
+  transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .action-tile:active {
   transform: scale(0.96);
   background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .icon-box {
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
-  transition: transform 0.3s;
-}
-
-.action-tile:active .icon-box {
-  transform: scale(0.9);
+  font-size: 1.5rem;
 }
 
 .homework-tile .icon-box { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+.transmission-tile .icon-box { background: rgba(92, 45, 84, 0.1); color: #5c2d54; }
 .canteen-tile .icon-box { background: rgba(245, 158, 11, 0.1); color: #d97706; }
 .payment-tile .icon-box { background: rgba(16, 185, 129, 0.1); color: #059669; }
+.absences-tile .icon-box { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.notes-tile .icon-box { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+.schedule-tile .icon-box { background: rgba(14, 165, 233, 0.1); color: #0284c7; }
+.transport-tile .icon-box { background: rgba(217, 119, 6, 0.1); color: #d97706; }
+.wallet-tile .icon-box { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
 .lost-tile .icon-box { background: rgba(219, 39, 119, 0.1); color: #db2777; }
+.chat-tile .icon-box { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.shop-tile .icon-box { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
+.success-tile .icon-box { background: rgba(234, 179, 8, 0.1); color: #eab308; }
+.games-tile .icon-box { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.ressources-tile .icon-box { background: rgba(100, 116, 139, 0.1); color: #64748b; }
 
 .action-tile h3 {
-  margin: 4px 0 0 0;
-  font-size: 1.1rem;
+  margin: 2px 0 0 0;
+  font-size: 0.98rem;
   font-weight: 800;
   color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .action-tile p {
   margin: 0;
   color: #64748b;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Modal Customization Styling */
+.shortcut-modal {
+  --border-radius: 24px;
+}
+
+.modal-desc {
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.shortcut-selection-list {
+  background: transparent;
+}
+
+.shortcut-item {
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  margin-bottom: 8px;
+  border-radius: 14px;
+}
+
+.modal-shortcut-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  margin-right: 12px;
+}
+
+.save-shortcuts-btn {
+  --background: #5c2d54;
+  font-weight: 750;
+  --border-radius: 14px;
 }
 
 /* Results & News List */
