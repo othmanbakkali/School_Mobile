@@ -190,6 +190,10 @@ app.post('/api/school/menu-config', async (req, res) => {
             console.log('⚠️ school.mobile.tab absent ou vide dans Odoo, utilisation du fallback par défaut.');
         }
 
+        if (Array.isArray(tabs) && tabs.length > 0) {
+            tabs = tabs.filter(t => t.is_active !== false);
+        }
+
         if (!tabs || tabs.length === 0) {
             try {
                 for (const t of DEFAULT_MENU_TABS) {
@@ -204,7 +208,7 @@ app.post('/api/school/menu-config', async (req, res) => {
                     { fields: ['id', 'name', 'technical_code', 'icon', 'path', 'sequence', 'is_active', 'group_ids', 'allowed_user_ids', 'denied_user_ids'], order: 'sequence, id' }
                 ]);
             } catch (e) {
-                console.error('Erreur auto-seeding tabs:', e.message);
+                console.error('Erreur auto-seeding tabs dans Odoo:', e.message);
                 return res.json(DEFAULT_MENU_TABS);
             }
         }

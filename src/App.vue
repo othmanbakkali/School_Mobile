@@ -199,20 +199,22 @@ const studentClass = computed(() => {
 });
 
 const menuItems = computed(() => {
-  if (!serverTabs.value || serverTabs.value.length === 0) {
+  if (!serverTabs.value) {
     return defaultMenuItems;
   }
-  return serverTabs.value.map(tab => {
-    const code = tab.technical_code;
-    const i18nKey = codeToI18nKey[code];
-    const label = i18nKey ? t(i18nKey) : tab.name;
-    const icon = iconMap[tab.icon] || globeOutline;
-    return {
-      label,
-      icon,
-      path: tab.path
-    };
-  });
+  return serverTabs.value
+    .filter((tab: any) => tab.is_active !== false)
+    .map((tab: any) => {
+      const code = tab.technical_code;
+      const i18nKey = codeToI18nKey[code];
+      const label = i18nKey ? t(i18nKey) : tab.name;
+      const icon = iconMap[tab.icon] || globeOutline;
+      return {
+        label,
+        icon,
+        path: tab.path
+      };
+    });
 });
 
 const fetchMenuConfig = async () => {
