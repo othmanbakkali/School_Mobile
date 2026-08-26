@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  school-mobile:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: school_mobile_app
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
