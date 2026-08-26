@@ -151,10 +151,12 @@ app.post('/api/school/student', async (req, res) => {
             domain = [['parent_id.email', '=ilike', cleanEmail]];
         }
 
+        const studentFields = ['name', 'full_name', 'display_name', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id'];
+
         let result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read', 
             [domain], 
-            { fields: ['name', 'full_name', 'display_name', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id', 'wallet_enabled', 'use_wallet', 'has_wallet'] }
+            { fields: studentFields }
         ]);
 
         // Fallback: Si aucun élève n'est trouvé pour ce parent et que c'est un compte admin (ou pas d'email), renvoyer tous les élèves
@@ -162,7 +164,7 @@ app.post('/api/school/student', async (req, res) => {
             result = await callOdoo('object', 'execute_kw', [
                 ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read', 
                 [[]], 
-                { fields: ['name', 'full_name', 'display_name', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id', 'wallet_enabled', 'use_wallet', 'has_wallet'] }
+                { fields: studentFields }
             ]);
         }
 
