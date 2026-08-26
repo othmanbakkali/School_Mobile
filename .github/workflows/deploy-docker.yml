@@ -7,7 +7,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,7 +21,7 @@ jobs:
           script: |
             TARGET_DIR="${{ secrets.SERVER_PATH }}"
             if [ -z "$TARGET_DIR" ]; then
-              TARGET_DIR="/opt/school_mobile"
+              TARGET_DIR="/root/School_Mobile"
             fi
             mkdir -p $TARGET_DIR
             cd $TARGET_DIR
@@ -31,6 +30,11 @@ jobs:
             else
               git pull origin main
             fi
+            npm run build
+            pm2 stop school-app 2>/dev/null || true
             docker compose down || true
             docker compose up -d --build
             docker image prune -f
+            cp -r school_mobile_v2/* /opt/odoo19/odoo/addons/school_mobile_v2/ 2>/dev/null || true
+            chown -R odoo19:odoo19 /opt/odoo19/odoo/addons/school_mobile_v2 2>/dev/null || true
+            systemctl restart odoo19 2>/dev/null || true
