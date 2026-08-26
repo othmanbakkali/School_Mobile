@@ -1,5 +1,5 @@
 <odoo>
-    <data noupdate="0">
+    <data noupdate="1">
         <record id="tab_dashboard" model="school.mobile.tab">
             <field name="name">Tableau de bord</field>
             <field name="technical_code">dashboard</field>
