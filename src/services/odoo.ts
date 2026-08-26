@@ -165,6 +165,30 @@ class OdooService {
     return apiRequest('/api/school/lost-items', {});
   }
 
+  private _menuConfigCache: any[] | null = null;
+  private _lastMenuFetchTime: number = 0;
+
+  async getMenuConfig(forceRefresh = false) {
+    const now = Date.now();
+    if (!forceRefresh && this._menuConfigCache && (now - this._lastMenuFetchTime < 10000)) {
+      return this._menuConfigCache;
+    }
+    const email = this.config?.email;
+    const uid = this.config?.uid;
+    try {
+      const res = await apiRequest('/api/school/menu-config', { email, user_id: uid });
+      if (Array.isArray(res)) {
+        this._menuConfigCache = res;
+        this._lastMenuFetchTime = now;
+      }
+      return res;
+    } catch (e) {
+      if (this._menuConfigCache) return this._menuConfigCache;
+      throw e;
+    }
+  }
+
+
   logout() {
     this.config = null;
     this._selectedStudentId = null;

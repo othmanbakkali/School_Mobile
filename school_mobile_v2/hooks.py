@@ -102,3 +102,10 @@ def post_init_hook(env):
         'action': f'ir.actions.act_window,{action_attendance.id}',
         'sequence': 30,
     })
+
+    # =============================================
+    # GENERATION ONGLETS MOBILE
+    # =============================================
+    if 'school.mobile.tab' in env:
+        env['school.mobile.tab']._seed_default_tabs()
+

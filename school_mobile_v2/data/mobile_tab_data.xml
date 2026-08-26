@@ -1,0 +1,174 @@
+<odoo>
+    <data noupdate="0">
+        <record id="tab_dashboard" model="school.mobile.tab">
+            <field name="name">Tableau de bord</field>
+            <field name="technical_code">dashboard</field>
+            <field name="icon">globeOutline</field>
+            <field name="path">/tabs/dashboard</field>
+            <field name="sequence">10</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_schedule" model="school.mobile.tab">
+            <field name="name">Emploi du temps</field>
+            <field name="technical_code">schedule</field>
+            <field name="icon">calendarOutline</field>
+            <field name="path">/tabs/schedule</field>
+            <field name="sequence">20</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_homework" model="school.mobile.tab">
+            <field name="name">Devoirs</field>
+            <field name="technical_code">homework</field>
+            <field name="icon">documentTextOutline</field>
+            <field name="path">/tabs/homework</field>
+            <field name="sequence">30</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_notes" model="school.mobile.tab">
+            <field name="name">Notes &amp; Relevés</field>
+            <field name="technical_code">notes</field>
+            <field name="icon">ribbonOutline</field>
+            <field name="path">/tabs/notes</field>
+            <field name="sequence">40</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_absences" model="school.mobile.tab">
+            <field name="name">Absences &amp; Retards</field>
+            <field name="technical_code">absences</field>
+            <field name="icon">alertCircleOutline</field>
+            <field name="path">/tabs/absences</field>
+            <field name="sequence">50</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_transmission" model="school.mobile.tab">
+            <field name="name">Cahier de transmission</field>
+            <field name="technical_code">transmission</field>
+            <field name="icon">heartOutline</field>
+            <field name="path">/tabs/transmission</field>
+            <field name="sequence">60</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_suivi" model="school.mobile.tab">
+            <field name="name">Suivi Pédagogique</field>
+            <field name="technical_code">suivi</field>
+            <field name="icon">schoolOutline</field>
+            <field name="path">/tabs/suivi-pedagogique</field>
+            <field name="sequence">70</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_ressources" model="school.mobile.tab">
+            <field name="name">Ressources Pédagogiques</field>
+            <field name="technical_code">ressources</field>
+            <field name="icon">bookmarkOutline</field>
+            <field name="path">/tabs/ressources</field>
+            <field name="sequence">80</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_canteen" model="school.mobile.tab">
+            <field name="name">Cantine / Menus</field>
+            <field name="technical_code">canteen</field>
+            <field name="icon">restaurantOutline</field>
+            <field name="path">/tabs/vie-scolaire</field>
+            <field name="sequence">90</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_transport" model="school.mobile.tab">
+            <field name="name">Transport Scolaire</field>
+            <field name="technical_code">transport</field>
+            <field name="icon">busOutline</field>
+            <field name="path">/tabs/transport</field>
+            <field name="sequence">100</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_shop" model="school.mobile.tab">
+            <field name="name">Boutique Scolaire</field>
+            <field name="technical_code">shop</field>
+            <field name="icon">cartOutline</field>
+            <field name="path">/tabs/shop</field>
+            <field name="sequence">110</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_wallet" model="school.mobile.tab">
+            <field name="name">Portefeuille Portepay</field>
+            <field name="technical_code">wallet</field>
+            <field name="icon">swapHorizontalOutline</field>
+            <field name="path">/tabs/wallet</field>
+            <field name="sequence">120</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_games" model="school.mobile.tab">
+            <field name="name">Jeux &amp; Défis</field>
+            <field name="technical_code">games</field>
+            <field name="icon">gameControllerOutline</field>
+            <field name="path">/tabs/games</field>
+            <field name="sequence">130</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_success" model="school.mobile.tab">
+            <field name="name">Succès &amp; Badges</field>
+            <field name="technical_code">success</field>
+            <field name="icon">trophyOutline</field>
+            <field name="path">/tabs/success</field>
+            <field name="sequence">140</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_payments" model="school.mobile.tab">
+            <field name="name">Paiements Scolarité</field>
+            <field name="technical_code">payments</field>
+            <field name="icon">cardOutline</field>
+            <field name="path">/tabs/payments</field>
+            <field name="sequence">150</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_lost_items" model="school.mobile.tab">
+            <field name="name">Objets Perdus</field>
+            <field name="technical_code">lostItems</field>
+            <field name="icon">archiveOutline</field>
+            <field name="path">/tabs/lost-items</field>
+            <field name="sequence">160</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_chat" model="school.mobile.tab">
+            <field name="name">Messagerie Directe</field>
+            <field name="technical_code">chat</field>
+            <field name="icon">mailOutline</field>
+            <field name="path">/chat</field>
+            <field name="sequence">170</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_album" model="school.mobile.tab">
+            <field name="name">Album Photo</field>
+            <field name="technical_code">album</field>
+            <field name="icon">imagesOutline</field>
+            <field name="path">/tabs/album</field>
+            <field name="sequence">180</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_account" model="school.mobile.tab">
+            <field name="name">Mon Compte</field>
+            <field name="technical_code">account</field>
+            <field name="icon">personOutline</field>
+            <field name="path">/tabs/account</field>
+            <field name="sequence">190</field>
+            <field name="is_active">True</field>
+        </record>
+    </data>
+</odoo>

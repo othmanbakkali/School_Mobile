@@ -121,21 +121,37 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const isLogged = odoo.isLogged;
   const hasStudent = !!odoo.selectedStudentId;
 
   if (to.path === '/login' && isLogged) {
-    next(hasStudent ? '/tabs/dashboard' : '/selection');
+    return next(hasStudent ? '/tabs/dashboard' : '/selection');
   } else if (to.path.startsWith('/tabs') && !isLogged) {
-    next('/login');
+    return next('/login');
   } else if (to.path.startsWith('/tabs') && isLogged && !hasStudent) {
-    next('/selection');
+    return next('/selection');
   } else if (to.path === '/selection' && !isLogged) {
-    next('/login');
-  } else {
-    next();
+    return next('/login');
   }
+
+  // Vérification de l'activation dynamique des onglets Odoo
+  if (to.path.startsWith('/tabs/')) {
+    try {
+      const activeTabs = await odoo.getMenuConfig();
+      if (Array.isArray(activeTabs) && activeTabs.length > 0) {
+        const allowedPaths = activeTabs.map((t: any) => t.path);
+        if (!allowedPaths.includes(to.path) && to.path !== '/tabs/dashboard') {
+          console.warn(`[RouteGuard] L'accès à ${to.path} est désactivé depuis Odoo. Redirection vers /tabs/dashboard.`);
+          return next('/tabs/dashboard');
+        }
+      }
+    } catch (e) {
+      console.error('[RouteGuard] Erreur vérification onglets Odoo:', e);
+    }
+  }
+
+  next();
 });
 
 export default router

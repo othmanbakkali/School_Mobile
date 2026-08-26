@@ -1,7 +1,7 @@
 <template>
   <ion-app>
     <!-- Sidebar Menu -->
-    <ion-menu side="start" contentId="main" @ionWillOpen="fetchStudentInfo">
+    <ion-menu side="start" contentId="main" @ionWillOpen="onMenuOpen">
       <div class="menu-container">
         <!-- Premium Header Area -->
         <div class="menu-profile-header">
@@ -107,7 +107,74 @@ const route = useRoute();
 const { t, setLocale, locale } = useI18n();
 
 const studentData = ref<any>(null);
+const serverTabs = ref<any[] | null>(null);
 const currentRoute = computed(() => route.path);
+
+const iconMap: Record<string, any> = {
+  globeOutline,
+  calendarOutline,
+  documentTextOutline,
+  ribbonOutline,
+  alertCircleOutline,
+  heartOutline,
+  schoolOutline,
+  bookmarkOutline,
+  restaurantOutline,
+  busOutline,
+  cartOutline,
+  swapHorizontalOutline,
+  gameControllerOutline,
+  trophyOutline,
+  cardOutline,
+  archiveOutline,
+  mailOutline,
+  imagesOutline,
+  personOutline
+};
+
+const codeToI18nKey: Record<string, string> = {
+  dashboard: 'menu.dashboard',
+  schedule: 'menu.schedule',
+  homework: 'menu.homework',
+  notes: 'menu.notes',
+  absences: 'menu.absences',
+  transmission: 'menu.transmission',
+  suivi: 'menu.suivi',
+  ressources: 'menu.ressources',
+  canteen: 'menu.canteen',
+  transport: 'menu.transport',
+  shop: 'menu.shop',
+  wallet: 'menu.wallet',
+  games: 'menu.games',
+  success: 'menu.success',
+  payments: 'menu.payments',
+  lostItems: 'menu.lostItems',
+  chat: 'menu.chat',
+  album: 'menu.album',
+  account: 'menu.account'
+};
+
+const defaultMenuItems = [
+  { code: 'dashboard', label: t('menu.dashboard'), icon: globeOutline, path: '/tabs/dashboard' },
+  { code: 'schedule', label: t('menu.schedule'), icon: calendarOutline, path: '/tabs/schedule' },
+  { code: 'homework', label: t('menu.homework'), icon: documentTextOutline, path: '/tabs/homework' },
+  { code: 'notes', label: t('menu.notes'), icon: ribbonOutline, path: '/tabs/notes' },
+  { code: 'absences', label: t('menu.absences'), icon: alertCircleOutline, path: '/tabs/absences' },
+  { code: 'transmission', label: t('menu.transmission'), icon: heartOutline, path: '/tabs/transmission' },
+  { code: 'suivi', label: t('menu.suivi'), icon: schoolOutline, path: '/tabs/suivi-pedagogique' },
+  { code: 'ressources', label: t('menu.ressources'), icon: bookmarkOutline, path: '/tabs/ressources' },
+  { code: 'canteen', label: t('menu.canteen'), icon: restaurantOutline, path: '/tabs/vie-scolaire' },
+  { code: 'transport', label: t('menu.transport'), icon: busOutline, path: '/tabs/transport' },
+  { code: 'shop', label: t('menu.shop'), icon: cartOutline, path: '/tabs/shop' },
+  { code: 'wallet', label: t('menu.wallet'), icon: swapHorizontalOutline, path: '/tabs/wallet' },
+  { code: 'games', label: t('menu.games'), icon: gameControllerOutline, path: '/tabs/games' },
+  { code: 'success', label: t('menu.success'), icon: trophyOutline, path: '/tabs/success' },
+  { code: 'payments', label: t('menu.payments'), icon: cardOutline, path: '/tabs/payments' },
+  { code: 'lostItems', label: t('menu.lostItems'), icon: archiveOutline, path: '/tabs/lost-items' },
+  { code: 'chat', label: t('menu.chat'), icon: mailOutline, path: '/chat' },
+  { code: 'album', label: t('menu.album'), icon: imagesOutline, path: '/tabs/album' },
+  { code: 'account', label: t('menu.account'), icon: personOutline, path: '/tabs/account' }
+];
 
 const isItemActive = (item: any) => {
   const [path, queryStr] = item.path.split('?');
@@ -131,27 +198,33 @@ const studentClass = computed(() => {
   return studentData.value.level_id[1] || t('common.noData');
 });
 
-const menuItems = computed(() => [
-  { label: t('menu.dashboard'), icon: globeOutline, path: '/tabs/dashboard' },
-  { label: t('menu.schedule'), icon: calendarOutline, path: '/tabs/schedule' },
-  { label: t('menu.homework'), icon: documentTextOutline, path: '/tabs/homework' },
-  { label: t('menu.notes'), icon: ribbonOutline, path: '/tabs/notes' },
-  { label: t('menu.absences'), icon: alertCircleOutline, path: '/tabs/absences' },
-  { label: t('menu.transmission'), icon: heartOutline, path: '/tabs/transmission' },
-  { label: t('menu.suivi'), icon: schoolOutline, path: '/tabs/suivi-pedagogique' },
-  { label: t('menu.ressources'), icon: bookmarkOutline, path: '/tabs/ressources' },
-  { label: t('menu.canteen'), icon: restaurantOutline, path: '/tabs/vie-scolaire' },
-  { label: t('menu.transport'), icon: busOutline, path: '/tabs/transport' },
-  { label: t('menu.shop'), icon: cartOutline, path: '/tabs/shop' },
-  { label: t('menu.wallet'), icon: swapHorizontalOutline, path: '/tabs/wallet' },
-  { label: t('menu.games'), icon: gameControllerOutline, path: '/tabs/games' },
-  { label: t('menu.success'), icon: trophyOutline, path: '/tabs/success' },
-  { label: t('menu.payments'), icon: cardOutline, path: '/tabs/payments' },
-  { label: t('menu.lostItems'), icon: archiveOutline, path: '/tabs/lost-items' },
-  { label: t('menu.chat'), icon: mailOutline, path: '/chat' },
-  { label: t('menu.album'), icon: imagesOutline, path: '/tabs/album' },
-  { label: t('menu.account'), icon: personOutline, path: '/tabs/account' }
-]);
+const menuItems = computed(() => {
+  if (!serverTabs.value || serverTabs.value.length === 0) {
+    return defaultMenuItems;
+  }
+  return serverTabs.value.map(tab => {
+    const code = tab.technical_code;
+    const i18nKey = codeToI18nKey[code];
+    const label = i18nKey ? t(i18nKey) : tab.name;
+    const icon = iconMap[tab.icon] || globeOutline;
+    return {
+      label,
+      icon,
+      path: tab.path
+    };
+  });
+});
+
+const fetchMenuConfig = async () => {
+  try {
+    const tabs = await odoo.getMenuConfig();
+    if (Array.isArray(tabs) && tabs.length > 0) {
+      serverTabs.value = tabs;
+    }
+  } catch (e) {
+    console.error('App.vue: Erreur lors du chargement des onglets depuis Odoo', e);
+  }
+};
 
 const fetchStudentInfo = async () => {
   const config = odoo.userConfig;
@@ -166,6 +239,10 @@ const fetchStudentInfo = async () => {
   } catch (e) {
     console.error('App.vue: Failed to fetch student info', e);
   }
+};
+
+const onMenuOpen = async () => {
+  await Promise.all([fetchStudentInfo(), fetchMenuConfig()]);
 };
 
 async function handleItemClick(item: any) {
@@ -187,7 +264,7 @@ async function handleItemClick(item: any) {
 }
 
 onMounted(() => {
-  fetchStudentInfo();
+  onMenuOpen();
 });
 </script>
 

@@ -21,4 +21,6 @@ access_school_resources,school_resources,model_school_resources,,1,1,1,1
 access_school_pedagogical_comment,school_pedagogical_comment,model_school_pedagogical_comment,,1,1,1,1
 access_school_transport,school_transport,model_school_transport,,1,1,1,1
 access_school_wallet_transaction,school_wallet_transaction,model_school_wallet_transaction,,1,1,1,1
-access_school_shop_product,school_shop_product,model_school_shop_product,,1,1,1,1
+access_school_shop_product,school_shop_product,model_school_shop_product,,1,1,1,1
+access_school_mobile_tab,school_mobile_tab,model_school_mobile_tab,,1,1,1,1
+

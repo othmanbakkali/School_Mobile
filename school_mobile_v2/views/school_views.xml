@@ -50,7 +50,7 @@
     <record id="action_announcement_v2" model="ir.actions.act_window">
         <field name="name">Messages aux Parents</field>
         <field name="res_model">school.announcement</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
     </record>
 
     <record id="action_grade_v2" model="ir.actions.act_window">
@@ -92,7 +92,7 @@
     <record id="action_school_payment" model="ir.actions.act_window">
         <field name="name">Paiements Mensuels</field>
         <field name="res_model">school.payment</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
     </record>
 
     <record id="action_school_lost_item" model="ir.actions.act_window">
@@ -104,7 +104,7 @@
     <record id="action_school_cahier_transmission" model="ir.actions.act_window">
         <field name="name">Cahier de Transmission</field>
         <field name="res_model">school.cahier.transmission</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
     </record>
 
     <record id="action_school_resources" model="ir.actions.act_window">
@@ -116,7 +116,7 @@
     <record id="action_school_pedagogical_comment" model="ir.actions.act_window">
         <field name="name">Commentaires Pédagogiques</field>
         <field name="res_model">school.pedagogical.comment</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form</field>
     </record>
 
     <record id="action_school_transport" model="ir.actions.act_window">
@@ -926,6 +926,342 @@
                     </group>
                     <separator string="Description"/>
                     <field name="description"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- =================================================== -->
+    <!-- PAIEMENTS MENSUELS VIEWS                             -->
+    <!-- =================================================== -->
+    <record id="view_school_payment_kanban" model="ir.ui.view">
+        <field name="name">school.payment.kanban</field>
+        <field name="model">school.payment</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="month" class="o_kanban_mobile">
+                <field name="student_id"/>
+                <field name="year_id"/>
+                <field name="month"/>
+                <field name="amount"/>
+                <field name="date"/>
+                <field name="state"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold fs-5 text-primary">
+                                    <i class="fa fa-user me-1"/> <field name="student_id"/>
+                                </span>
+                                <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-warning="state == 'partial'" decoration-danger="state == 'unpaid'"/>
+                            </div>
+                            <div class="text-muted small">
+                                <div><i class="fa fa-calendar-o me-1"/> <strong>Année :</strong> <field name="year_id"/></div>
+                                <div><i class="fa fa-clock-o me-1"/> <strong>Mois :</strong> <field name="month"/></div>
+                                <div><i class="fa fa-money me-1"/> <strong>Montant :</strong> <field name="amount"/> DH</div>
+                                <div><i class="fa fa-calendar me-1"/> <strong>Date :</strong> <field name="date"/></div>
+                            </div>
+                        </div>
+                    </t>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold fs-5 text-primary">
+                                    <i class="fa fa-user me-1"/> <field name="student_id"/>
+                                </span>
+                                <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-warning="state == 'partial'" decoration-danger="state == 'unpaid'"/>
+                            </div>
+                            <div class="text-muted small">
+                                <div><i class="fa fa-calendar-o me-1"/> <strong>Année :</strong> <field name="year_id"/></div>
+                                <div><i class="fa fa-clock-o me-1"/> <strong>Mois :</strong> <field name="month"/></div>
+                                <div><i class="fa fa-money me-1"/> <strong>Montant :</strong> <field name="amount"/> DH</div>
+                                <div><i class="fa fa-calendar me-1"/> <strong>Date :</strong> <field name="date"/></div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_school_payment_tree" model="ir.ui.view">
+        <field name="name">school.payment.list</field>
+        <field name="model">school.payment</field>
+        <field name="arch" type="xml">
+            <list string="Paiements Mensuels">
+                <field name="student_id"/>
+                <field name="year_id"/>
+                <field name="month"/>
+                <field name="amount" sum="Total"/>
+                <field name="date"/>
+                <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-warning="state == 'partial'" decoration-danger="state == 'unpaid'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_payment_form" model="ir.ui.view">
+        <field name="name">school.payment.form</field>
+        <field name="model">school.payment</field>
+        <field name="arch" type="xml">
+            <form string="Paiement Scolarité">
+                <sheet>
+                    <group>
+                        <group string="Élève &amp; Période">
+                            <field name="student_id"/>
+                            <field name="year_id"/>
+                            <field name="month"/>
+                        </group>
+                        <group string="Détails du Paiement">
+                            <field name="amount"/>
+                            <field name="date"/>
+                            <field name="state" widget="radio"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- =================================================== -->
+    <!-- CAHIER DE TRANSMISSION / MESSAGES VIEWS              -->
+    <!-- =================================================== -->
+    <record id="view_school_cahier_transmission_kanban" model="ir.ui.view">
+        <field name="name">school.cahier.transmission.kanban</field>
+        <field name="model">school.cahier.transmission</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="type" class="o_kanban_mobile">
+                <field name="student_id"/>
+                <field name="title"/>
+                <field name="content"/>
+                <field name="type"/>
+                <field name="author"/>
+                <field name="date"/>
+                <field name="requires_signature"/>
+                <field name="signed"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-bold fs-5 text-primary">
+                                    <i class="fa fa-user me-1"/> <field name="student_id"/>
+                                </span>
+                                <field name="type" widget="badge" decoration-info="type == 'info'" decoration-warning="type == 'warning'" decoration-danger="type == 'urgent'" decoration-success="type == 'event'"/>
+                            </div>
+                            <div class="fw-semibold text-dark mb-1"><field name="title"/></div>
+                            <div class="text-muted small mb-2 text-truncate" style="max-height: 40px;"><field name="content"/></div>
+                            <div class="d-flex justify-content-between align-items-center text-muted small pt-1 border-top">
+                                <span><i class="fa fa-user-circle me-1"/> <field name="author"/></span>
+                                <span><i class="fa fa-clock-o me-1"/> <field name="date"/></span>
+                            </div>
+                            <t t-if="record.requires_signature.raw_value">
+                                <div class="mt-1">
+                                    <span t-att-class="record.signed.raw_value ? 'badge text-bg-success' : 'badge text-bg-danger'">
+                                        <t t-if="record.signed.raw_value"><i class="fa fa-check me-1"/> Signé</t>
+                                        <t t-else=""><i class="fa fa-pencil me-1"/> Signature requise</t>
+                                    </span>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-bold fs-5 text-primary">
+                                    <i class="fa fa-user me-1"/> <field name="student_id"/>
+                                </span>
+                                <field name="type" widget="badge" decoration-info="type == 'info'" decoration-warning="type == 'warning'" decoration-danger="type == 'urgent'" decoration-success="type == 'event'"/>
+                            </div>
+                            <div class="fw-semibold text-dark mb-1"><field name="title"/></div>
+                            <div class="text-muted small mb-2 text-truncate" style="max-height: 40px;"><field name="content"/></div>
+                            <div class="d-flex justify-content-between align-items-center text-muted small pt-1 border-top">
+                                <span><i class="fa fa-user-circle me-1"/> <field name="author"/></span>
+                                <span><i class="fa fa-clock-o me-1"/> <field name="date"/></span>
+                            </div>
+                            <t t-if="record.requires_signature.raw_value">
+                                <div class="mt-1">
+                                    <span t-att-class="record.signed.raw_value ? 'badge text-bg-success' : 'badge text-bg-danger'">
+                                        <t t-if="record.signed.raw_value"><i class="fa fa-check me-1"/> Signé</t>
+                                        <t t-else=""><i class="fa fa-pencil me-1"/> Signature requise</t>
+                                    </span>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- =================================================== -->
+    <!-- COMMENTAIRES PÉDAGOGIQUES / REMARQUES VIEWS         -->
+    <!-- =================================================== -->
+    <record id="view_school_pedagogical_comment_kanban" model="ir.ui.view">
+        <field name="name">school.pedagogical.comment.kanban</field>
+        <field name="model">school.pedagogical.comment</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="sentiment" class="o_kanban_mobile">
+                <field name="student_id"/>
+                <field name="teacher"/>
+                <field name="subject"/>
+                <field name="date"/>
+                <field name="sentiment"/>
+                <field name="text"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold fs-5 text-primary">
+                                    <i class="fa fa-user me-1"/> <field name="student_id"/>
+                                </span>
+                                <field name="sentiment" widget="badge" decoration-success="sentiment == 'positive'" decoration-warning="sentiment == 'neutral'" decoration-danger="sentiment == 'negative'"/>
+                            </div>
+                            <div class="mb-1 text-muted small">
+                                <span class="me-2"><i class="fa fa-graduation-cap me-1"/> <field name="teacher"/></span>
+                                <span><i class="fa fa-book me-1"/> <field name="subject"/></span>
+                            </div>
+                            <div class="text-dark small mb-2"><field name="text"/></div>
+                            <div class="text-muted small text-end pt-1 border-top">
+                                <i class="fa fa-calendar me-1"/> <field name="date"/>
+                            </div>
+                        </div>
+                    </t>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold fs-5 text-primary">
+                                    <i class="fa fa-user me-1"/> <field name="student_id"/>
+                                </span>
+                                <field name="sentiment" widget="badge" decoration-success="sentiment == 'positive'" decoration-warning="sentiment == 'neutral'" decoration-danger="sentiment == 'negative'"/>
+                            </div>
+                            <div class="mb-1 text-muted small">
+                                <span class="me-2"><i class="fa fa-graduation-cap me-1"/> <field name="teacher"/></span>
+                                <span><i class="fa fa-book me-1"/> <field name="subject"/></span>
+                            </div>
+                            <div class="text-dark small mb-2"><field name="text"/></div>
+                            <div class="text-muted small text-end pt-1 border-top">
+                                <i class="fa fa-calendar me-1"/> <field name="date"/>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- =================================================== -->
+    <!-- MESSAGES AUX PARENTS / ANNONCES VIEWS               -->
+    <!-- =================================================== -->
+    <record id="view_school_announcement_kanban" model="ir.ui.view">
+        <field name="name">school.announcement.kanban</field>
+        <field name="model">school.announcement</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="level_id" class="o_kanban_mobile">
+                <field name="title"/>
+                <field name="content"/>
+                <field name="date"/>
+                <field name="level_id"/>
+                <field name="author_id"/>
+                <field name="attachment_name"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_card oe_kanban_global_click p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="fw-bold text-primary mb-0">
+                                    <i class="fa fa-bullhorn me-2 text-warning"/> <field name="title"/>
+                                </h5>
+                                <t t-if="record.level_id.raw_value">
+                                    <span class="badge text-bg-info"><field name="level_id"/></span>
+                                </t>
+                                <t t-else="">
+                                    <span class="badge text-bg-secondary">Tous les niveaux</span>
+                                </t>
+                            </div>
+                            <div class="text-dark small mb-3 text-break" style="white-space: pre-wrap; max-height: 80px; overflow: hidden;">
+                                <field name="content"/>
+                            </div>
+                            <t t-if="record.attachment_name.raw_value">
+                                <div class="mb-2">
+                                    <span class="badge text-bg-light border text-dark">
+                                        <i class="fa fa-paperclip me-1 text-primary"/> <field name="attachment_name"/>
+                                    </span>
+                                </div>
+                            </t>
+                            <div class="d-flex justify-content-between align-items-center text-muted small pt-2 border-top">
+                                <span><i class="fa fa-user-circle me-1"/> <field name="author_id"/></span>
+                                <span><i class="fa fa-clock-o me-1"/> <field name="date"/></span>
+                            </div>
+                        </div>
+                    </t>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="fw-bold text-primary mb-0">
+                                    <i class="fa fa-bullhorn me-2 text-warning"/> <field name="title"/>
+                                </h5>
+                                <t t-if="record.level_id.raw_value">
+                                    <span class="badge text-bg-info"><field name="level_id"/></span>
+                                </t>
+                                <t t-else="">
+                                    <span class="badge text-bg-secondary">Tous les niveaux</span>
+                                </t>
+                            </div>
+                            <div class="text-dark small mb-3 text-break" style="white-space: pre-wrap; max-height: 80px; overflow: hidden;">
+                                <field name="content"/>
+                            </div>
+                            <t t-if="record.attachment_name.raw_value">
+                                <div class="mb-2">
+                                    <span class="badge text-bg-light border text-dark">
+                                        <i class="fa fa-paperclip me-1 text-primary"/> <field name="attachment_name"/>
+                                    </span>
+                                </div>
+                            </t>
+                            <div class="d-flex justify-content-between align-items-center text-muted small pt-2 border-top">
+                                <span><i class="fa fa-user-circle me-1"/> <field name="author_id"/></span>
+                                <span><i class="fa fa-clock-o me-1"/> <field name="date"/></span>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_school_announcement_tree" model="ir.ui.view">
+        <field name="name">school.announcement.list</field>
+        <field name="model">school.announcement</field>
+        <field name="arch" type="xml">
+            <list string="Messages aux Parents">
+                <field name="title"/>
+                <field name="level_id"/>
+                <field name="date"/>
+                <field name="author_id"/>
+                <field name="attachment_name"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_announcement_form" model="ir.ui.view">
+        <field name="name">school.announcement.form</field>
+        <field name="model">school.announcement</field>
+        <field name="arch" type="xml">
+            <form string="Message aux Parents">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="title" placeholder="Titre de l'annonce / message..."/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="level_id" placeholder="Tous les niveaux si vide"/>
+                            <field name="year_id"/>
+                        </group>
+                        <group>
+                            <field name="date"/>
+                            <field name="author_id"/>
+                            <field name="attachment" filename="attachment_name"/>
+                            <field name="attachment_name" invisible="1"/>
+                        </group>
+                    </group>
+                    <separator string="Contenu du Message"/>
+                    <field name="content" placeholder="Rédigez ici le contenu de l'annonce destinée aux parents..."/>
                 </sheet>
             </form>
         </field>

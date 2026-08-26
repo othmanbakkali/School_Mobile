@@ -152,6 +152,79 @@ app.post('/api/school/student', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+const DEFAULT_MENU_TABS = [
+  { name: 'Tableau de bord', technical_code: 'dashboard', icon: 'globeOutline', path: '/tabs/dashboard', sequence: 10, is_active: true },
+  { name: 'Emploi du temps', technical_code: 'schedule', icon: 'calendarOutline', path: '/tabs/schedule', sequence: 20, is_active: true },
+  { name: 'Devoirs', technical_code: 'homework', icon: 'documentTextOutline', path: '/tabs/homework', sequence: 30, is_active: true },
+  { name: 'Notes & Relevés', technical_code: 'notes', icon: 'ribbonOutline', path: '/tabs/notes', sequence: 40, is_active: true },
+  { name: 'Absences & Retards', technical_code: 'absences', icon: 'alertCircleOutline', path: '/tabs/absences', sequence: 50, is_active: true },
+  { name: 'Cahier de transmission', technical_code: 'transmission', icon: 'heartOutline', path: '/tabs/transmission', sequence: 60, is_active: true },
+  { name: 'Suivi Pédagogique', technical_code: 'suivi', icon: 'schoolOutline', path: '/tabs/suivi-pedagogique', sequence: 70, is_active: true },
+  { name: 'Ressources Pédagogiques', technical_code: 'ressources', icon: 'bookmarkOutline', path: '/tabs/ressources', sequence: 80, is_active: true },
+  { name: 'Cantine / Menus', technical_code: 'canteen', icon: 'restaurantOutline', path: '/tabs/vie-scolaire', sequence: 90, is_active: true },
+  { name: 'Transport Scolaire', technical_code: 'transport', icon: 'busOutline', path: '/tabs/transport', sequence: 100, is_active: true },
+  { name: 'Boutique Scolaire', technical_code: 'shop', icon: 'cartOutline', path: '/tabs/shop', sequence: 110, is_active: true },
+  { name: 'Portefeuille Portepay', technical_code: 'wallet', icon: 'swapHorizontalOutline', path: '/tabs/wallet', sequence: 120, is_active: true },
+  { name: 'Jeux & Défis', technical_code: 'games', icon: 'gameControllerOutline', path: '/tabs/games', sequence: 130, is_active: true },
+  { name: 'Succès & Badges', technical_code: 'success', icon: 'trophyOutline', path: '/tabs/success', sequence: 140, is_active: true },
+  { name: 'Paiements Scolarité', technical_code: 'payments', icon: 'cardOutline', path: '/tabs/payments', sequence: 150, is_active: true },
+  { name: 'Objets Perdus', technical_code: 'lostItems', icon: 'archiveOutline', path: '/tabs/lost-items', sequence: 160, is_active: true },
+  { name: 'Messagerie Directe', technical_code: 'chat', icon: 'mailOutline', path: '/chat', sequence: 170, is_active: true },
+  { name: 'Album Photo', technical_code: 'album', icon: 'imagesOutline', path: '/tabs/album', sequence: 180, is_active: true },
+  { name: 'Mon Compte', technical_code: 'account', icon: 'personOutline', path: '/tabs/account', sequence: 190, is_active: true }
+];
+
+app.post('/api/school/menu-config', async (req, res) => {
+    const { email, user_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+
+        let tabs = [];
+        try {
+            tabs = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.mobile.tab', 'search_read',
+                [[['is_active', '=', true]]],
+                { fields: ['id', 'name', 'technical_code', 'icon', 'path', 'sequence', 'is_active', 'group_ids', 'allowed_user_ids', 'denied_user_ids'], order: 'sequence, id' }
+            ]);
+        } catch (e) {
+            console.log('⚠️ school.mobile.tab absent ou vide dans Odoo, utilisation du fallback par défaut.');
+        }
+
+        if (!tabs || tabs.length === 0) {
+            try {
+                for (const t of DEFAULT_MENU_TABS) {
+                    await callOdoo('object', 'execute_kw', [
+                        ODOO_DB, adminUid, ADMIN_PASS, 'school.mobile.tab', 'create',
+                        [t]
+                    ]);
+                }
+                tabs = await callOdoo('object', 'execute_kw', [
+                    ODOO_DB, adminUid, ADMIN_PASS, 'school.mobile.tab', 'search_read',
+                    [[['is_active', '=', true]]],
+                    { fields: ['id', 'name', 'technical_code', 'icon', 'path', 'sequence', 'is_active', 'group_ids', 'allowed_user_ids', 'denied_user_ids'], order: 'sequence, id' }
+                ]);
+            } catch (e) {
+                console.error('Erreur auto-seeding tabs:', e.message);
+                return res.json(DEFAULT_MENU_TABS);
+            }
+        }
+
+        if (user_id) {
+            tabs = tabs.filter(t => {
+                if (t.denied_user_ids && t.denied_user_ids.includes(user_id)) return false;
+                if (t.allowed_user_ids && t.allowed_user_ids.length > 0 && !t.allowed_user_ids.includes(user_id)) return false;
+                return true;
+            });
+        }
+
+        res.json(tabs);
+    } catch (error) {
+        console.error('Erreur menu-config:', error.message);
+        res.json(DEFAULT_MENU_TABS);
+    }
+});
+
+
 app.post('/api/school/homework', async (req, res) => {
     const { student_id } = req.body;
     try {

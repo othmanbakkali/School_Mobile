@@ -1,0 +1,18 @@
+<odoo>
+    <data>
+        <!-- Groupe : Parent / Élève -->
+        <record id="group_school_parent" model="res.groups">
+            <field name="name">Scolarité Mobile / Parent / Élève</field>
+        </record>
+
+        <!-- Groupe : Enseignant -->
+        <record id="group_school_teacher" model="res.groups">
+            <field name="name">Scolarité Mobile / Enseignant</field>
+        </record>
+
+        <!-- Groupe : Administrateur / Manager Scolaire -->
+        <record id="group_school_manager" model="res.groups">
+            <field name="name">Scolarité Mobile / Administrateur Scolaire</field>
+        </record>
+    </data>
+</odoo>
