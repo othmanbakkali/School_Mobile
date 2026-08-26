@@ -135,16 +135,42 @@ app.post('/api/auth/admin-login', async (req, res) => {
 });
 
 app.post('/api/school/student', async (req, res) => {
-    const { email } = req.body;
+    const { email, parent_id } = req.body;
     try {
         const adminUid = await getAdminUid();
-        const result = await callOdoo('object', 'execute_kw', [
+        
+        let domain = [];
+        const cleanEmail = email ? email.trim() : '';
+        const parsedParentId = parent_id ? parseInt(parent_id) : null;
+
+        if (parsedParentId && cleanEmail) {
+            domain = ['|', ['parent_id', '=', parsedParentId], ['parent_id.email', '=ilike', cleanEmail]];
+        } else if (parsedParentId) {
+            domain = [['parent_id', '=', parsedParentId]];
+        } else if (cleanEmail) {
+            domain = [['parent_id.email', '=ilike', cleanEmail]];
+        }
+
+        let result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read', 
-            [[['parent_id.email', '=', email]]], 
+            [domain], 
             { fields: ['name', 'full_name', 'display_name', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id', 'wallet_enabled', 'use_wallet', 'has_wallet'] }
         ]);
-        res.json(result);
-    } catch (error) { res.status(500).json({ error: error.message }); }
+
+        // Fallback: Si aucun élève n'est trouvé pour ce parent et que c'est un compte admin (ou pas d'email), renvoyer tous les élèves
+        if ((!result || result.length === 0) && (cleanEmail.toLowerCase() === 'admin' || !cleanEmail)) {
+            result = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read', 
+                [[]], 
+                { fields: ['name', 'full_name', 'display_name', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id', 'wallet_enabled', 'use_wallet', 'has_wallet'] }
+            ]);
+        }
+
+        res.json(result || []);
+    } catch (error) { 
+        console.error('Erreur /api/school/student:', error.message);
+        res.status(500).json({ error: error.message }); 
+    }
 });
 
 const DEFAULT_MENU_TABS = [
