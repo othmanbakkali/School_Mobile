@@ -20,8 +20,17 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            cd /opt/school_mobile || cd /home/ubuntu/school_mobile || exit 1
-            git pull origin main
+            TARGET_DIR="${{ secrets.SERVER_PATH }}"
+            if [ -z "$TARGET_DIR" ]; then
+              TARGET_DIR="/opt/school_mobile"
+            fi
+            mkdir -p $TARGET_DIR
+            cd $TARGET_DIR
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/othmanbakkali/School_Mobile.git .
+            else
+              git pull origin main
+            fi
             docker compose down || true
             docker compose up -d --build
             docker image prune -f
