@@ -48,4 +48,11 @@ app.config.globalProperties.t = t;
 
 router.isReady().then(() => {
   app.mount('#app');
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (const registration of registrations) {
+        registration.update();
+      }
+    });
+  }
 });
