@@ -3,14 +3,14 @@
     <!-- Un-translated state button -->
     <div v-if="!isTranslated && !loading" class="translate-action" @click.stop="handleTranslate">
       <ion-icon :icon="globeOutline" class="translate-icon"></ion-icon>
-      <span class="translate-btn-text">{{ isArabicTarget ? 'Traduire en Arabe' : 'ترجمة للعربية / الفرنسية' }}</span>
+      <span class="translate-btn-text">{{ locale === 'ar' ? 'ترجمة المحتوى' : 'Traduire le contenu' }}</span>
       <span class="premium-badge-ai">IA</span>
     </div>
 
     <!-- Loading spinner state -->
     <div v-else-if="loading" class="translate-loading">
       <ion-spinner name="dots" color="primary" class="loading-spinner"></ion-spinner>
-      <span class="loading-text">{{ isArabicTarget ? 'Traduction en cours...' : 'جاري الترجمة...' }}</span>
+      <span class="loading-text">{{ locale === 'ar' ? 'جاري الترجمة...' : 'Traduction en cours...' }}</span>
     </div>
 
     <!-- Translated text content layout -->
