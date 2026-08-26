@@ -19,12 +19,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve static assets with no-cache for index.html
-app.use('/assets', (req, res, next) => {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    next();
-});
-app.use(express.static(path.join(__dirname, '../dist'), { index: false }));
+
 
 // Custom CSP middleware to allow legacy scripts and data URIs
 app.use((req, res, next) => {
@@ -940,6 +935,13 @@ app.post('/api/school/parent/update', async (req, res) => {
     }
 });
 
+
+// Serve static assets with no-cache for index.html
+app.use('/assets', (req, res, next) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    next();
+});
+app.use(express.static(path.join(__dirname, '../dist'), { index: false }));
 
 // Catch-all route to serve the Vue app for any other request (SPA fallback)
 app.use((req, res) => {
