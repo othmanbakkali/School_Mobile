@@ -141,7 +141,7 @@ app.post('/api/school/student', async (req, res) => {
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read', 
             [[['parent_id.email', '=', email]]], 
-            { fields: ['name', 'full_name', 'display_name', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id'] }
+            { fields: ['name', 'full_name', 'display_name', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id', 'wallet_enabled', 'use_wallet', 'has_wallet'] }
         ]);
         res.json(result);
     } catch (error) { res.status(500).json({ error: error.message }); }

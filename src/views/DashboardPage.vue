@@ -78,11 +78,13 @@
                 <span class="stat-label">Moyenne</span>
                 <span class="stat-value">{{ studentData.average_grade?.toFixed(2) || '0.00' }}<small>/20</small></span>
               </div>
-              <div class="divider"></div>
-              <div class="stat-item" @click="router.push('/tabs/wallet')" style="cursor: pointer;">
-                <span class="stat-label">Wallet</span>
-                <span class="stat-value">{{ studentData.wallet_balance || '0.00' }}<small> DHS</small></span>
-              </div>
+              <template v-if="isWalletEnabled">
+                <div class="divider"></div>
+                <div class="stat-item" @click="router.push('/tabs/wallet')" style="cursor: pointer;">
+                  <span class="stat-label">Wallet</span>
+                  <span class="stat-value">{{ studentData.wallet_balance || '0.00' }}<small> DHS</small></span>
+                </div>
+              </template>
             </div>
           </div>
 
@@ -152,7 +154,7 @@
           </div>
 
           <!-- Wallet Info Banner Link -->
-          <div class="premium-card ion-padding wallet-banner" @click="router.push('/tabs/wallet')">
+          <div v-if="isWalletEnabled" class="premium-card ion-padding wallet-banner" @click="router.push('/tabs/wallet')">
             <div class="icon-box wallet-icon">
               <ion-icon :icon="swapHorizontalOutline"></ion-icon>
             </div>
@@ -214,7 +216,7 @@
 
           <ion-list lines="full" class="shortcut-selection-list">
             <ion-item 
-              v-for="item in ALL_SHORTCUTS" 
+              v-for="item in availableShortcutsList" 
               :key="item.id" 
               button 
               @click="toggleShortcut(item.id)"
@@ -302,6 +304,33 @@ const ALL_SHORTCUTS = [
 const DEFAULT_SHORTCUT_IDS = ['homework', 'transmission', 'canteen', 'payments', 'notes', 'transport'];
 const userShortcutIds = ref<string[]>([]);
 const showShortcutModal = ref(false);
+const serverTabs = ref<any[]>([]);
+
+const isWalletEnabled = computed(() => {
+  if (!studentData.value) return false;
+  
+  if (studentData.value.wallet_enabled === false || 
+      studentData.value.has_wallet === false || 
+      studentData.value.use_wallet === false || 
+      studentData.value.wallet_disabled === true) {
+    return false;
+  }
+
+  if (studentData.value.wallet_balance === false || 
+      studentData.value.wallet_balance === null || 
+      studentData.value.wallet_balance === undefined) {
+    return false;
+  }
+
+  if (Array.isArray(serverTabs.value) && serverTabs.value.length > 0) {
+    const walletTab = serverTabs.value.find((t: any) => t.technical_code === 'wallet');
+    if (!walletTab || walletTab.is_active === false) {
+      return false;
+    }
+  }
+
+  return true;
+});
 
 const loadSavedShortcuts = () => {
   try {
@@ -320,7 +349,17 @@ const loadSavedShortcuts = () => {
 };
 
 const activeShortcuts = computed(() => {
-  return ALL_SHORTCUTS.filter(s => userShortcutIds.value.includes(s.id));
+  return ALL_SHORTCUTS.filter(s => {
+    if (s.id === 'wallet' && !isWalletEnabled.value) return false;
+    return userShortcutIds.value.includes(s.id);
+  });
+});
+
+const availableShortcutsList = computed(() => {
+  return ALL_SHORTCUTS.filter(s => {
+    if (s.id === 'wallet' && !isWalletEnabled.value) return false;
+    return true;
+  });
 });
 
 const isShortcutSelected = (id: string) => {
@@ -412,6 +451,15 @@ const fetchData = async (isSync = false) => {
     return;
   }
   try {
+    try {
+      const menuConfig = await odoo.getMenuConfig();
+      if (Array.isArray(menuConfig)) {
+        serverTabs.value = menuConfig;
+      }
+    } catch (menuErr) {
+      console.warn('Failed to load menu config on dashboard', menuErr);
+    }
+
     const students = await apiRequest('/api/school/student', { 
         email: config.email 
       });
