@@ -11,19 +11,12 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
-        <!-- 3D Innovative Hero Banner -->
-        <div class="page-hero-3d">
-          <div class="book-container-3d">
-            <div class="book-3d">
-              <div class="book-front-3d">
-                <span class="emoji-logo">📓</span>
-                <span class="sub-logo">ECOLE</span>
-              </div>
-              <div class="book-back-3d"></div>
-              <div class="book-pages-3d"></div>
-            </div>
+        <!-- Clean Hero Banner -->
+        <div class="page-hero-clean">
+          <div class="hero-icon-box">
+            <span class="hero-icon">📓</span>
           </div>
-          <div class="hero-text-3d">
+          <div class="hero-text">
             <h1>{{ t('transmission.title') }}</h1>
             <p>{{ t('transmission.subtitle') }}</p>
           </div>
@@ -39,18 +32,12 @@
           <p>{{ t('transmission.empty') }}</p>
         </div>
 
-        <div v-else class="cards-list-3d">
-          <!-- 3D Tilt Cards -->
+        <div v-else class="cards-list">
           <div v-for="entry in entries" :key="entry.id" 
-               class="premium-card transmission-card tilt-card"
-               :class="{ 'announcement-card': entry.isAnnouncement }"
-               @mousemove="handleTilt"
-               @mouseleave="resetTilt"
-               @touchmove="handleTouchTilt"
-               @touchend="resetTilt"
-               style="--rx: 0deg; --ry: 0deg; --tz: 0px;">
+               class="premium-card transmission-card"
+               :class="{ 'announcement-card': entry.isAnnouncement }">
                
-            <!-- Float-out badge (z-index level 3) -->
+            <!-- Type badge -->
             <div class="card-badge-container">
               <div class="card-badge" :class="entry.type || 'info'">
                 <span>{{ getTypeIcon(entry.type) }}</span>
@@ -58,10 +45,10 @@
               </div>
             </div>
 
-            <!-- Card Body with depth variables (z-index levels 2 & 1) -->
+            <!-- Card Body -->
             <div class="card-body">
-              <h3 class="depth-title">{{ entry.title || entry.subject || 'Message' }}</h3>
-              <p class="depth-text">{{ entry.content || entry.body || entry.description }}</p>
+              <h3 class="card-title">{{ entry.title || entry.subject || 'Message' }}</h3>
+              <p class="card-text">{{ entry.content || entry.body || entry.description }}</p>
               
               <!-- Dynamic Instant Translation Widget -->
               <TranslationWidget 
@@ -69,14 +56,14 @@
                 :text="(entry.title || entry.subject || '') + ': ' + (entry.content || entry.body || entry.description)" 
               />
 
-              <!-- Attachment Section for announcements -->
-              <div v-if="entry.attachment" class="attachment-box depth-attachment" @click.stop="downloadAttachment(entry)">
+              <!-- Attachment Section -->
+              <div v-if="entry.attachment" class="attachment-box" @click.stop="downloadAttachment(entry)">
                 <ion-icon :icon="documentAttachOutline"></ion-icon>
                 <span>{{ entry.attachment_name || 'Pièce jointe' }}</span>
               </div>
 
               <!-- Metadata -->
-              <div class="card-meta depth-meta">
+              <div class="card-meta">
                 <span class="meta-author">
                   <ion-icon :icon="personOutline"></ion-icon>
                   {{ entry.author || entry.teacher || 'Enseignant' }}
@@ -88,7 +75,7 @@
               </div>
 
               <!-- Signature row -->
-              <div v-if="entry.requires_signature" class="signature-row depth-sig">
+              <div v-if="entry.requires_signature" class="signature-row">
                 <ion-chip :color="entry.signed ? 'success' : 'warning'" class="sig-chip">
                   <ion-icon :icon="entry.signed ? checkmarkCircleOutline : alertCircleOutline"></ion-icon>
                   <ion-label>{{ entry.signed ? t('transmission.signed') : t('transmission.signatureRequired') }}</ion-label>
@@ -185,47 +172,6 @@ const downloadAttachment = (item: any) => {
   link.click();
 };
 
-// 3D Tilt interactivity handlers
-const handleTilt = (e: MouseEvent) => {
-  const card = e.currentTarget as HTMLElement;
-  const rect = card.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  const xc = rect.width / 2;
-  const yc = rect.height / 2;
-  // Dynamic calculation for angles
-  const angleX = (yc - y) / 12;
-  const angleY = (x - xc) / 12;
-  
-  card.style.setProperty('--rx', `${angleX}deg`);
-  card.style.setProperty('--ry', `${angleY}deg`);
-  card.style.setProperty('--tz', `12px`);
-};
-
-const handleTouchTilt = (e: TouchEvent) => {
-  if (e.touches.length === 0) return;
-  const touch = e.touches[0];
-  const card = e.currentTarget as HTMLElement;
-  const rect = card.getBoundingClientRect();
-  const x = touch.clientX - rect.left;
-  const y = touch.clientY - rect.top;
-  const xc = rect.width / 2;
-  const yc = rect.height / 2;
-  const angleX = (yc - y) / 14;
-  const angleY = (x - xc) / 14;
-  
-  card.style.setProperty('--rx', `${angleX}deg`);
-  card.style.setProperty('--ry', `${angleY}deg`);
-  card.style.setProperty('--tz', `10px`);
-};
-
-const resetTilt = (e: Event) => {
-  const card = e.currentTarget as HTMLElement;
-  card.style.setProperty('--rx', '0deg');
-  card.style.setProperty('--ry', '0deg');
-  card.style.setProperty('--tz', '0px');
-};
-
 const fetchData = async () => {
   loading.value = true;
   const config = odoo.userConfig;
@@ -301,152 +247,78 @@ onMounted(() => {
   --background: #f8fafc; 
 }
 
-/* 3D Floating Book Hero Section */
-.page-hero-3d {
+/* Clean Hero Banner */
+.page-hero-clean {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 30px 15px 25px 15px;
+  gap: 16px;
+  padding: 20px;
   background: linear-gradient(135deg, rgba(92, 45, 84, 0.08) 0%, rgba(99, 102, 241, 0.05) 100%);
-  border-radius: 24px;
-  margin-bottom: 25px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
-.book-container-3d {
-  width: 80px;
-  height: 95px;
-  perspective: 400px;
-  margin-bottom: 15px;
-}
-
-.book-3d {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  transform-style: preserve-3d;
-  transform: rotateY(-25deg) rotateX(12deg);
-  animation: floatBook 3.2s ease-in-out infinite alternate;
-}
-
-.book-front-3d {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background: #5c2d54; /* Eggplant color */
-  border-radius: 4px 8px 8px 4px;
+.hero-icon-box {
+  width: 52px;
+  height: 52px;
+  background: #5c2d54;
+  border-radius: 14px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: white;
-  transform: translateZ(10px);
-  box-shadow: 6px 6px 18px rgba(0,0,0,0.18);
-  border-left: 5px solid #3d1c37;
-  transform-style: preserve-3d;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(92, 45, 84, 0.2);
 }
 
-.emoji-logo {
-  font-size: 2.2rem;
-  margin-bottom: 2px;
+.hero-icon {
+  font-size: 1.8rem;
 }
 
-.sub-logo {
-  font-size: 0.55rem;
-  font-weight: 800;
-  letter-spacing: 2px;
-  color: rgba(255, 255, 255, 0.6);
-  text-transform: uppercase;
-}
-
-.book-back-3d {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background: #3d1c37;
-  border-radius: 8px 4px 4px 8px;
-  transform: rotateY(180deg) translateZ(10px);
-}
-
-.book-pages-3d {
-  position: absolute;
-  width: 90%;
-  height: 90%;
-  background: #f1f5f9;
-  top: 5%;
-  right: 2%;
-  border-radius: 2px 6px 6px 2px;
-  box-shadow: inset -4px 0 6px rgba(0,0,0,0.08);
-}
-
-@keyframes floatBook {
-  0% {
-    transform: rotateY(-20deg) rotateX(10deg) translateY(0px);
-  }
-  100% {
-    transform: rotateY(-32deg) rotateX(16deg) translateY(-8px);
-  }
-}
-
-.hero-text-3d {
-  text-align: center;
-}
-.hero-text-3d h1 {
+.hero-text h1 {
   margin: 0;
-  font-size: 1.55rem;
-  font-weight: 850;
+  font-size: 1.3rem;
+  font-weight: 800;
   color: #1e293b;
-  letter-spacing: -0.5px;
 }
-.hero-text-3d p {
-  margin: 6px 0 0;
+
+.hero-text p {
+  margin: 4px 0 0;
   color: #64748b;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 500;
 }
 
-/* 3D Tilt Card and Parallax depth styles */
-.cards-list-3d {
+.cards-list {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   padding-bottom: 30px;
-  perspective: 1200px;
 }
 
 .transmission-card {
   margin-bottom: 0;
   background: #ffffff;
   padding: 0;
-  overflow: visible; /* Required to allow 3D translated layers to protrude */
   display: flex;
   flex-direction: row;
-  border-radius: 20px;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Actualité Card Border highlight */
+.transmission-card:active {
+  transform: scale(0.99);
+}
+
 .transmission-card.announcement-card {
-  border: 1.5px solid rgba(244, 63, 94, 0.15);
+  border: 1.5px solid rgba(244, 63, 94, 0.2);
   background: linear-gradient(180deg, #ffffff 0%, #fffbfb 100%);
 }
 
-.tilt-card {
-  transform-style: preserve-3d;
-  transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(var(--tz, 0px));
-  transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(0, 0, 0, 0.02);
-}
-
-.tilt-card:active {
-  transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(-3px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
-}
-
-/* Layered depth effects */
 .card-badge-container {
-  width: 76px;
+  width: 70px;
   flex-shrink: 0;
   display: flex;
   align-items: stretch;
@@ -458,17 +330,14 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 15px 5px;
-  border-top-left-radius: 20px;
-  border-bottom-left-radius: 20px;
-  transform: translateZ(25px); /* Highest depth layer */
-  transform-style: preserve-3d;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.02);
+  gap: 4px;
+  padding: 14px 4px;
+  border-top-left-radius: 18px;
+  border-bottom-left-radius: 18px;
 }
 
 .card-badge span { 
-  font-size: 1.6rem; 
+  font-size: 1.5rem; 
 }
 .card-badge small { 
   font-size: 0.55rem; 
@@ -482,53 +351,44 @@ onMounted(() => {
 .card-badge.urgent { background: #fef2f2; color: #ef4444; }
 .card-badge.homework { background: #f5f3ff; color: #6366f1; }
 .card-badge.event { background: #f0fdf4; color: #10b981; }
-.card-badge.actualite { background: #fff1f2; color: #f43f5e; } /* Rose color for Announcements */
+.card-badge.actualite { background: #fff1f2; color: #f43f5e; }
 
 .card-body { 
   flex: 1; 
-  padding: 20px; 
-  transform-style: preserve-3d;
+  padding: 16px; 
+  min-width: 0;
 }
 
-.depth-title { 
-  margin: 0 0 8px; 
+.card-title { 
+  margin: 0 0 6px; 
   font-weight: 800; 
-  font-size: 1.05rem; 
+  font-size: 1rem; 
   color: #0f172a; 
-  transform: translateZ(15px); /* Moderate depth layer */
 }
 
-.depth-text { 
-  margin: 0 0 15px; 
-  font-size: 0.9rem; 
+.card-text { 
+  margin: 0 0 12px; 
+  font-size: 0.88rem; 
   color: #475569; 
   line-height: 1.5; 
-  transform: translateZ(10px); 
-}
-
-.depth-meta {
-  transform: translateZ(8px);
 }
 
 .card-meta { 
   display: flex; 
-  gap: 15px; 
+  gap: 12px; 
   flex-wrap: wrap; 
+  margin-top: 10px;
 }
 
 .meta-author, .meta-date {
   display: flex; 
   align-items: center; 
-  gap: 5px;
+  gap: 4px;
   font-size: 0.75rem; 
   color: #94a3b8; 
   font-weight: 600;
 }
-.meta-author ion-icon, .meta-date ion-icon { 
-  font-size: 0.85rem; 
-}
 
-/* Attachment style inside card */
 .attachment-box {
   display: inline-flex;
   align-items: center;
@@ -541,30 +401,15 @@ onMounted(() => {
   font-weight: 700;
   color: #f43f5e;
   cursor: pointer;
-  margin-bottom: 15px;
-  transition: all 0.2s ease;
-}
-
-.attachment-box:active {
-  background: rgba(244, 63, 94, 0.12);
-  transform: scale(0.98);
-}
-
-.depth-attachment {
-  transform: translateZ(12px);
-}
-
-/* Signature & Actions */
-.depth-sig {
-  transform: translateZ(14px);
+  margin-bottom: 10px;
 }
 
 .signature-row {
   display: flex; 
   align-items: center; 
   justify-content: space-between;
-  margin-top: 15px; 
-  padding-top: 12px;
+  margin-top: 12px; 
+  padding-top: 10px;
   border-top: 1px dashed #f1f5f9;
 }
 
@@ -586,7 +431,7 @@ onMounted(() => {
   display: flex; 
   flex-direction: column; 
   align-items: center; 
-  padding: 70px 0; 
+  padding: 60px 0; 
   gap: 15px; 
   color: #94a3b8; 
 }
