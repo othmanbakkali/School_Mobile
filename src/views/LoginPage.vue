@@ -52,8 +52,7 @@
         </div>
 
         <div class="school-footer">
-          <p>Projet réalisé par <a href="https://www.sdbo.ma" target="_blank" rel="noopener" class="sdbo-link">www.sdbo.ma</a></p>
-          <p class="sub-footer">All Rights Reserved © 2026</p>
+          <p>© 2026 Smart Digital School by <a href="https://www.sdbo.ma" target="_blank" rel="noopener" class="sdbo-link">www.sdbo.ma</a></p>
         </div>
       </div>
     </ion-content>
