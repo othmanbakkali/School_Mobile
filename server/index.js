@@ -242,11 +242,30 @@ app.get('/api/school/company-logo', async (req, res) => {
         const companies = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'res.company', 'search_read',
             [[]],
-            { fields: ['id', 'name', 'logo_web'], limit: 1 }
+            { fields: ['id', 'name', 'logo_web', 'partner_id'], limit: 1 }
         ]);
 
-        if (companies && companies.length > 0 && companies[0].logo_web) {
-            const logoData = companies[0].logo_web;
+        let logoData = null;
+        if (companies && companies.length > 0) {
+            logoData = companies[0].logo_web;
+            if ((!logoData || logoData === false) && companies[0].partner_id) {
+                try {
+                    const partners = await callOdoo('object', 'execute_kw', [
+                        ODOO_DB, adminUid, ADMIN_PASS, 'res.partner', 'search_read',
+                        [[['id', '=', companies[0].partner_id[0]]]],
+                        { fields: ['id', 'image_1920', 'avatar_1920', 'image_512', 'image_256'], limit: 1 }
+                    ]);
+                    if (partners && partners.length > 0) {
+                        const p = partners[0];
+                        logoData = p.image_1920 || p.avatar_1920 || p.image_512 || p.image_256;
+                    }
+                } catch (e) {
+                    console.log('Erreur fetch res.partner image:', e.message);
+                }
+            }
+        }
+
+        if (logoData && typeof logoData === 'string' && logoData.length > 10) {
             const imgBuffer = Buffer.from(logoData, 'base64');
             cachedCompanyLogoBuffer = imgBuffer;
             lastLogoFetchTime = now;
@@ -257,7 +276,8 @@ app.get('/api/school/company-logo', async (req, res) => {
     } catch (e) {
         console.error('Erreur lors du chargement du logo société Odoo:', e.message);
     }
-    const defaultFavicon = path.join(__dirname, '../public/favicon.png');
+    const defaultFavicon = path.join(__dirname, '../dist/favicon.png');
+    res.setHeader('Content-Type', 'image/png');
     res.sendFile(defaultFavicon, (err) => {
         if (err) res.status(404).end();
     });
