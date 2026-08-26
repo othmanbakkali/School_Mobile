@@ -179,22 +179,19 @@ app.post('/api/school/menu-config', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
 
-        let tabs = [];
+        let allTabs = null;
         try {
-            tabs = await callOdoo('object', 'execute_kw', [
+            allTabs = await callOdoo('object', 'execute_kw', [
                 ODOO_DB, adminUid, ADMIN_PASS, 'school.mobile.tab', 'search_read',
-                [[['is_active', '=', true]]],
+                [[]],
                 { fields: ['id', 'name', 'technical_code', 'icon', 'path', 'sequence', 'is_active', 'group_ids', 'allowed_user_ids', 'denied_user_ids'], order: 'sequence, id' }
             ]);
         } catch (e) {
-            console.log('⚠️ school.mobile.tab absent ou vide dans Odoo, utilisation du fallback par défaut.');
+            console.log('⚠️ school.mobile.tab non accessible dans Odoo:', e.message);
         }
 
-        if (Array.isArray(tabs) && tabs.length > 0) {
-            tabs = tabs.filter(t => t.is_active !== false);
-        }
-
-        if (!tabs || tabs.length === 0) {
+        // Si la table est totalement vide dans Odoo, on génère les 19 onglets par défaut
+        if (Array.isArray(allTabs) && allTabs.length === 0) {
             try {
                 for (const t of DEFAULT_MENU_TABS) {
                     await callOdoo('object', 'execute_kw', [
@@ -202,26 +199,33 @@ app.post('/api/school/menu-config', async (req, res) => {
                         [t]
                     ]);
                 }
-                tabs = await callOdoo('object', 'execute_kw', [
+                allTabs = await callOdoo('object', 'execute_kw', [
                     ODOO_DB, adminUid, ADMIN_PASS, 'school.mobile.tab', 'search_read',
-                    [[['is_active', '=', true]]],
+                    [[]],
                     { fields: ['id', 'name', 'technical_code', 'icon', 'path', 'sequence', 'is_active', 'group_ids', 'allowed_user_ids', 'denied_user_ids'], order: 'sequence, id' }
                 ]);
             } catch (e) {
                 console.error('Erreur auto-seeding tabs dans Odoo:', e.message);
-                return res.json(DEFAULT_MENU_TABS);
             }
         }
 
-        if (user_id) {
-            tabs = tabs.filter(t => {
-                if (t.denied_user_ids && t.denied_user_ids.includes(user_id)) return false;
-                if (t.allowed_user_ids && t.allowed_user_ids.length > 0 && !t.allowed_user_ids.includes(user_id)) return false;
-                return true;
-            });
+        // Si Odoo a renvoyé les enregistrements, on filtre strictement is_active === true
+        if (Array.isArray(allTabs) && allTabs.length > 0) {
+            let activeTabs = allTabs.filter(t => t.is_active === true);
+
+            if (user_id) {
+                activeTabs = activeTabs.filter(t => {
+                    if (t.denied_user_ids && t.denied_user_ids.includes(user_id)) return false;
+                    if (t.allowed_user_ids && t.allowed_user_ids.length > 0 && !t.allowed_user_ids.includes(user_id)) return false;
+                    return true;
+                });
+            }
+
+            return res.json(activeTabs);
         }
 
-        res.json(tabs);
+        // Fallback secours si Odoo est injoignable
+        res.json(DEFAULT_MENU_TABS);
     } catch (error) {
         console.error('Erreur menu-config:', error.message);
         res.json(DEFAULT_MENU_TABS);
