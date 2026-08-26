@@ -224,12 +224,77 @@ app.post('/api/school/menu-config', async (req, res) => {
             return res.json(activeTabs);
         }
 
-        // Fallback secours si Odoo est injoignable
         res.json(DEFAULT_MENU_TABS);
     } catch (error) {
         console.error('Erreur menu-config:', error.message);
         res.json(DEFAULT_MENU_TABS);
     }
+});
+
+let cachedCompanyLogoBuffer = null;
+let lastLogoFetchTime = 0;
+
+app.get('/api/school/company-logo', async (req, res) => {
+    try {
+        const now = Date.now();
+        if (cachedCompanyLogoBuffer && (now - lastLogoFetchTime < 60000)) {
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            return res.send(cachedCompanyLogoBuffer);
+        }
+
+        const adminUid = await getAdminUid();
+        const companies = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'res.company', 'search_read',
+            [[]],
+            { fields: ['id', 'name', 'logo', 'logo_web'], limit: 1 }
+        ]);
+
+        if (companies && companies.length > 0) {
+            const logoData = companies[0].logo || companies[0].logo_web;
+            if (logoData) {
+                const imgBuffer = Buffer.from(logoData, 'base64');
+                cachedCompanyLogoBuffer = imgBuffer;
+                lastLogoFetchTime = now;
+                res.setHeader('Content-Type', 'image/png');
+                res.setHeader('Cache-Control', 'public, max-age=3600');
+                return res.send(imgBuffer);
+            }
+        }
+    } catch (e) {
+        console.error('Erreur lors du chargement du logo société Odoo:', e.message);
+    }
+    const defaultFavicon = path.join(__dirname, '../public/favicon.png');
+    res.sendFile(defaultFavicon, (err) => {
+        if (err) res.status(404).end();
+    });
+});
+
+app.get('/api/school/company-info', async (req, res) => {
+    try {
+        const adminUid = await getAdminUid();
+        const companies = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'res.company', 'search_read',
+            [[]],
+            { fields: ['id', 'name', 'phone', 'email', 'website', 'logo'], limit: 1 }
+        ]);
+
+        if (companies && companies.length > 0) {
+            const c = companies[0];
+            return res.json({
+                id: c.id,
+                name: c.name,
+                phone: c.phone || '',
+                email: c.email || '',
+                website: c.website || '',
+                has_logo: !!c.logo,
+                logo_url: '/api/school/company-logo'
+            });
+        }
+    } catch (e) {
+        console.error('Erreur company-info:', e.message);
+    }
+    res.json({ name: 'École', logo_url: '/api/school/company-logo' });
 });
 
 

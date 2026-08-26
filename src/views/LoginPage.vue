@@ -10,7 +10,8 @@
       <div class="login-wrapper fade-in">
         <div class="header-section">
           <div class="logo-box glass-effect">
-            <ion-icon :icon="schoolOutline"></ion-icon>
+            <img :src="'/api/school/company-logo'" class="company-logo-img" alt="Logo Société" @error="logoError = true" v-if="!logoError" />
+            <ion-icon :icon="schoolOutline" v-else></ion-icon>
           </div>
           <h1>Scolarité<span class="dot">.</span></h1>
           <p>Espace Parents Odoo</p>
@@ -80,6 +81,7 @@ const db = ref(import.meta.env.VITE_ODOO_DB || 'school');
 const username = ref('');
 const password = ref('');
 const loginMode = ref('parent');
+const logoError = ref(false);
 
 const handleLogin = async () => {
   const loading = await loadingController.create({
@@ -171,6 +173,15 @@ const handleLogin = async () => {
   font-size: 2.8rem;
   color: #6366f1;
   box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.3);
+  overflow: hidden;
+}
+
+.company-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 16px;
+  padding: 6px;
 }
 
 .header-section h1 {
