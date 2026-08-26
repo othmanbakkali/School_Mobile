@@ -46,6 +46,9 @@ class SchoolStudent(models.Model):
     ems_id = fields.Integer(string='ID EMS')
     transport_id = fields.Many2one('school.transport', string='Ligne de Transport')
     wallet_balance = fields.Float(string='Solde Portefeuille', default=150.00)
+    wallet_enabled = fields.Boolean(string='Portefeuille Activé', default=True)
+    use_wallet = fields.Boolean(string='Utiliser Portefeuille', default=True)
+    has_wallet = fields.Boolean(string='Possède un Portefeuille', default=True)
     wallet_transaction_ids = fields.One2many('school.wallet.transaction', 'student_id', string='Transactions Portefeuille')
     album_count = fields.Integer(compute='_compute_album_count', string='Photos Album')
 
