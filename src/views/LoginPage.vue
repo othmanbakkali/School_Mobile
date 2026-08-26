@@ -52,7 +52,8 @@
         </div>
 
         <div class="school-footer">
-          <p>© 2026 Smart Digital School</p>
+          <p>Projet réalisé par <a href="https://www.sdbo.ma" target="_blank" rel="noopener" class="sdbo-link">www.sdbo.ma</a></p>
+          <p class="sub-footer">All Rights Reserved © 2026</p>
         </div>
       </div>
     </ion-content>
@@ -296,8 +297,24 @@ const handleLogin = async () => {
 
 .school-footer {
   margin-top: 50px;
+  text-align: center;
   color: #94a3b8;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 500;
+}
+
+.school-footer p {
+  margin: 3px 0;
+}
+
+.sdbo-link {
+  color: #6366f1;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.sub-footer {
+  font-size: 0.75rem;
+  opacity: 0.8;
 }
 </style>

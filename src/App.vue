@@ -55,6 +55,12 @@
             <span class="menu-item-label">{{ item.label }}</span>
           </div>
         </div>
+
+        <!-- Menu Drawer Footer -->
+        <div class="menu-drawer-footer">
+          <p>Projet réalisé par <a href="https://www.sdbo.ma" target="_blank" rel="noopener" class="sdbo-link">www.sdbo.ma</a></p>
+          <p class="sub-copyright">All Rights Reserved © 2026</p>
+        </div>
       </div>
     </ion-menu>
 
@@ -451,5 +457,30 @@ onMounted(() => {
   width: 1px;
   height: 16px;
   background: rgba(92, 45, 84, 0.15);
+}
+
+.menu-drawer-footer {
+  padding: 15px 20px;
+  margin-top: auto;
+  border-top: 1px solid rgba(92, 45, 84, 0.08);
+  text-align: center;
+  font-size: 0.78rem;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.menu-drawer-footer p {
+  margin: 2px 0;
+}
+
+.sdbo-link {
+  color: #5c2d54;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.sub-copyright {
+  font-size: 0.72rem;
+  opacity: 0.75;
 }
 </style>
