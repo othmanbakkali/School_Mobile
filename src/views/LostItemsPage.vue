@@ -37,7 +37,6 @@
                 <span><ion-icon :icon="calendarOutline"></ion-icon> {{ formatDate(item.date_found) }}</span>
               </div>
               <p v-if="item.description">{{ item.description }}</p>
-              <TranslationWidget v-if="item.description" :text="item.description" />
             </div>
           </div>
         </div>
@@ -53,7 +52,6 @@ import {
 } from '@ionic/vue';
 import { locationOutline, calendarOutline } from 'ionicons/icons';
 import { ref } from 'vue';
-import TranslationWidget from '@/components/TranslationWidget.vue';
 import { odoo } from '@/services/odoo';
 
 const items = ref<any[]>([]);

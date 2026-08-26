@@ -30,7 +30,6 @@
           </div>
           <h3>{{ item.title }}</h3>
           <p>{{ item.description }}</p>
-          <TranslationWidget v-if="item.description || item.title" :text="item.title + ': ' + item.description" />
           
           <div class="hw-bottom">
             <div class="status-indicator">
@@ -68,7 +67,6 @@ import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
 import { useI18n } from '@/services/translationService';
-import TranslationWidget from '@/components/TranslationWidget.vue';
 
 const { t } = useI18n();
 

@@ -60,7 +60,6 @@
           </div>
           <div v-if="note.observation || note.remark" class="note-remark-box">
             <p class="remark-text">💬 {{ note.observation || note.remark }}</p>
-            <TranslationWidget :text="note.observation || note.remark" />
           </div>
         </div>
       </div>
@@ -74,7 +73,6 @@ import {
   IonSegment, IonSegmentButton, IonLabel, IonSpinner, IonButtons, IonMenuButton
 } from '@ionic/vue';
 import { ref, computed, onMounted } from 'vue';
-import TranslationWidget from '@/components/TranslationWidget.vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';

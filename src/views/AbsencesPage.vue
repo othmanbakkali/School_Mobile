@@ -48,7 +48,6 @@
             <span v-if="att.type === 'late' && att.duration" class="duration-chip">
               ⏱ {{ att.duration }} minutes
             </span>
-            <TranslationWidget v-if="att.reason" :text="att.reason" />
           </div>
           <div class="justified-pill" :class="{ justified: att.is_justified }">
             {{ att.is_justified ? '✓ Justifié' : '✗ Non justifié' }}
@@ -65,7 +64,6 @@ import {
   IonSpinner, IonButtons, IonMenuButton
 } from '@ionic/vue';
 import { ref, computed, onMounted } from 'vue';
-import TranslationWidget from '@/components/TranslationWidget.vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';

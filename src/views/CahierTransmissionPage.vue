@@ -49,12 +49,6 @@
             <div class="card-body">
               <h3 class="card-title">{{ entry.title || entry.subject || 'Message' }}</h3>
               <p class="card-text">{{ entry.content || entry.body || entry.description }}</p>
-              
-              <!-- Dynamic Instant Translation Widget -->
-              <TranslationWidget 
-                v-if="entry.content || entry.body || entry.description" 
-                :text="(entry.title || entry.subject || '') + ': ' + (entry.content || entry.body || entry.description)" 
-              />
 
               <!-- Attachment Section -->
               <div v-if="entry.attachment" class="attachment-box" @click.stop="downloadAttachment(entry)">
@@ -111,7 +105,6 @@ import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
 import { useI18n } from '@/services/translationService';
-import TranslationWidget from '@/components/TranslationWidget.vue';
 
 const { t, locale } = useI18n();
 

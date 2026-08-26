@@ -42,7 +42,6 @@
 
             <div class="message-bubble">
               <div class="message-text">{{ msg.body }}</div>
-              <TranslationWidget v-if="!msg.is_parent && msg.body" :text="msg.body" />
               <div class="message-footer">
                 <span class="time">{{ formatTime(msg.date) }}</span>
                 <ion-icon v-if="msg.is_parent" :icon="checkmarkDoneOutline" class="read-icon"></ion-icon>
@@ -91,7 +90,6 @@ import {
 } from '@ionic/vue';
 import { checkmarkDoneOutline, sendSharp, addOutline } from 'ionicons/icons';
 import { ref, onMounted, nextTick, onUnmounted } from 'vue';
-import TranslationWidget from '@/components/TranslationWidget.vue';
 import { odoo } from '@/services/odoo';
 
 const messages = ref<any[]>([]);
