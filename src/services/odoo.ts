@@ -123,9 +123,18 @@ class OdooService {
     return apiRequest('/api/school/chat/history', { student_id: studentId });
   }
 
-  async sendMessageToAdmin(studentId: number, message: string) {
+  async sendMessageToAdmin(studentId: number, message: string, attachment?: { filename: string, filedata: string, mimetype?: string }) {
     if (!this.config) throw new Error('Not logged in');
-    return apiRequest('/api/school/contact-admin', { student_id: studentId, message });
+    return apiRequest('/api/school/contact-admin', { student_id: studentId, message, attachment });
+  }
+
+  async adminReply(studentId: number, message: string, attachment?: { filename: string, filedata: string, mimetype?: string }) {
+    if (!this.config) throw new Error('Not logged in');
+    return apiRequest('/api/school/admin/reply', { student_id: studentId, message, attachment });
+  }
+
+  async sendAdminReply(studentId: number, message: string, attachment?: { filename: string, filedata: string, mimetype?: string }) {
+    return this.adminReply(studentId, message, attachment);
   }
 
   async getIncomingMessages() {

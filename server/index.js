@@ -577,16 +577,36 @@ app.post('/api/school/attendance', async (req, res) => {
 });
 
 app.post('/api/school/contact-admin', async (req, res) => {
-    const { student_id, message } = req.body;
+    const { student_id, message, attachment } = req.body;
     try {
         const adminUid = await getAdminUid();
         
+        let attachmentIds = [];
+        if (attachment && attachment.filedata) {
+            const base64Data = attachment.filedata.includes(',') ? attachment.filedata.split(',')[1] : attachment.filedata;
+            const attId = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'ir.attachment', 'create', 
+                [{
+                    name: attachment.filename || 'piece_jointe',
+                    type: 'binary',
+                    datas: base64Data,
+                    res_model: 'school.student',
+                    res_id: parseInt(student_id),
+                    mimetype: attachment.mimetype || 'application/octet-stream'
+                }]
+            ]);
+            if (attId) attachmentIds.push(attId);
+        }
+
+        const msgBody = message ? `[PARENT_MSG]${message}` : '[PARENT_MSG]📎 Pièce jointe';
+
         // 1. Poster le message dans le chatter (Standard Odoo)
         await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'message_post', [parseInt(student_id)], { 
-                body: `[PARENT_MSG]${message}`,
+                body: msgBody,
                 message_type: 'comment',
-                subtype_xmlid: 'mail.mt_comment'
+                subtype_xmlid: 'mail.mt_comment',
+                attachment_ids: attachmentIds
             }
         ]);
 
@@ -606,8 +626,8 @@ app.post('/api/school/contact-admin', async (req, res) => {
                         'res_id': parseInt(student_id),
                         'res_model_id': modelId,
                         'activity_type_id': 4, // 4 est souvent l'ID pour "To Do" ou "Exception"
-                        'summary': 'Nouveau message de parent',
-                        'note': message,
+                        'summary': 'Nouveau message de parent' + (attachment ? ' (avec pièce jointe)' : ''),
+                        'note': message || 'Pièce jointe envoyée par le parent.',
                         'user_id': adminUid, // Notifier l'administrateur
                         'date_deadline': new Date().toISOString().split('T')[0]
                     }]
@@ -623,15 +643,35 @@ app.post('/api/school/contact-admin', async (req, res) => {
 });
 
 app.post('/api/school/admin/reply', async (req, res) => {
-    const { student_id, message } = req.body;
+    const { student_id, message, attachment } = req.body;
     try {
         const adminUid = await getAdminUid();
         
+        let attachmentIds = [];
+        if (attachment && attachment.filedata) {
+            const base64Data = attachment.filedata.includes(',') ? attachment.filedata.split(',')[1] : attachment.filedata;
+            const attId = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'ir.attachment', 'create', 
+                [{
+                    name: attachment.filename || 'piece_jointe',
+                    type: 'binary',
+                    datas: base64Data,
+                    res_model: 'school.student',
+                    res_id: parseInt(student_id),
+                    mimetype: attachment.mimetype || 'application/octet-stream'
+                }]
+            ]);
+            if (attId) attachmentIds.push(attId);
+        }
+
+        const msgBody = message ? message : '📎 Pièce jointe';
+
         await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'message_post', [parseInt(student_id)], { 
-                body: message,
+                body: msgBody,
                 message_type: 'comment',
-                subtype_xmlid: 'mail.mt_comment'
+                subtype_xmlid: 'mail.mt_comment',
+                attachment_ids: attachmentIds
             }
         ]);
 
@@ -645,10 +685,40 @@ app.post('/api/school/chat/history', async (req, res) => {
         const adminUid = await getAdminUid();
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'mail.message', 'search_read', 
-            [[['model', '=', 'school.student'], ['res_id', '=', student_id], ['message_type', '=', 'comment']]], 
-            { fields: ['id', 'body', 'date', 'author_id', 'author_guest_id'], order: 'date asc' }
+            [[['model', '=', 'school.student'], ['res_id', '=', parseInt(student_id)], ['message_type', '=', 'comment']]], 
+            { fields: ['id', 'body', 'date', 'author_id', 'author_guest_id', 'attachment_ids'], order: 'date asc' }
         ]);
         
+        // Collect all attachment IDs
+        let allAttIds = [];
+        result.forEach(m => {
+            if (m.attachment_ids && Array.isArray(m.attachment_ids) && m.attachment_ids.length > 0) {
+                allAttIds.push(...m.attachment_ids);
+            }
+        });
+
+        let attachmentsMap = {};
+        if (allAttIds.length > 0) {
+            try {
+                const attRecords = await callOdoo('object', 'execute_kw', [
+                    ODOO_DB, adminUid, ADMIN_PASS, 'ir.attachment', 'search_read', 
+                    [[['id', 'in', allAttIds]]], 
+                    { fields: ['id', 'name', 'mimetype', 'file_size', 'datas'] }
+                ]);
+                attRecords.forEach(att => {
+                    attachmentsMap[att.id] = {
+                        id: att.id,
+                        name: att.name,
+                        mimetype: att.mimetype || 'application/octet-stream',
+                        size: att.file_size || 0,
+                        url: att.datas ? `data:${att.mimetype || 'application/octet-stream'};base64,${att.datas}` : ''
+                    };
+                });
+            } catch (attErr) {
+                console.error("Erreur récupération pièces jointes chat:", attErr);
+            }
+        }
+
         // Nettoyer le corps du message (Odoo envoie du HTML)
         const cleaned = result.map(m => {
             const rawBody = m.body || '';
@@ -658,13 +728,16 @@ app.post('/api/school/chat/history', async (req, res) => {
             textBody = textBody.replace('&lt;span data-sender="parent" style="display:none;"&gt;&lt;/span&gt;', ''); // Strip escaped HTML
             textBody = textBody.replace('[PARENT_MSG]', '');
             textBody = textBody.replace('[PARENT] ', '');
+
+            const attachments = (m.attachment_ids || []).map(id => attachmentsMap[id]).filter(Boolean);
             
             return {
                 id: m.id,
-                body: textBody,
+                body: textBody.trim(),
                 date: m.date,
                 author: m.author_id ? m.author_id[1] : 'Système',
-                is_parent: is_parent
+                is_parent: is_parent,
+                attachments: attachments
             };
         });
 
