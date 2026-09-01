@@ -74,10 +74,10 @@ const router = useRouter();
 const defaultOdooUrl = import.meta.env.VITE_ODOO_URL || (
   typeof window !== 'undefined' && window.location && window.location.protocol === 'https:'
     ? window.location.origin
-    : 'http://198.199.75.86:8069'
+    : 'https://adminschool.alibdaealamia.ma'
 );
 const url = ref(defaultOdooUrl);
-const db = ref(import.meta.env.VITE_ODOO_DB || 'school');
+const db = ref(import.meta.env.VITE_ODOO_DB || 'alibdaealamia');
 const username = ref('');
 const password = ref('');
 const loginMode = ref('parent');

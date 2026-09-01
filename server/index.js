@@ -97,19 +97,45 @@ app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body; // username = email, password = phone
     try {
         const adminUid = await getAdminUid();
-        // Rechercher le parent avec cet email et ce téléphone
+        const cleanUser = (username || '').trim();
+        const cleanPass = (password || '').trim();
+
+        const normalizePhone = (p) => (p || '').replace(/[\s\-\.\+]/g, '').replace(/^212/, '0');
+        const passPhoneNorm = normalizePhone(cleanPass);
+
+        // 1. Rechercher le parent par email (insensible à la casse)
         const parents = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'search_read', 
-            [[['email', '=', username], ['phone', '=', password]]], 
-            { fields: ['id', 'name', 'email'] }
+            [[['email', '=ilike', cleanUser]]], 
+            { fields: ['id', 'name', 'email', 'phone'] }
         ]);
 
         if (parents && parents.length > 0) {
-            const parent = parents[0];
-            res.json({ success: true, uid: parent.id, name: parent.name, email: parent.email });
-        } else {
-            res.status(401).json({ success: false, message: "Email ou numéro de téléphone incorrect" });
+            const matched = parents.find(p => {
+                const parentPhoneNorm = normalizePhone(p.phone);
+                return parentPhoneNorm === passPhoneNorm || (p.phone && p.phone.trim() === cleanPass);
+            });
+
+            if (matched) {
+                return res.json({ success: true, uid: matched.id, name: matched.name, email: matched.email });
+            }
         }
+
+        // 2. Recherche directe si l'utilisateur a saisi le téléphone en login
+        const fallbackParents = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'search_read', 
+            [[['phone', '=', cleanPass]]], 
+            { fields: ['id', 'name', 'email', 'phone'] }
+        ]);
+
+        if (fallbackParents && fallbackParents.length > 0) {
+            const matched = fallbackParents.find(p => (p.email || '').toLowerCase() === cleanUser.toLowerCase());
+            if (matched) {
+                return res.json({ success: true, uid: matched.id, name: matched.name, email: matched.email });
+            }
+        }
+
+        res.status(401).json({ success: false, message: "Email ou numéro de téléphone incorrect" });
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
