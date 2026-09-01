@@ -14,7 +14,7 @@ jobs:
       - name: Deploy via SSH & Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SERVER_HOST || '198.199.75.86' }}
+          host: ${{ secrets.SERVER_HOST || '68.183.19.16' }}
           username: ${{ secrets.SERVER_USER || 'root' }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
