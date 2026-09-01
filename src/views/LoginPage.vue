@@ -84,6 +84,10 @@ const loginMode = ref('parent');
 const logoError = ref(false);
 
 const handleLogin = async () => {
+  if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+
   const loading = await loadingController.create({
     message: 'Connexion en cours...',
   });

@@ -114,6 +114,9 @@ const handleRefresh = async (event: any) => {
 };
 
 const selectStudent = (id: number) => {
+  if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
   odoo.setSelectedStudentId(id);
   router.replace('/tabs/dashboard');
 };

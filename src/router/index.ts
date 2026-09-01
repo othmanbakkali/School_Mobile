@@ -122,6 +122,11 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
+  // Supprimer le focus actif avant la transition pour éviter l'avertissement aria-hidden
+  if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+
   const isLogged = odoo.isLogged;
   const hasStudent = !!odoo.selectedStudentId;
 
