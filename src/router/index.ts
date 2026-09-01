@@ -128,16 +128,24 @@ router.beforeEach(async (to, from, next) => {
   }
 
   const isLogged = odoo.isLogged;
+  const isAdmin = localStorage.getItem('is_admin') === 'true';
   const hasStudent = !!odoo.selectedStudentId;
 
   if (to.path === '/login' && isLogged) {
+    if (isAdmin) return next('/admin/inbox');
     return next(hasStudent ? '/tabs/dashboard' : '/selection');
+  } else if (to.path.startsWith('/admin') && !isLogged) {
+    return next('/login');
   } else if (to.path.startsWith('/tabs') && !isLogged) {
     return next('/login');
+  } else if (to.path.startsWith('/tabs') && isLogged && isAdmin) {
+    return next('/admin/inbox');
   } else if (to.path.startsWith('/tabs') && isLogged && !hasStudent) {
     return next('/selection');
   } else if (to.path === '/selection' && !isLogged) {
     return next('/login');
+  } else if (to.path === '/selection' && isLogged && isAdmin) {
+    return next('/admin/inbox');
   }
 
   // Vérification de l'activation dynamique des onglets Odoo

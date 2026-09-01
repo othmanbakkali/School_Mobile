@@ -142,16 +142,64 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/admin-login', async (req, res) => {
     const { db, username, password } = req.body;
     try {
-        const targetDb = db || ODOO_DB;
-        const response = await axios.post(`${ODOO_URL}/jsonrpc`, {
+        const targetDb = (db && db !== 'school') ? db : ODOO_DB;
+        const cleanUser = (username || '').trim();
+        const cleanPass = (password || '').trim();
+
+        // 1. Authentification directe avec Odoo
+        let response = await axios.post(`${ODOO_URL}/jsonrpc`, {
             jsonrpc: '2.0',
             method: 'call',
-            params: { service: 'common', method: 'login', args: [targetDb, username, password] },
+            params: { service: 'common', method: 'login', args: [targetDb, cleanUser, cleanPass] },
             id: 1
         });
         
-        if (response.data.result) {
-            res.json({ success: true, uid: response.data.result, is_admin: true });
+        let uid = response.data?.result;
+
+        // 2. Si échec et que l'utilisateur a tapé 'admin', essayer les comptes admin connus
+        if (!uid && cleanUser.toLowerCase() === 'admin') {
+            for (const adminCandidate of ['admin@gmail.com', 'othmanbakkali@gmail.com', 'institutciel@gmail.com']) {
+                const tryAdmin = await axios.post(`${ODOO_URL}/jsonrpc`, {
+                    jsonrpc: '2.0',
+                    method: 'call',
+                    params: { service: 'common', method: 'login', args: [targetDb, adminCandidate, cleanPass] },
+                    id: 1
+                });
+                if (tryAdmin.data?.result) {
+                    uid = tryAdmin.data.result;
+                    break;
+                }
+            }
+        }
+
+        // 3. Si échec, vérifier si l'email existe dans res_users avec une casse différente
+        if (!uid) {
+            try {
+                const masterAdminUid = await getAdminUid();
+                const matchedUsers = await callOdoo('object', 'execute_kw', [
+                    ODOO_DB, masterAdminUid, ADMIN_PASS, 'res_users', 'search_read', 
+                    [[['login', '=ilike', cleanUser]]], 
+                    { fields: ['id', 'login'] }
+                ]);
+                if (matchedUsers && matchedUsers.length > 0) {
+                    const actualLogin = matchedUsers[0].login;
+                    const retry = await axios.post(`${ODOO_URL}/jsonrpc`, {
+                        jsonrpc: '2.0',
+                        method: 'call',
+                        params: { service: 'common', method: 'login', args: [targetDb, actualLogin, cleanPass] },
+                        id: 1
+                    });
+                    if (retry.data?.result) {
+                        uid = retry.data.result;
+                    }
+                }
+            } catch (searchErr) {
+                console.error("Erreur recherche utilisateur Odoo:", searchErr);
+            }
+        }
+
+        if (uid) {
+            res.json({ success: true, uid: uid, is_admin: true });
         } else {
             res.status(401).json({ success: false, message: "Identifiants administrateur incorrects" });
         }
