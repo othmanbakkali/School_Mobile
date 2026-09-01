@@ -86,9 +86,9 @@ class OdooService {
     return apiRequest('/api/school/grades', { student_id: studentId });
   }
 
-  async getNotifications(studentId: number) {
+  async getNotifications(studentId: number, levelId?: number) {
     if (!this.config) throw new Error('Not logged in');
-    return apiRequest('/api/school/notifications', { student_id: studentId });
+    return apiRequest('/api/school/notifications', { student_id: studentId, level_id: levelId });
   }
 
   async updateHomeworkStatus(homeworkId: number, state: 'draft' | 'done') {

@@ -15,9 +15,9 @@
           <ion-button @click="handleLogout" color="medium" aria-label="Se déconnecter">
             <ion-icon :icon="logOutOutline"></ion-icon>
           </ion-button>
-          <ion-button color="primary" @click="viewNotifications" aria-label="Voir les notifications">
+          <ion-button color="primary" @click="openNotificationsModal" aria-label="Voir les notifications" class="notif-btn">
             <ion-icon :icon="notificationsOutline"></ion-icon>
-            <ion-badge v-if="notificationsCount > 0" color="danger">{{ notificationsCount }}</ion-badge>
+            <ion-badge v-if="unreadCount > 0" color="danger" class="notif-badge-pill">{{ unreadCount }}</ion-badge>
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -248,6 +248,71 @@
         </ion-content>
       </ion-modal>
 
+      <!-- Modal Centre de Notifications -->
+      <ion-modal :is-open="showNotifModal" @didDismiss="showNotifModal = false" class="custom-modal notif-modal">
+        <ion-header class="ion-no-border">
+          <ion-toolbar class="transparent-toolbar" mode="md">
+            <ion-title>Notifications</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="showNotifModal = false" color="medium">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+
+        <ion-content class="ion-padding notif-modal-content">
+          <div class="notif-top-bar" v-if="allNotifications.length > 0">
+            <div class="notif-summary-pill">
+              <span class="unread-chip" v-if="unreadCount > 0">{{ unreadCount }} non lue{{ unreadCount > 1 ? 's' : '' }}</span>
+              <span class="all-read-chip" v-else>Toutes lues ✓</span>
+            </div>
+            <ion-button v-if="unreadCount > 0" size="small" fill="clear" color="primary" class="mark-all-btn" @click="markAllAsRead">
+              <ion-icon :icon="checkmarkDoneOutline" slot="start"></ion-icon>
+              Tout marquer comme lu
+            </ion-button>
+          </div>
+
+          <!-- État vide si aucune notification -->
+          <div v-if="allNotifications.length === 0" class="empty-notif-box">
+            <div class="empty-notif-icon-circle">
+              <ion-icon :icon="notificationsOffOutline"></ion-icon>
+            </div>
+            <h3>Aucune notification</h3>
+            <p>Aucune nouvelle activité, nouvel exercice ou message pour le moment.</p>
+          </div>
+
+          <!-- Liste des notifications -->
+          <div v-else class="notif-cards-container">
+            <div 
+              v-for="item in allNotifications" 
+              :key="item.id" 
+              class="notif-entry-card" 
+              :class="{ 'is-unread': !isNotifRead(item.id) }"
+              @click="handleNotificationClick(item)"
+            >
+              <div class="notif-type-icon" :class="item.type">
+                <ion-icon :icon="getNotifIcon(item.type)"></ion-icon>
+              </div>
+              
+              <div class="notif-entry-details">
+                <div class="notif-entry-header">
+                  <span class="notif-type-badge" :class="item.type">{{ getNotifTypeLabel(item.type) }}</span>
+                  <span class="notif-entry-time">{{ formatTimeAgo(item.date) }}</span>
+                </div>
+                <h4 class="notif-entry-title">{{ item.title }}</h4>
+                <p class="notif-entry-desc">{{ item.description }}</p>
+              </div>
+
+              <div class="notif-entry-action">
+                <div class="unread-indicator" v-if="!isNotifRead(item.id)" title="Non lu"></div>
+                <ion-icon :icon="chevronForwardOutline" class="chevron-icon"></ion-icon>
+              </div>
+            </div>
+          </div>
+        </ion-content>
+      </ion-modal>
+
     </ion-content>
   </ion-page>
 </template>
@@ -262,7 +327,8 @@ import {
   onIonViewWillEnter
 } from '@ionic/vue';
 import { 
-  notificationsOutline, bookOutline, restaurantOutline, logOutOutline, 
+  notificationsOutline, notificationsOffOutline, checkmarkDoneOutline, chevronForwardOutline,
+  bookOutline, restaurantOutline, logOutOutline, 
   calculatorOutline, megaphoneOutline, documentAttachOutline, walletOutline, 
   searchOutline, busOutline, swapHorizontalOutline, settingsOutline, closeOutline,
   journalOutline, calendarClearOutline, timeOutline, chatbubblesOutline,
@@ -279,7 +345,14 @@ const studentData = ref<any>(null);
 const allStudents = ref<any[]>([]);
 const recentGrades = ref<any[]>([]);
 const announcements = ref<any[]>([]);
-const notificationsCount = ref(0);
+const allNotifications = ref<any[]>([]);
+const readNotifIds = ref<string[]>([]);
+const showNotifModal = ref(false);
+
+const unreadCount = computed(() => {
+  return allNotifications.value.filter(n => !readNotifIds.value.includes(n.id)).length;
+});
+
 let syncInterval: any = null;
 
 // Catalog of all available shortcuts
@@ -422,26 +495,91 @@ const downloadAttachment = (ann: any) => {
   link.click();
 };
 
-const viewNotifications = async () => {
-  const message = notificationsCount.value > 0 
-    ? `Vous avez ${notificationsCount.value} nouvelles activités / messages.` 
-    : "Aucune nouvelle notification.";
-  
-  const toast = await toastController.create({
-    message: message,
-    duration: 3000,
-    position: 'top',
-    color: 'primary',
-    buttons: [
-      {
-        text: 'Voir Chat',
-        handler: () => {
-          router.push('/chat');
-        }
-      }
-    ]
-  });
-  await toast.present();
+const loadReadNotifIds = (studentId: number) => {
+  try {
+    const key = `read_notifs_${studentId}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      readNotifIds.value = JSON.parse(saved);
+    } else {
+      readNotifIds.value = [];
+    }
+  } catch (e) {
+    readNotifIds.value = [];
+  }
+};
+
+const isNotifRead = (id: string) => {
+  return readNotifIds.value.includes(id);
+};
+
+const markNotifAsRead = (notifId: string) => {
+  if (!readNotifIds.value.includes(notifId)) {
+    readNotifIds.value.push(notifId);
+    if (studentData.value?.id) {
+      localStorage.setItem(`read_notifs_${studentData.value.id}`, JSON.stringify(readNotifIds.value));
+    }
+  }
+};
+
+const markAllAsRead = () => {
+  for (const n of allNotifications.value) {
+    if (!readNotifIds.value.includes(n.id)) {
+      readNotifIds.value.push(n.id);
+    }
+  }
+  if (studentData.value?.id) {
+    localStorage.setItem(`read_notifs_${studentData.value.id}`, JSON.stringify(readNotifIds.value));
+  }
+};
+
+const handleNotificationClick = (notif: any) => {
+  markNotifAsRead(notif.id);
+  showNotifModal.value = false;
+  if (notif.link) {
+    router.push(notif.link);
+  }
+};
+
+const openNotificationsModal = () => {
+  showNotifModal.value = true;
+};
+
+const getNotifIcon = (type: string) => {
+  switch (type) {
+    case 'homework': return bookOutline;
+    case 'activity': return megaphoneOutline;
+    case 'transmission': return journalOutline;
+    case 'message': return chatbubblesOutline;
+    default: return notificationsOutline;
+  }
+};
+
+const getNotifTypeLabel = (type: string) => {
+  switch (type) {
+    case 'homework': return 'Exercice';
+    case 'activity': return 'Activité';
+    case 'transmission': return 'Liaison';
+    case 'message': return 'Message';
+    default: return 'Information';
+  }
+};
+
+const formatTimeAgo = (dateStr: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  if (isNaN(d.getTime())) return '';
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return "À l'instant";
+  if (diffMins < 60) return `Il y a ${diffMins} min`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `Il y a ${diffHours} h`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Hier';
+  if (diffDays < 7) return `Il y a ${diffDays} j`;
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 };
 
 const fetchData = async (isSync = false) => {
@@ -472,16 +610,23 @@ const fetchData = async (isSync = false) => {
       
       if (!selectedId) odoo.setSelectedStudentId(student.id);
 
+      loadReadNotifIds(student.id);
+
       // Fetch Grades
       recentGrades.value = await apiRequest('/api/school/grades', { 
           student_id: student.id
         });
 
-      const notifs = await odoo.getNotifications(student.id);
-      if (isSync && notifs.length > notificationsCount.value) {
-        showNotification("Nouvelle activité détectée pour votre enfant !");
+      // Fetch unified Notifications (devoirs, activités, messages)
+      const notifs = await odoo.getNotifications(student.id, student.level_id?.[0]);
+      if (Array.isArray(notifs)) {
+        const prevUnread = unreadCount.value;
+        allNotifications.value = notifs;
+        const newUnread = notifs.filter((n: any) => !readNotifIds.value.includes(n.id)).length;
+        if (isSync && newUnread > prevUnread) {
+          showNotification("Nouvelle notification de l'école reçue !");
+        }
       }
-      notificationsCount.value = notifs.length;
 
       // Fetch Announcements
       announcements.value = await odoo.getAnnouncements(student.level_id?.[0]);
@@ -1108,5 +1253,237 @@ onUnmounted(() => {
 .transport-banner:active .banner-arrow,
 .wallet-banner:active .banner-arrow {
   transform: translateX(4px);
+}
+
+/* ========================================================
+   NOTIFICATION CENTER MODAL & BADGES
+   ======================================================== */
+.notif-btn {
+  position: relative;
+}
+
+.notif-badge-pill {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+  animation: pulse-badge 2s infinite ease-in-out;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.notif-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.unread-chip {
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.all-read-chip {
+  background: #ecfdf5;
+  color: #059669;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.mark-all-btn {
+  font-size: 0.8rem;
+  font-weight: 700;
+  --color: #3b82f6;
+}
+
+.empty-notif-box {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+}
+
+.empty-notif-icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin: 0 auto 16px auto;
+}
+
+.empty-notif-box h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 8px 0;
+}
+
+.empty-notif-box p {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.notif-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notif-entry-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+  position: relative;
+  cursor: pointer;
+}
+
+.notif-entry-card:active {
+  transform: scale(0.98);
+}
+
+.notif-entry-card.is-unread {
+  background: #f8faff;
+  border-color: #dbeafe;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.08);
+}
+
+.notif-type-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.notif-type-icon.homework {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.notif-type-icon.activity {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.notif-type-icon.transmission {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.notif-type-icon.message {
+  background: #faf5ff;
+  color: #9333ea;
+}
+
+.notif-entry-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.notif-type-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.notif-type-badge.homework {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.notif-type-badge.activity {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.notif-type-badge.transmission {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.notif-type-badge.message {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.notif-entry-time {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.notif-entry-title {
+  margin: 0 0 3px 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.notif-entry-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.notif-entry-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: center;
+}
+
+.unread-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.chevron-icon {
+  color: #cbd5e1;
+  font-size: 1rem;
 }
 </style>

@@ -377,17 +377,130 @@ app.post('/api/school/homework/status', async (req, res) => {
 });
 
 app.post('/api/school/notifications', async (req, res) => {
-    const { student_id } = req.body;
+    const { student_id, level_id } = req.body;
     try {
         const adminUid = await getAdminUid();
-        // On récupère les messages récents sur le profil de l'élève (notifications)
-        const result = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'mail.message', 'search_read', 
-            [[['model', '=', 'school.student'], ['res_id', '=', parseInt(student_id)]]], 
-            { fields: ['id', 'body', 'date'], order: 'date desc', limit: 10 }
-        ]);
-        res.json(result);
-    } catch (error) { res.status(500).json({ error: error.message }); }
+        const parsedStudentId = parseInt(student_id);
+        const parsedLevelId = level_id ? parseInt(level_id) : null;
+        const notifs = [];
+
+        // 1. Nouveaux devoirs / Exercices récents (school.homework)
+        try {
+            const homeworks = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'search_read',
+                [[['student_id', '=', parsedStudentId]]],
+                { fields: ['id', 'title', 'subject_id', 'subject', 'date_due', 'state', 'create_date', 'write_date'], order: 'create_date desc, id desc', limit: 10 }
+            ]);
+            if (Array.isArray(homeworks)) {
+                for (const hw of homeworks) {
+                    const subject = hw.subject_id ? hw.subject_id[1] : (hw.subject || 'Devoir');
+                    const isPending = hw.state !== 'done' && hw.state !== 'completed';
+                    notifs.push({
+                        id: `hw_${hw.id}`,
+                        type: 'homework',
+                        title: `Exercice / Devoir : ${subject}`,
+                        description: hw.title ? `${hw.title}${hw.date_due ? ' (à rendre pour le ' + hw.date_due + ')' : ''}` : `Devoir de ${subject}`,
+                        date: hw.create_date || hw.write_date || new Date().toISOString(),
+                        link: '/tabs/homework',
+                        is_pending: isPending
+                    });
+                }
+            }
+        } catch (hwErr) {
+            console.warn('Erreur récupération devoirs notifications:', hwErr.message);
+        }
+
+        // 2. Nouvelles activités & Annonces de l'école (school.announcement)
+        try {
+            let annDomain = [['level_id', '=', false]];
+            if (parsedLevelId) {
+                annDomain = ['|', ['level_id', '=', false], ['level_id', '=', parsedLevelId]];
+            }
+            const announcements = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.announcement', 'search_read',
+                [annDomain],
+                { fields: ['id', 'title', 'content', 'date', 'create_date'], order: 'date desc, id desc', limit: 10 }
+            ]);
+            if (Array.isArray(announcements)) {
+                for (const ann of announcements) {
+                    let textDesc = (ann.content || '').replace(/<[^>]*>?/gm, '').trim();
+                    if (textDesc.length > 100) textDesc = textDesc.substring(0, 100) + '...';
+                    notifs.push({
+                        id: `ann_${ann.id}`,
+                        type: 'activity',
+                        title: `Activité / Annonce : ${ann.title || 'École'}`,
+                        description: textDesc || 'Nouvelle annonce de l\'école.',
+                        date: ann.date || ann.create_date || new Date().toISOString(),
+                        link: '/tabs/dashboard'
+                    });
+                }
+            }
+        } catch (annErr) {
+            console.warn('Erreur récupération annonces notifications:', annErr.message);
+        }
+
+        // 3. Cahier de transmission / Messages de l'école (school.cahier.transmission)
+        try {
+            const transmissions = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.cahier.transmission', 'search_read',
+                [[['student_id', '=', parsedStudentId]]],
+                { fields: ['id', 'title', 'content', 'author', 'date', 'requires_signature', 'signed', 'create_date'], order: 'date desc, id desc', limit: 10 }
+            ]);
+            if (Array.isArray(transmissions)) {
+                for (const trans of transmissions) {
+                    let textDesc = (trans.content || '').replace(/<[^>]*>?/gm, '').trim();
+                    if (textDesc.length > 100) textDesc = textDesc.substring(0, 100) + '...';
+                    notifs.push({
+                        id: `trans_${trans.id}`,
+                        type: 'transmission',
+                        title: `Cahier de transmission : ${trans.title || 'Note'}`,
+                        description: textDesc || (trans.requires_signature && !trans.signed ? 'Signature requise' : 'Nouveau mot dans le carnet'),
+                        date: trans.date || trans.create_date || new Date().toISOString(),
+                        link: '/tabs/transmission'
+                    });
+                }
+            }
+        } catch (transErr) {
+            console.warn('Erreur récupération transmission notifications:', transErr.message);
+        }
+
+        // 4. Messages récents reçus de l'administration / enseignants (mail.message)
+        try {
+            const messages = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'mail.message', 'search_read',
+                [[['model', '=', 'school.student'], ['res_id', '=', parsedStudentId], ['message_type', '=', 'comment']]],
+                { fields: ['id', 'body', 'date', 'author_id', 'create_date'], order: 'date desc, id desc', limit: 10 }
+            ]);
+            if (Array.isArray(messages)) {
+                for (const msg of messages) {
+                    const rawBody = msg.body || '';
+                    const isFromParent = rawBody.includes('data-sender="parent"') || rawBody.includes('[PARENT_MSG]') || (msg.author_id && msg.author_id[1].toLowerCase().includes('parent'));
+                    if (!isFromParent) {
+                        let text = rawBody.replace(/<[^>]*>?/gm, '').trim();
+                        if (text.length > 100) text = text.substring(0, 100) + '...';
+                        notifs.push({
+                            id: `msg_${msg.id}`,
+                            type: 'message',
+                            title: `Message : ${msg.author_id ? msg.author_id[1] : 'École'}`,
+                            description: text || 'Nouveau message reçu.',
+                            date: msg.date || msg.create_date || new Date().toISOString(),
+                            link: '/chat'
+                        });
+                    }
+                }
+            }
+        } catch (msgErr) {
+            console.warn('Erreur récupération chat notifications:', msgErr.message);
+        }
+
+        // Trier par date décroissante
+        notifs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        res.json(notifs);
+    } catch (error) {
+        console.error('Erreur notifications:', error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.post('/api/school/grades', async (req, res) => {
