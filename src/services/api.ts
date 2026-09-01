@@ -1,11 +1,10 @@
 export function setApiBaseUrl(url: string) {
-  const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
   const isCapacitor = typeof window !== 'undefined' && window.location && (
     window.location.origin.startsWith('capacitor://') ||
     !!(window as any).Capacitor?.isNativePlatform?.()
   );
 
-  if (isHttps && !isCapacitor && url.startsWith('http:')) {
+  if (!isCapacitor) {
     localStorage.removeItem('api_base_url');
     return;
   }
@@ -26,19 +25,14 @@ export function setApiBaseUrl(url: string) {
 }
 
 export function getApiBaseUrl(): string {
-  const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
   const isCapacitor = typeof window !== 'undefined' && window.location && (
     window.location.origin.startsWith('capacitor://') ||
     !!(window as any).Capacitor?.isNativePlatform?.()
   );
 
-  // When running as a web application over HTTPS, ALWAYS return empty string for relative paths
-  // to prevent any Mixed Content issues with HTTP IP targets.
-  if (isHttps && !isCapacitor) {
-    const saved = localStorage.getItem('api_base_url');
-    if (saved && saved.startsWith('http:')) {
-      localStorage.removeItem('api_base_url');
-    }
+  // When running as a web application in any browser, ALWAYS return empty string for relative paths
+  if (!isCapacitor && typeof window !== 'undefined' && window.location) {
+    localStorage.removeItem('api_base_url');
     return '';
   }
 
@@ -46,7 +40,6 @@ export function getApiBaseUrl(): string {
   if (saved) return saved;
 
   const envApiUrl = import.meta.env.VITE_API_URL || '';
-
   if (import.meta.env.DEV || (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost') || isCapacitor) {
     return envApiUrl || 'http://localhost:3000';
   }
