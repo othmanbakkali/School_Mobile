@@ -12,7 +12,6 @@ access_school_config,school_config,model_school_config,,1,1,1,1
 access_school_teacher,school_teacher,model_school_teacher,,1,1,1,1
 access_school_staff,school_staff,model_school_staff,,1,1,1,1
 access_school_subject,school_subject,model_school_subject,,1,1,1,1
-access_school_sub_subject,school_sub_subject,model_school_sub_subject,,1,1,1,1
 access_school_year,school_year,model_school_year,,1,1,1,1
 access_school_semester,school_semester,model_school_semester,,1,1,1,1
 access_school_payment,school_payment,model_school_payment,,1,1,1,1
