@@ -26,6 +26,7 @@ class SchoolStudent(models.Model):
 
     name = fields.Char(string='Nom', required=True)
     full_name = fields.Char(string='Prénom & Nom')
+    massar_number = fields.Char(string='Code / N° Massar (رقم مسار)', index=True, help="Identifiant national de l'élève (Code MASSAR)")
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
     year_id = fields.Many2one('school.year', string='Année Scolaire')
     parent_id = fields.Many2one('school.parent', string='Parent Responsable')

@@ -485,6 +485,7 @@
         <field name="priority">1</field>
         <field name="arch" type="xml">
             <list string="Liste des Élèves">
+                <field name="massar_number" string="N° Massar" decoration-bf="1"/>
                 <field name="name"/>
                 <field name="level_id"/>
                 <field name="parent_id"/>
@@ -509,10 +510,16 @@
                     </div>
                     <field name="photo" widget="image" class="oe_avatar" options="{'preview_image': 'photo'}"/>
                     <div class="oe_title">
-                        <h1><field name="name" placeholder="Ex: Jean Dupont"/></h1>
+                        <label for="name" string="Nom complet de l'élève"/>
+                        <h1><field name="name" placeholder="Ex: Mohammed Alami"/></h1>
+                        <div class="o_row mt-2">
+                            <span class="fw-bold me-2">Code Massar :</span>
+                            <field name="massar_number" placeholder="Ex: G134567890"/>
+                        </div>
                     </div>
                     <group>
-                        <group string="Détails">
+                        <group string="Détails Scolaires">
+                            <field name="massar_number"/>
                             <field name="level_id" options="{'no_open': True, 'no_create': True}"/>
                             <field name="year_id"/>
                             <field name="parent_id" options="{'no_quick_create': True}"/>

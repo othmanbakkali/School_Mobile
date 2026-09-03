@@ -401,6 +401,33 @@ async function seed() {
             }
         }
 
+        // 7. Mise à jour / Assignation des Numéros Massar aux Élèves
+        console.log('\n🎓 Vérification des Numéros Massar des élèves...');
+        try {
+            const students = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read',
+                [[]],
+                { fields: ['id', 'name'] }
+            ]);
+
+            let massarIndex = 1001;
+            for (const st of students) {
+                const sampleMassar = `G134${massarIndex}`;
+                try {
+                    await callOdoo('object', 'execute_kw', [
+                        ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'write',
+                        [[st.id], { massar_number: sampleMassar }]
+                    ]);
+                    console.log(`  ✓ N° Massar ${sampleMassar} assigné à l'élève ${st.name} (ID: ${st.id})`);
+                } catch (e) {
+                    // Si le champ n'a pas encore été rechargé
+                }
+                massarIndex++;
+            }
+        } catch (stErr) {
+            console.warn(`  ⚠️ Remarque élèves : ${stErr.message}`);
+        }
+
         console.log('\n🎉 TOUTES LES DONNÉES ONT ÉTÉ INSÉRÉES AVEC SUCCÈS DANS LA BASE ODOO ! 🎉');
 
     } catch (err) {

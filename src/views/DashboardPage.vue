@@ -65,7 +65,10 @@
             <div class="student-header">
               <div class="name-tag">
                 <h3>{{ studentData.display_name || studentData.full_name || studentData.name || 'Chargement...' }}</h3>
-                <p>Classe: {{ studentData.level_id?.[1] || 'Non définie' }}</p>
+                <p>
+                  <span>Classe: {{ studentData.level_id?.[1] || 'Non définie' }}</span>
+                  <span v-if="studentData.massar_number" class="dash-massar-tag">• Massar: <strong>{{ studentData.massar_number }}</strong></span>
+                </p>
               </div>
               <div class="attendance-badge">
                 <div class="dot"></div>
@@ -1480,6 +1483,17 @@ onUnmounted(() => {
   border-radius: 50%;
   background: #ef4444;
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.dash-massar-tag {
+  display: inline-block;
+  margin-left: 6px;
+  background: rgba(92, 45, 84, 0.08);
+  color: #5c2d54;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
 .chevron-icon {

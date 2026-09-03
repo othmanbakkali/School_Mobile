@@ -225,7 +225,7 @@ app.post('/api/school/student', async (req, res) => {
             domain = [['parent_id.email', '=ilike', cleanEmail]];
         }
 
-        const studentFields = ['name', 'full_name', 'display_name', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id'];
+        const studentFields = ['name', 'full_name', 'display_name', 'massar_number', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id'];
 
         let result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read', 

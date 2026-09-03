@@ -92,6 +92,9 @@
             <div class="child-info">
               <h3>{{ child.name }}</h3>
               <p>{{ t('account.class') }} : {{ child.level_id?.[1] || t('common.noData') }}</p>
+              <div v-if="child.massar_number" class="child-massar-tag">
+                <span class="massar-label">Massar :</span> {{ child.massar_number }}
+              </div>
             </div>
             <div class="child-grade-badge" v-if="child.average_grade">
               {{ child.average_grade.toFixed(2) }}/20
@@ -373,6 +376,23 @@ onMounted(() => {
 .child-info p {
   margin: 4px 0 0 0;
   font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.child-massar-tag {
+  display: inline-block;
+  margin-top: 5px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.massar-label {
   color: #64748b;
   font-weight: 600;
 }
