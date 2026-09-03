@@ -501,6 +501,7 @@
         <field name="arch" type="xml">
             <form string="Fiche Élève">
                 <header>
+                    <button name="action_generate_grade_lines" type="object" string="Générer les matières du niveau" class="oe_highlight" icon="fa-list"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -535,6 +536,7 @@
                             <field name="grade_ids" mode="list">
                                 <list editable="bottom">
                                     <field name="subject_id"/>
+                                    <field name="sub_subject_id"/>
                                     <field name="semester"/>
                                     <field name="cc1"/>
                                     <field name="cc2"/>

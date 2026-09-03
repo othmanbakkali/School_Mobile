@@ -7,6 +7,7 @@ class SchoolLevel(models.Model):
 
     name = fields.Char(string='Niveau / Classe', required=True)
     student_ids = fields.One2many('school.student', 'level_id', string='Élèves')
+    subject_ids = fields.Many2many('school.subject', 'school_subject_level_rel', 'level_id', 'subject_id', string='Matières du niveau')
 
 
 class SchoolParent(models.Model):
@@ -40,6 +41,55 @@ class SchoolStudent(models.Model):
                 student.average_grade = sum(student.grade_ids.mapped('final_mark')) / len(student.grade_ids)
             else:
                 student.average_grade = 0.0
+
+    @api.onchange('level_id')
+    def _onchange_level_id(self):
+        """ Charge automatiquement les matières applicables au niveau sélectionné """
+        if self.level_id:
+            subjects = self.env['school.subject'].search([
+                '|', ('level_ids', '=', False), ('level_ids', 'in', [self.level_id.id])
+            ])
+            existing_subjs = self.grade_ids.mapped('subject_id')
+            new_lines = []
+            for subj in subjects:
+                if subj not in existing_subjs:
+                    new_lines.append((0, 0, {
+                        'subject_id': subj.id,
+                        'subject': subj.name,
+                        'semester': 'S1',
+                    }))
+            if new_lines:
+                self.grade_ids = [(5, 0, 0)] + [(0, 0, {
+                    'subject_id': s.id,
+                    'subject': s.name,
+                    'semester': 'S1',
+                }) for s in subjects]
+
+    def action_generate_grade_lines(self):
+        """ Bouton pour générer automatiquement toutes les matières du niveau dans l'onglet Notes """
+        for student in self:
+            if not student.level_id:
+                continue
+            subjects = self.env['school.subject'].search([
+                '|', ('level_ids', '=', False), ('level_ids', 'in', [student.level_id.id])
+            ])
+            existing_subjs = student.grade_ids.mapped('subject_id')
+            for subj in subjects:
+                if subj not in existing_subjs:
+                    self.env['school.grade'].create({
+                        'student_id': student.id,
+                        'subject_id': subj.id,
+                        'subject': subj.name,
+                        'semester': 'S1',
+                    })
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super(SchoolStudent, self).create(vals_list)
+        for rec in records:
+            if rec.level_id and not rec.grade_ids:
+                rec.action_generate_grade_lines()
+        return records
     homework_ids = fields.Many2many('school.homework', 'school_homework_student_rel', 'student_id', 'homework_id', string='Devoirs')
     grade_ids = fields.One2many('school.grade', 'student_id', string='Notes')
     attendance_ids = fields.One2many('school.attendance', 'student_id', string='Absences/Retards')
