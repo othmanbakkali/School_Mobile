@@ -22,7 +22,10 @@
         </div>
         <div v-for="item in homeworks" :key="item.id" class="premium-card homework-card ion-padding">
           <div class="hw-top">
-            <span class="subject-badge">{{ item.subject || t('homework.subject') }}</span>
+            <div class="subject-tags">
+              <span class="subject-badge">{{ item.subject || t('homework.subject') }}</span>
+              <span v-if="item.sub_subject" class="sub-subject-badge">{{ item.sub_subject }}</span>
+            </div>
             <div class="due-timer">
               <ion-icon :icon="timeOutline"></ion-icon>
               <span>{{ formatDate(item.date_due) }}</span>
@@ -158,11 +161,17 @@ onMounted(() => {
 
 /* Devoirs */
 .homework-card { margin-bottom: 16px; border-left: 4px solid #6366f1; background: #ffffff; }
-.hw-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.hw-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+.subject-tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .subject-badge {
   padding: 4px 10px; border-radius: 8px;
   background: rgba(99, 102, 241, 0.1); color: #6366f1;
   font-size: 0.75rem; font-weight: 700;
+}
+.sub-subject-badge {
+  padding: 3px 8px; border-radius: 6px;
+  background: rgba(14, 165, 233, 0.1); color: #0284c7;
+  font-size: 0.72rem; font-weight: 600;
 }
 .due-timer { display: flex; align-items: center; gap: 4px; color: #ef4444; font-size: 0.8rem; font-weight: 600; }
 .homework-card h3 { margin: 0 0 6px; font-weight: 700; color: #1e293b; font-size: 1rem; }

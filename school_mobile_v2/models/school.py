@@ -39,7 +39,7 @@ class SchoolStudent(models.Model):
                 student.average_grade = sum(student.grade_ids.mapped('final_mark')) / len(student.grade_ids)
             else:
                 student.average_grade = 0.0
-    homework_ids = fields.One2many('school.homework', 'student_id', string='Devoirs')
+    homework_ids = fields.Many2many('school.homework', 'school_homework_student_rel', 'student_id', 'homework_id', string='Devoirs')
     grade_ids = fields.One2many('school.grade', 'student_id', string='Notes')
     attendance_ids = fields.One2many('school.attendance', 'student_id', string='Absences/Retards')
     payment_ids = fields.One2many('school.payment', 'student_id', string='Paiements')
@@ -79,9 +79,33 @@ class SchoolStudent(models.Model):
 class SchoolSubject(models.Model):
     _name = 'school.subject'
     _description = 'Matière'
+    _order = 'name'
 
     name = fields.Char(string='Nom de la matière', required=True)
     code = fields.Char(string='Code')
+    coefficient = fields.Float(string='Coefficient', default=1.0)
+    description = fields.Text(string='Description / Programme')
+    sub_subject_ids = fields.One2many('school.sub.subject', 'subject_id', string='Sous-matières / Détails')
+    sub_subject_count = fields.Integer(string='Nb Sous-matières', compute='_compute_sub_subject_count')
+    teacher_ids = fields.Many2many('school.teacher', string='Enseignants')
+    level_ids = fields.Many2many('school.level', string='Niveaux / Classes')
+
+    def _compute_sub_subject_count(self):
+        for rec in self:
+            rec.sub_subject_count = len(rec.sub_subject_ids)
+
+
+class SchoolSubSubject(models.Model):
+    _name = 'school.sub.subject'
+    _description = 'Sous-matière / Détail Matière'
+    _order = 'sequence, name'
+
+    name = fields.Char(string='Nom de la sous-matière / détail', required=True)
+    code = fields.Char(string='Code')
+    sequence = fields.Integer(string='Séquence', default=10)
+    subject_id = fields.Many2one('school.subject', string='Matière principale', required=True, ondelete='cascade')
+    coefficient = fields.Float(string='Coefficient', default=1.0)
+    description = fields.Text(string='Description / Objectifs pédagogiques')
 
 
 class SchoolYear(models.Model):
@@ -135,28 +159,58 @@ class SchoolHomework(models.Model):
     title = fields.Char(string='Titre', required=True)
     description = fields.Text(string='Description')
     subject = fields.Char(string='Matière (Texte)')
-    subject_id = fields.Many2one('school.subject', string='Matière (Sélection)')
+    subject_id = fields.Many2one('school.subject', string='Matière')
+    sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
     date_due = fields.Date(string="Date d'échéance")
-    level_id = fields.Many2one('school.level', string='Niveau / Classe', help="Sélectionnez un niveau pour envoyer à tous les élèves")
-    student_id = fields.Many2one('school.student', string='Élève')
+    level_id = fields.Many2one('school.level', string='Niveau / Classe', help="Sélectionnez une classe pour charger automatiquement tous ses élèves")
+    student_ids = fields.Many2many('school.student', 'school_homework_student_rel', 'homework_id', 'student_id', string='Élèves concernés')
+    student_id = fields.Many2one('school.student', string='Élève individuel')
     year_id = fields.Many2one('school.year', string='Année Scolaire')
     state = fields.Selection([('draft', 'En cours'), ('done', 'Fait')], default='draft')
     attachment = fields.Binary(string='Pièce Jointe')
     attachment_name = fields.Char(string='Nom du fichier')
+
+    @api.onchange('level_id')
+    def _onchange_level_id(self):
+        if self.level_id:
+            students = self.env['school.student'].search([('level_id', '=', self.level_id.id)])
+            self.student_ids = [(6, 0, students.ids)]
+            self.student_id = False
+            return {'domain': {'student_ids': [('level_id', '=', self.level_id.id)]}}
+        else:
+            self.student_ids = [(5, 0, 0)]
+            self.student_id = False
+            return {'domain': {'student_ids': []}}
+
+    @api.onchange('subject_id')
+    def _onchange_subject_id(self):
+        if self.subject_id:
+            self.subject = self.subject_id.name
+            if self.sub_subject_id and self.sub_subject_id.subject_id != self.subject_id:
+                self.sub_subject_id = False
+            return {'domain': {'sub_subject_id': [('subject_id', '=', self.subject_id.id)]}}
+        else:
+            self.sub_subject_id = False
+            return {'domain': {'sub_subject_id': []}}
+
     @api.model_create_multi
     def create(self, vals_list):
-        new_vals_list = []
         for vals in vals_list:
-            if vals.get('level_id') and not vals.get('student_id'):
-                # Attribution de masse
+            if vals.get('subject_id') and not vals.get('subject'):
+                subj = self.env['school.subject'].browse(vals['subject_id'])
+                if subj.exists():
+                    vals['subject'] = subj.name
+            if vals.get('level_id') and not vals.get('student_ids') and not vals.get('student_id'):
                 students = self.env['school.student'].search([('level_id', '=', vals['level_id'])])
-                for student in students:
-                    copy_vals = vals.copy()
-                    copy_vals['student_id'] = student.id
-                    new_vals_list.append(copy_vals)
-                continue
-            new_vals_list.append(vals)
-        return super(SchoolHomework, self).create(new_vals_list)
+                if students:
+                    vals['student_ids'] = [(6, 0, students.ids)]
+            if vals.get('student_ids') and not vals.get('student_id'):
+                st_cmd = vals.get('student_ids')
+                if isinstance(st_cmd, list) and len(st_cmd) > 0 and len(st_cmd[0]) >= 3:
+                    st_ids = st_cmd[0][2]
+                    if st_ids:
+                        vals['student_id'] = st_ids[0]
+        return super(SchoolHomework, self).create(vals_list)
 
 
 class SchoolGrade(models.Model):
@@ -165,6 +219,7 @@ class SchoolGrade(models.Model):
 
     subject = fields.Char(string='Matière (Texte)')
     subject_id = fields.Many2one('school.subject', string='Matière (Sélection)')
+    sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
     year_id = fields.Many2one('school.year', string='Année Scolaire')
     semester_id = fields.Many2one('school.semester', string='Semestre (Sélection)')
     semester = fields.Selection([
@@ -177,6 +232,17 @@ class SchoolGrade(models.Model):
     mid_term_mark = fields.Float(string='Note Mid-term', default=0.0)
     final_mark = fields.Float(string='Note Finale', default=0.0)
     student_id = fields.Many2one('school.student', string='Élève', ondelete='cascade')
+
+    @api.onchange('subject_id')
+    def _onchange_subject_id(self):
+        if self.subject_id:
+            self.subject = self.subject_id.name
+            if self.sub_subject_id and self.sub_subject_id.subject_id != self.subject_id:
+                self.sub_subject_id = False
+            return {'domain': {'sub_subject_id': [('subject_id', '=', self.subject_id.id)]}}
+        else:
+            self.sub_subject_id = False
+            return {'domain': {'sub_subject_id': []}}
 
 
 class SchoolCanteen(models.Model):
@@ -230,10 +296,22 @@ class SchoolSchedule(models.Model):
     end_time = fields.Float(string='Heure de fin', required=True)
     subject = fields.Char(string='Matière (Texte)')
     subject_id = fields.Many2one('school.subject', string='Matière (Sélection)')
+    sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
     teacher = fields.Char(string='Enseignant (Texte)')
     teacher_id = fields.Many2one('school.teacher', string='Professeur (Sélection)')
     level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True)
     year_id = fields.Many2one('school.year', string='Année Scolaire')
+
+    @api.onchange('subject_id')
+    def _onchange_subject_id(self):
+        if self.subject_id:
+            self.subject = self.subject_id.name
+            if self.sub_subject_id and self.sub_subject_id.subject_id != self.subject_id:
+                self.sub_subject_id = False
+            return {'domain': {'sub_subject_id': [('subject_id', '=', self.subject_id.id)]}}
+        else:
+            self.sub_subject_id = False
+            return {'domain': {'sub_subject_id': []}}
 
 
 class SchoolAnnouncement(models.Model):
@@ -258,6 +336,10 @@ class SchoolConfig(models.Model):
     name = fields.Char(string='Nom de l\'école', default='Mon École')
     school_year = fields.Char(string='Année Scolaire (Texte)')
     current_year_id = fields.Many2one('school.year', string='Année Scolaire Actuelle')
+    grade_scale = fields.Selection([
+        ('20', 'Sur 20 (/20)'),
+        ('10', 'Sur 10 (/10)'),
+    ], string='Système de notation', default='20', required=True, help="Définit si les notes et moyennes sont sur 10 ou sur 20")
     logo = fields.Binary(string='Logo de l\'application')
     address = fields.Text(string='Adresse')
     phone = fields.Char(string='Téléphone')

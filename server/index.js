@@ -394,6 +394,20 @@ app.get('/api/school/company-info', async (req, res) => {
             { fields: ['id', 'name', 'phone', 'email', 'website', 'logo_web'], limit: 1 }
         ]);
 
+        let gradeScale = '20';
+        try {
+            const configs = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.config', 'search_read',
+                [[]],
+                { fields: ['grade_scale'], limit: 1 }
+            ]);
+            if (configs && configs.length > 0 && configs[0].grade_scale) {
+                gradeScale = configs[0].grade_scale;
+            }
+        } catch (confErr) {
+            console.warn('Erreur lecture grade_scale config:', confErr.message);
+        }
+
         if (companies && companies.length > 0) {
             const c = companies[0];
             return res.json({
@@ -403,13 +417,14 @@ app.get('/api/school/company-info', async (req, res) => {
                 email: c.email || '',
                 website: c.website || '',
                 has_logo: !!c.logo_web,
-                logo_url: '/api/school/company-logo'
+                logo_url: '/api/school/company-logo',
+                grade_scale: gradeScale
             });
         }
     } catch (e) {
         console.error('Erreur company-info:', e.message);
     }
-    res.json({ name: 'École', logo_url: '/api/school/company-logo' });
+    res.json({ name: 'École', logo_url: '/api/school/company-logo', grade_scale: '20' });
 });
 
 
@@ -418,7 +433,12 @@ app.post('/api/school/homework', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
-        const domain = [['student_id', '=', parseInt(student_id)]];
+        const parsedStudentId = parseInt(student_id);
+        const domain = [
+            '|',
+            ['student_id', '=', parsedStudentId],
+            ['student_ids', 'in', [parsedStudentId]]
+        ];
         if (yearId) {
             domain.push('|');
             domain.push(['year_id', '=', yearId]);
@@ -428,11 +448,12 @@ app.post('/api/school/homework', async (req, res) => {
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'search_read', 
             [domain], 
-            { fields: ['id', 'title', 'description', 'date_due', 'state', 'subject_id', 'subject', 'attachment', 'attachment_name'] }
+            { fields: ['id', 'title', 'description', 'date_due', 'state', 'subject_id', 'sub_subject_id', 'subject', 'attachment', 'attachment_name'] }
         ]);
         const formatted = result.map(h => ({
             ...h,
-            subject: h.subject_id ? h.subject_id[1] : (h.subject || 'Matière')
+            subject: h.subject_id ? h.subject_id[1] : (h.subject || 'Matière'),
+            sub_subject: h.sub_subject_id ? h.sub_subject_id[1] : null
         }));
         res.json(formatted);
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -460,14 +481,22 @@ app.post('/api/school/notifications', async (req, res) => {
 
         // 1. Nouveaux devoirs / Exercices récents (school.homework)
         try {
+            const hwDomain = [
+                '|',
+                ['student_id', '=', parsedStudentId],
+                ['student_ids', 'in', [parsedStudentId]]
+            ];
             const homeworks = await callOdoo('object', 'execute_kw', [
                 ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'search_read',
-                [[['student_id', '=', parsedStudentId]]],
-                { fields: ['id', 'title', 'subject_id', 'subject', 'date_due', 'state', 'create_date', 'write_date'], order: 'create_date desc, id desc', limit: 10 }
+                [hwDomain],
+                { fields: ['id', 'title', 'subject_id', 'sub_subject_id', 'subject', 'date_due', 'state', 'create_date', 'write_date'], order: 'create_date desc, id desc', limit: 10 }
             ]);
             if (Array.isArray(homeworks)) {
                 for (const hw of homeworks) {
-                    const subject = hw.subject_id ? hw.subject_id[1] : (hw.subject || 'Devoir');
+                    let subject = hw.subject_id ? hw.subject_id[1] : (hw.subject || 'Devoir');
+                    if (hw.sub_subject_id) {
+                        subject += ` (${hw.sub_subject_id[1]})`;
+                    }
                     const isPending = hw.state !== 'done' && hw.state !== 'completed';
                     notifs.push({
                         id: `hw_${hw.id}`,
@@ -582,20 +611,36 @@ app.post('/api/school/grades', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
-        const domain = [['student_id', '=', student_id]];
+        const domain = [['student_id', '=', parseInt(student_id)]];
         if (yearId) {
             domain.push('|');
             domain.push(['year_id', '=', yearId]);
             domain.push(['year_id', '=', false]);
         }
 
+        let gradeScale = '20';
+        try {
+            const configs = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.config', 'search_read',
+                [[]],
+                { fields: ['grade_scale'], limit: 1 }
+            ]);
+            if (configs && configs.length > 0 && configs[0].grade_scale) {
+                gradeScale = configs[0].grade_scale;
+            }
+        } catch (confErr) {
+            console.warn('Erreur lecture grade_scale:', confErr.message);
+        }
+
         const result = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [domain], { fields: ['subject_id', 'subject', 'year_id', 'semester_id', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [domain], { fields: ['subject_id', 'sub_subject_id', 'subject', 'year_id', 'semester_id', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
         ]);
-        // Normalisation pour le frontend (utiliser subject_id[1] s'il existe)
+        // Normalisation pour le frontend (utiliser subject_id[1] et sub_subject_id[1] s'ils existent)
         const formatted = result.map(n => ({
             ...n,
             subject: n.subject_id ? n.subject_id[1] : (n.subject || 'Matière'),
+            sub_subject: n.sub_subject_id ? n.sub_subject_id[1] : null,
+            grade_scale: gradeScale,
             academic_year: n.year_id ? n.year_id[1] : '',
             semester_name: n.semester_id ? n.semester_id[1] : (n.semester || '')
         }));

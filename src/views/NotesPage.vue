@@ -35,9 +35,13 @@
         
         <div v-for="note in filteredNotes" :key="note.id" class="premium-card note-card-detailed">
           <div class="note-header">
-            <span class="subject-title">{{ note.subject || 'Matière' }}</span>
-            <div class="final-score" :class="getGradeClass(note.final_mark)">
-              {{ note.final_mark }}
+            <div class="subject-info-box">
+              <span class="subject-title">{{ note.subject || 'Matière' }}</span>
+              <span v-if="note.sub_subject" class="sub-subject-pill">{{ note.sub_subject }}</span>
+            </div>
+            <div class="final-score-box" :class="getGradeClass(note.final_mark, note.grade_scale)">
+              <span class="final-val">{{ note.final_mark }}</span>
+              <span class="final-scale">/{{ note.grade_scale || '20' }}</span>
             </div>
           </div>
           <div class="marks-grid">
@@ -86,9 +90,14 @@ const filteredNotes = computed(() => {
   return notes.value.filter(n => n.semester === selectedSemester.value);
 });
 
-const getGradeClass = (val: number) => {
+const getGradeClass = (val: number, scale?: string) => {
+  if (scale === '10') {
+    if (val >= 8) return 'grade-high';
+    if (val >= 5) return 'grade-mid';
+    return 'grade-low';
+  }
   if (val >= 16) return 'grade-high';
-  if (val >= 12) return 'grade-mid';
+  if (val >= 10) return 'grade-mid';
   return 'grade-low';
 };
 
@@ -172,20 +181,41 @@ onMounted(() => {
   padding-bottom: 10px;
   border-bottom: 1px dashed #e2e8f0;
 }
+.subject-info-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .subject-title {
   font-weight: 800;
   color: #1e293b;
   font-size: 1.05rem;
 }
-.final-score {
-  width: 40px;
-  height: 40px;
+.sub-subject-pill {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 2px 8px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+}
+.final-score-box {
+  padding: 6px 12px;
   border-radius: 10px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: baseline;
+  gap: 2px;
   font-weight: 800;
-  font-size: 1.1rem;
+}
+.final-val {
+  font-size: 1.15rem;
+}
+.final-scale {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  font-weight: 700;
 }
 .marks-grid {
   display: grid;

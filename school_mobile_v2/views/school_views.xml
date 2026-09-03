@@ -83,6 +83,12 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_school_sub_subject" model="ir.actions.act_window">
+        <field name="name">Sous-matières &amp; Détails</field>
+        <field name="res_model">school.sub.subject</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <record id="action_school_year" model="ir.actions.act_window">
         <field name="name">Années Scolaires</field>
         <field name="res_model">school.year</field>
@@ -273,11 +279,117 @@
               action="action_school_subject" 
               sequence="30"/>
 
+    <menuitem id="menu_mobile_v2_sub_subject" 
+              name="Sous-matières &amp; Détails" 
+              parent="menu_mobile_v2_config" 
+              action="action_school_sub_subject" 
+              sequence="35"/>
+
     <menuitem id="menu_mobile_v2_year" 
               name="Années Scolaires" 
               parent="menu_mobile_v2_config" 
               action="action_school_year" 
               sequence="40"/>
+
+    <!-- VUES SOUS-MATIÈRES -->
+    <record id="view_school_sub_subject_tree" model="ir.ui.view">
+        <field name="name">school.sub.subject.tree</field>
+        <field name="model">school.sub.subject</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="subject_id"/>
+                <field name="coefficient"/>
+                <field name="description"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_sub_subject_form" model="ir.ui.view">
+        <field name="name">school.sub.subject.form</field>
+        <field name="model">school.sub.subject</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Nom de la sous-matière / détail"/>
+                        <h1><field name="name" placeholder="Ex: Grammaire, Conjugaison, Géométrie..."/></h1>
+                    </div>
+                    <group>
+                        <group string="Informations">
+                            <field name="subject_id"/>
+                            <field name="code"/>
+                        </group>
+                        <group string="Paramètres">
+                            <field name="coefficient"/>
+                            <field name="sequence"/>
+                        </group>
+                    </group>
+                    <separator string="Description / Objectifs pédagogiques"/>
+                    <field name="description" placeholder="Objectifs pédagogiques, notions abordées..."/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- VUES MATIÈRES -->
+    <record id="view_school_subject_tree" model="ir.ui.view">
+        <field name="name">school.subject.tree</field>
+        <field name="model">school.subject</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="coefficient"/>
+                <field name="sub_subject_count" string="Nb Sous-matières"/>
+                <field name="teacher_ids" widget="many2many_tags"/>
+                <field name="level_ids" widget="many2many_tags"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_subject_form" model="ir.ui.view">
+        <field name="name">school.subject.form</field>
+        <field name="model">school.subject</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Nom de la matière"/>
+                        <h1><field name="name" placeholder="Ex: Français, Mathématiques, Arabe, Sciences..."/></h1>
+                    </div>
+                    <group>
+                        <group string="Informations Générales">
+                            <field name="code" placeholder="Ex: FR, MATH, AR..."/>
+                            <field name="coefficient"/>
+                        </group>
+                        <group string="Affectations">
+                            <field name="teacher_ids" widget="many2many_tags" placeholder="Professeurs assignés"/>
+                            <field name="level_ids" widget="many2many_tags" placeholder="Niveaux / Classes concernés"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Sous-matières &amp; Détails" name="sub_subjects">
+                            <field name="sub_subject_ids" context="{'default_subject_id': id}">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name" placeholder="Ex: Grammaire, Conjugaison, Orthographe, Géométrie..."/>
+                                    <field name="code" placeholder="Ex: GRAM"/>
+                                    <field name="coefficient"/>
+                                    <field name="description" placeholder="Détails du programme..."/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Description / Programme" name="description">
+                            <field name="description" placeholder="Description générale de la matière, programme annuel..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
 
     <!-- VUES CLASSES -->
     <record id="view_level_tree" model="ir.ui.view">
@@ -328,6 +440,7 @@
                 <field name="student_id"/>
                 <field name="year_id"/>
                 <field name="subject_id"/>
+                <field name="sub_subject_id"/>
                 <field name="semester_id"/>
                 <field name="cc1"/>
                 <field name="cc2"/>
@@ -349,6 +462,7 @@
                             <field name="student_id"/>
                             <field name="year_id"/>
                             <field name="subject_id"/>
+                            <field name="sub_subject_id" invisible="not subject_id"/>
                             <field name="semester_id"/>
                         </group>
                         <group>
@@ -499,9 +613,10 @@
             <form>
                 <sheet>
                     <group>
-                        <group string="École">
+                        <group string="École &amp; Notation">
                             <field name="name"/>
                             <field name="current_year_id"/>
+                            <field name="grade_scale" widget="radio"/>
                             <field name="logo" widget="image" class="oe_avatar"/>
                         </group>
                         <group string="Contact">
@@ -633,24 +748,27 @@
                 </header>
                 <sheet>
                     <div class="oe_title">
-                        <h1><field name="title" placeholder="Ex: Exercice de maths"/></h1>
+                        <label for="title" string="Titre du devoir"/>
+                        <h1><field name="title" placeholder="Ex: Exercice 4 page 32"/></h1>
                     </div>
                     <group>
-                        <group>
-                            <field name="subject"/>
+                        <group string="Matière &amp; Planning">
+                            <field name="subject_id" options="{'no_create_edit': True}" placeholder="Sélectionnez la matière"/>
+                            <field name="sub_subject_id" options="{'no_create_edit': True}" placeholder="Sélectionnez la sous-matière / détail" invisible="not subject_id"/>
                             <field name="date_due"/>
+                            <field name="year_id"/>
                         </group>
-                        <group>
-                            <field name="level_id"/>
-                            <field name="student_id" invisible="level_id != False" required="not level_id"/>
+                        <group string="Classe &amp; Destinataires">
+                            <field name="level_id" placeholder="Sélectionnez une classe / niveau"/>
+                            <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" placeholder="Tous les élèves de la classe ou sélectionnez un/plusieurs élèves"/>
                         </group>
                     </group>
-                    <group>
+                    <group string="Document / Fichier">
                         <field name="attachment" filename="attachment_name"/>
                         <field name="attachment_name" invisible="1"/>
                     </group>
-                    <separator string="Description"/>
-                    <field name="description"/>
+                    <separator string="Consignes &amp; Description"/>
+                    <field name="description" placeholder="Détails du travail à faire, consignes particulières..."/>
                 </sheet>
             </form>
         </field>
@@ -663,8 +781,10 @@
             <list>
                 <field name="date_due"/>
                 <field name="title"/>
-                <field name="subject"/>
-                <field name="student_id"/>
+                <field name="subject_id"/>
+                <field name="sub_subject_id"/>
+                <field name="level_id"/>
+                <field name="student_ids" widget="many2many_tags"/>
                 <field name="state" widget="badge" decoration-success="state == 'done'" decoration-info="state == 'draft'"/>
             </list>
         </field>
