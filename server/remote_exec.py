@@ -1,5 +1,8 @@
 import paramiko
 import sys
+import io
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 host = "68.183.19.16"
 user = "root"
