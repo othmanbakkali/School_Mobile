@@ -314,6 +314,7 @@ class SchoolTeacher(models.Model):
     name = fields.Char(string='Nom complet', required=True)
     subject = fields.Char(string='Matière (Texte)')
     subject_ids = fields.Many2many('school.subject', string='Matières Enseignées')
+    level_ids = fields.Many2many('school.level', string='Classes / Niveaux')
     phone = fields.Char(string='Téléphone')
     email = fields.Char(string='Email')
     photo = fields.Binary(string='Photo')

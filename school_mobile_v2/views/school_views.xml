@@ -144,6 +144,13 @@
     </record>
 
 
+    <record id="action_school_massar_import_wizard" model="ir.actions.act_window">
+        <field name="name">Importer Fichier Excel MASSAR</field>
+        <field name="res_model">school.massar.import.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
     <!-- MENUS -->
     <!-- Menu Racine -->
     <menuitem id="menu_mobile_v2_root" 
@@ -163,6 +170,12 @@
               parent="menu_mobile_v2_root" 
               action="action_grade_v2" 
               sequence="15"/>
+
+    <menuitem id="menu_mobile_v2_massar_import" 
+              name="📥 Importer Notes MASSAR (Excel)" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_massar_import_wizard" 
+              sequence="16"/>
 
     <menuitem id="menu_mobile_v2_level" 
               name="Niveaux / Classes" 
@@ -1391,6 +1404,79 @@
                     </group>
                     <separator string="Contenu du Message"/>
                     <field name="content" placeholder="Rédigez ici le contenu de l'annonce destinée aux parents..."/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- VUE WIZARD IMPORT MASSAR -->
+    <record id="view_school_massar_import_wizard_form" model="ir.ui.view">
+        <field name="name">school.massar.import.wizard.form</field>
+        <field name="model">school.massar.import.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Importer un Fichier Excel MASSAR">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        <strong>Instructions :</strong> Téléversez le fichier Excel (.xlsx) exporté directement depuis MASSAR. Le système détectera automatiquement la classe, la matière, l'enseignant, le semestre (S1/S2) et le contrôle (CC1/CC2), puis enregistrera les notes de tous les élèves.
+                    </div>
+                    <group>
+                        <group string="Fichier MASSAR">
+                            <field name="file" filename="filename" widget="binary"/>
+                            <field name="filename" invisible="1"/>
+                        </group>
+                        <group string="Paramètres Optionnels (Auto-détection par défaut)">
+                            <field name="subject_id" placeholder="Détecté automatiquement si vide"/>
+                            <field name="level_id" placeholder="Détecté automatiquement si vide"/>
+                            <field name="semester"/>
+                            <field name="cc_type"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_import_notes" string="Importer &amp; Alimenter les Notes" type="object" class="btn-primary" icon="fa-upload"/>
+                    <button string="Annuler" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- VUES ENSEIGNANTS / PROFESSEURS -->
+    <record id="view_school_teacher_tree" model="ir.ui.view">
+        <field name="name">school.teacher.list</field>
+        <field name="model">school.teacher</field>
+        <field name="arch" type="xml">
+            <list string="Professeurs / Enseignants">
+                <field name="name"/>
+                <field name="subject_ids" widget="many2many_tags"/>
+                <field name="level_ids" widget="many2many_tags"/>
+                <field name="phone"/>
+                <field name="email"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_teacher_form" model="ir.ui.view">
+        <field name="name">school.teacher.form</field>
+        <field name="model">school.teacher</field>
+        <field name="arch" type="xml">
+            <form string="Fiche Professeur">
+                <sheet>
+                    <field name="photo" widget="image" class="oe_avatar" options="{'preview_image': 'photo'}"/>
+                    <div class="oe_title">
+                        <label for="name" string="Nom complet de l'enseignant(e)"/>
+                        <h1><field name="name" placeholder="Ex: البقالي يونس / Mme Dupont"/></h1>
+                    </div>
+                    <group>
+                        <group string="Affectation Pédagogique">
+                            <field name="subject_ids" widget="many2many_tags"/>
+                            <field name="level_ids" widget="many2many_tags"/>
+                            <field name="subject" placeholder="Autre matière ou précision..."/>
+                        </group>
+                        <group string="Coordonnées">
+                            <field name="phone" widget="phone"/>
+                            <field name="email" widget="email"/>
+                        </group>
+                    </group>
                 </sheet>
             </form>
         </field>
