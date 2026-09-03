@@ -97,8 +97,8 @@ async function main() {
                 name: t.name,
                 email: t.email,
                 phone: t.phone,
-                subject_ids: [(6, 0, subjIds)],
-                level_ids: [(6, 0, levelIds)]
+                subject_ids: [[6, 0, subjIds]],
+                level_ids: [[6, 0, levelIds]]
             };
 
             if (existing.length > 0) {
