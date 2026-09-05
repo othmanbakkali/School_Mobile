@@ -1277,7 +1277,7 @@
                 <filter name="paid" string="Payé" domain="[('state', '=', 'paid')]"/>
                 <filter name="tuition" string="Scolarité Mensuelle" domain="[('payment_type', '=', 'tuition')]"/>
                 <filter name="registration" string="Frais d'inscription" domain="[('payment_type', '=', 'registration')]"/>
-                <group expand="0" string="Grouper par">
+                <group string="Grouper par">
                     <filter name="group_by_month" string="Mois" context="{'group_by': 'month'}"/>
                     <filter name="group_by_level" string="Niveau / Classe" context="{'group_by': 'level_id'}"/>
                     <filter name="group_by_state" string="État" context="{'group_by': 'state'}"/>
