@@ -1175,16 +1175,16 @@
                         <div class="oe_kanban_card oe_kanban_global_click p-2">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="fw-bold fs-5 text-primary">
-                                    <i class="fa fa-user me-1"/> <field name="student_id"/>
+                                    <i class="fa fa-user me-1" title="Élève"/> <field name="student_id"/>
                                 </span>
                                 <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-warning="state == 'partial'" decoration-danger="state == 'unpaid'"/>
                             </div>
                             <div class="text-muted small">
-                                <div><i class="fa fa-tag me-1"/> <strong>Type :</strong> <field name="payment_type"/></div>
-                                <div><i class="fa fa-calendar-o me-1"/> <strong>Année :</strong> <field name="year_id"/></div>
-                                <div><i class="fa fa-clock-o me-1"/> <strong>Mois :</strong> <field name="month"/></div>
-                                <div><i class="fa fa-money me-1"/> <strong>Montant :</strong> <field name="amount"/> DH</div>
-                                <div><i class="fa fa-calendar me-1"/> <strong>Date :</strong> <field name="date"/></div>
+                                <div><i class="fa fa-tag me-1" title="Type"/> <strong>Type :</strong> <field name="payment_type"/></div>
+                                <div><i class="fa fa-calendar-o me-1" title="Année"/> <strong>Année :</strong> <field name="year_id"/></div>
+                                <div><i class="fa fa-clock-o me-1" title="Mois"/> <strong>Mois :</strong> <field name="month"/></div>
+                                <div><i class="fa fa-money me-1" title="Montant"/> <strong>Montant :</strong> <field name="amount"/> DH</div>
+                                <div><i class="fa fa-calendar me-1" title="Date"/> <strong>Date :</strong> <field name="date"/></div>
                             </div>
                         </div>
                     </t>
@@ -1192,16 +1192,16 @@
                         <div class="oe_kanban_card oe_kanban_global_click p-2">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="fw-bold fs-5 text-primary">
-                                    <i class="fa fa-user me-1"/> <field name="student_id"/>
+                                    <i class="fa fa-user me-1" title="Élève"/> <field name="student_id"/>
                                 </span>
                                 <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-warning="state == 'partial'" decoration-danger="state == 'unpaid'"/>
                             </div>
                             <div class="text-muted small">
-                                <div><i class="fa fa-tag me-1"/> <strong>Type :</strong> <field name="payment_type"/></div>
-                                <div><i class="fa fa-calendar-o me-1"/> <strong>Année :</strong> <field name="year_id"/></div>
-                                <div><i class="fa fa-clock-o me-1"/> <strong>Mois :</strong> <field name="month"/></div>
-                                <div><i class="fa fa-money me-1"/> <strong>Montant :</strong> <field name="amount"/> DH</div>
-                                <div><i class="fa fa-calendar me-1"/> <strong>Date :</strong> <field name="date"/></div>
+                                <div><i class="fa fa-tag me-1" title="Type"/> <strong>Type :</strong> <field name="payment_type"/></div>
+                                <div><i class="fa fa-calendar-o me-1" title="Année"/> <strong>Année :</strong> <field name="year_id"/></div>
+                                <div><i class="fa fa-clock-o me-1" title="Mois"/> <strong>Mois :</strong> <field name="month"/></div>
+                                <div><i class="fa fa-money me-1" title="Montant"/> <strong>Montant :</strong> <field name="amount"/> DH</div>
+                                <div><i class="fa fa-calendar me-1" title="Date"/> <strong>Date :</strong> <field name="date"/></div>
                             </div>
                         </div>
                     </t>
@@ -1268,21 +1268,22 @@
         <field name="name">school.payment.search</field>
         <field name="model">school.payment</field>
         <field name="arch" type="xml">
-            <search string="Recherche Paiements">
+            <search>
                 <field name="student_id"/>
                 <field name="level_id"/>
                 <field name="month"/>
                 <field name="year_id"/>
+                <separator/>
                 <filter name="unpaid" string="Non payé" domain="[('state', '=', 'unpaid')]"/>
                 <filter name="paid" string="Payé" domain="[('state', '=', 'paid')]"/>
+                <separator/>
                 <filter name="tuition" string="Scolarité Mensuelle" domain="[('payment_type', '=', 'tuition')]"/>
                 <filter name="registration" string="Frais d'inscription" domain="[('payment_type', '=', 'registration')]"/>
-                <group string="Grouper par">
-                    <filter name="group_by_month" string="Mois" context="{'group_by': 'month'}"/>
-                    <filter name="group_by_level" string="Niveau / Classe" context="{'group_by': 'level_id'}"/>
-                    <filter name="group_by_state" string="État" context="{'group_by': 'state'}"/>
-                    <filter name="group_by_student" string="Élève" context="{'group_by': 'student_id'}"/>
-                </group>
+                <separator/>
+                <filter name="group_by_month" string="Grouper par Mois" context="{'group_by': 'month'}"/>
+                <filter name="group_by_level" string="Grouper par Niveau" context="{'group_by': 'level_id'}"/>
+                <filter name="group_by_state" string="Grouper par État" context="{'group_by': 'state'}"/>
+                <filter name="group_by_student" string="Grouper par Élève" context="{'group_by': 'student_id'}"/>
             </search>
         </field>
     </record>
