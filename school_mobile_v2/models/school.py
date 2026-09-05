@@ -1157,3 +1157,124 @@ class SchoolStudentTransitionWizard(models.TransientModel):
             'domain': [('id', 'in', created_students.ids)],
             'target': 'current',
         }
+
+
+class SchoolPaymentGenerateWizard(models.TransientModel):
+    _name = 'school.payment.generate.wizard'
+    _description = 'Génération Automatique des Mensualités Scolaires'
+
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    def _default_level_ids(self):
+        return self.env['school.level'].search([])
+
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, required=True)
+    level_ids = fields.Many2many('school.level', 'school_pay_gen_level_rel', 'wizard_id', 'level_id', string='Niveaux / Classes concernés', default=_default_level_ids, required=True, help="Sélectionnez un ou plusieurs niveaux (par défaut toutes les classes)")
+    monthly_fee = fields.Float(string='Montant mensuel par défaut (DH)', default=1500.0, required=True)
+    state = fields.Selection([
+        ('unpaid', 'Non payé (À payer)'),
+        ('paid', 'Payé'),
+    ], string='État initial des paiements', default='unpaid', required=True)
+
+    month_09 = fields.Boolean(string='Septembre', default=True)
+    month_10 = fields.Boolean(string='Octobre', default=True)
+    month_11 = fields.Boolean(string='Novembre', default=True)
+    month_12 = fields.Boolean(string='Décembre', default=True)
+    month_01 = fields.Boolean(string='Janvier', default=True)
+    month_02 = fields.Boolean(string='Février', default=True)
+    month_03 = fields.Boolean(string='Mars', default=True)
+    month_04 = fields.Boolean(string='Avril', default=True)
+    month_05 = fields.Boolean(string='Mai', default=True)
+    month_06 = fields.Boolean(string='Juin', default=True)
+    month_07 = fields.Boolean(string='Juillet', default=True)
+
+    include_registration = fields.Boolean(string='Inclure les Frais d\'inscription / Réinscription', default=False)
+    registration_fee = fields.Float(string='Montant Frais d\'inscription (DH)', default=1000.0)
+
+    def action_generate_payments(self):
+        self.ensure_one()
+        selected_months = []
+        month_fields = [
+            ('month_09', '09'), ('month_10', '10'), ('month_11', '11'), ('month_12', '12'),
+            ('month_01', '01'), ('month_02', '02'), ('month_03', '03'), ('month_04', '04'),
+            ('month_05', '05'), ('month_06', '06'), ('month_07', '07'),
+        ]
+        for field_name, m_code in month_fields:
+            if getattr(self, field_name):
+                selected_months.append(m_code)
+
+        domain = [('active', '=', True)]
+        if self.year_id:
+            domain.append(('year_id', '=', self.year_id.id))
+        if self.level_ids:
+            domain.append(('level_id', 'in', self.level_ids.ids))
+
+        students = self.env['school.student'].search(domain)
+        if not students:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Aucun élève trouvé',
+                    'message': "Aucun élève actif trouvé pour l'année et les niveaux sélectionnés.",
+                    'type': 'warning',
+                    'sticky': False,
+                }
+            }
+
+        payment_obj = self.env['school.payment']
+        created_count = 0
+
+        for student in students:
+            # 1. Frais d'inscription si demandé
+            if self.include_registration and self.registration_fee > 0:
+                exists = payment_obj.search_count([
+                    ('student_id', '=', student.id),
+                    ('year_id', '=', self.year_id.id),
+                    ('payment_type', '=', 'registration'),
+                ])
+                if not exists:
+                    payment_obj.create({
+                        'student_id': student.id,
+                        'level_id': student.level_id.id if student.level_id else False,
+                        'year_id': self.year_id.id,
+                        'month': '09',
+                        'amount': self.registration_fee,
+                        'payment_type': 'registration',
+                        'date': fields.Date.today(),
+                        'state': self.state,
+                    })
+                    created_count += 1
+
+            # 2. Mensualités pour chaque mois sélectionné
+            for m in selected_months:
+                exists = payment_obj.search_count([
+                    ('student_id', '=', student.id),
+                    ('year_id', '=', self.year_id.id),
+                    ('month', '=', m),
+                    ('payment_type', '=', 'tuition'),
+                ])
+                if not exists:
+                    payment_obj.create({
+                        'student_id': student.id,
+                        'level_id': student.level_id.id if student.level_id else False,
+                        'year_id': self.year_id.id,
+                        'month': m,
+                        'amount': self.monthly_fee,
+                        'payment_type': 'tuition',
+                        'date': fields.Date.today(),
+                        'state': self.state,
+                    })
+                    created_count += 1
+
+        return {
+            'name': f'Paiements Scolarité - {self.year_id.name}',
+            'type': 'ir.actions.act_window',
+            'res_model': 'school.payment',
+            'view_mode': 'list,kanban,form',
+            'domain': [('year_id', '=', self.year_id.id)],
+            'context': {'search_default_group_by_month': 1},
+            'target': 'current',
+        }
