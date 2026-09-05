@@ -452,7 +452,7 @@
             <list editable="bottom">
                 <field name="level_id" placeholder="Classe"/>
                 <field name="student_id" options="{'no_create': True}"/>
-                <field name="year_id"/>
+                <field name="year_id" readonly="1"/>
                 <field name="subject_id"/>
                 <field name="sub_subject_id"/>
                 <field name="semester_id"/>
@@ -475,7 +475,7 @@
                         <group string="Élève &amp; Matière">
                             <field name="level_id" placeholder="Sélectionnez la classe"/>
                             <field name="student_id" options="{'no_create': True}"/>
-                            <field name="year_id"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                             <field name="subject_id"/>
                             <field name="sub_subject_id" invisible="not subject_id"/>
                             <field name="semester_id"/>
@@ -537,7 +537,7 @@
                         <group string="Détails Scolaires">
                             <field name="massar_number"/>
                             <field name="level_id" options="{'no_open': True, 'no_create': True}"/>
-                            <field name="year_id"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                             <field name="parent_id" options="{'no_quick_create': True}"/>
                             <field name="transport_id"/>
                             <field name="wallet_balance"/>
@@ -602,7 +602,7 @@
                         <page string="Paiements" name="payments">
                             <field name="payment_ids" mode="list">
                                 <list editable="bottom">
-                                    <field name="year_id"/>
+                                    <field name="year_id" readonly="1"/>
                                     <field name="month"/>
                                     <field name="amount" sum="Total"/>
                                     <field name="date"/>
@@ -753,7 +753,7 @@
                 <field name="duration" invisible="type != 'late'"/>
                 <field name="is_justified" widget="boolean_toggle"/>
                 <field name="reason"/>
-                <field name="year_id" options="{'no_create': True}"/>
+                <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
             </list>
         </field>
     </record>
@@ -768,7 +768,7 @@
                         <group string="Élève &amp; Classe">
                             <field name="level_id" placeholder="Sélectionnez une classe"/>
                             <field name="student_id" options="{'no_create': True}"/>
-                            <field name="year_id" options="{'no_create': True}"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
                         <group string="Détails Absence / Retard">
                             <field name="date"/>
@@ -825,7 +825,7 @@
                             <field name="subject_id" options="{'no_create_edit': True}" placeholder="Sélectionnez la matière"/>
                             <field name="sub_subject_id" options="{'no_create_edit': True}" placeholder="Sélectionnez la sous-matière / détail" invisible="not subject_id"/>
                             <field name="date_due"/>
-                            <field name="year_id"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
                         <group string="Classe &amp; Destinataires">
                             <field name="level_id" placeholder="Sélectionnez une classe / niveau"/>
@@ -925,7 +925,7 @@
                             <field name="date"/>
                             <field name="requires_signature"/>
                             <field name="signed" invisible="not requires_signature"/>
-                            <field name="year_id" options="{'no_create': True}"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
                     </group>
                     <separator string="Contenu"/>
@@ -969,7 +969,7 @@
                             <field name="date"/>
                             <field name="size"/>
                             <field name="level_id"/>
-                            <field name="year_id"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
                     </group>
                     <group string="Fichier ou Lien">
@@ -1013,7 +1013,7 @@
                         <group string="Détails">
                             <field name="date"/>
                             <field name="sentiment"/>
-                            <field name="year_id" options="{'no_create': True}"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
                     </group>
                     <separator string="Commentaire"/>
@@ -1184,7 +1184,7 @@
             <list string="Paiements Mensuels">
                 <field name="level_id"/>
                 <field name="student_id"/>
-                <field name="year_id"/>
+                <field name="year_id" readonly="1"/>
                 <field name="month"/>
                 <field name="amount" sum="Total"/>
                 <field name="date"/>
@@ -1203,7 +1203,7 @@
                         <group string="Élève &amp; Période">
                             <field name="level_id" placeholder="Sélectionnez une classe"/>
                             <field name="student_id" options="{'no_create': True}"/>
-                            <field name="year_id" options="{'no_create': True}"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                             <field name="month"/>
                         </group>
                         <group string="Détails du Paiement">
@@ -1447,7 +1447,7 @@
                     <group>
                         <group>
                             <field name="level_id" placeholder="Tous les niveaux si vide"/>
-                            <field name="year_id"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
                         <group>
                             <field name="date"/>

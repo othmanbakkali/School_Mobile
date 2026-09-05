@@ -52,7 +52,7 @@ class SchoolGradeSummary(models.Model):
         ('S1', 'Semestre 1'),
         ('S2', 'Semestre 2'),
     ], string='Semestre', default='S1', required=True)
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=lambda self: self._default_year_id(), readonly=True)
     sub_subject_count = fields.Integer(string='Nb Sous-matières', default=0)
     avg_cc1 = fields.Float(string='Moyenne CC1', digits=(5, 2), default=0.0)
     avg_cc2 = fields.Float(string='Moyenne CC2', digits=(5, 2), default=0.0)
@@ -62,6 +62,10 @@ class SchoolGradeSummary(models.Model):
     coefficient = fields.Float(string='Coeff.', default=1.0)
     weighted_mark = fields.Float(string='Note Pondérée', digits=(5, 2), default=0.0)
     appreciation = fields.Char(string='Appréciation')
+
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
 
 
 class SchoolStudent(models.Model):
@@ -77,7 +81,7 @@ class SchoolStudent(models.Model):
     full_name = fields.Char(string='Prénom & Nom')
     massar_number = fields.Char(string='Code / N° Massar (رقم مسار)', index=True, help="Identifiant national de l'élève (Code MASSAR)")
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
     parent_id = fields.Many2one('school.parent', string='Parent Responsable')
     
     grade_ids = fields.One2many('school.grade', 'student_id', string='Détail des Notes (Sous-matières)')
@@ -266,6 +270,10 @@ class SchoolStudent(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
         records = super(SchoolStudent, self).create(vals_list)
         for rec in records:
             if rec.level_id and not rec.grade_ids:
@@ -372,7 +380,15 @@ class SchoolAttendance(models.Model):
     duration = fields.Integer(string='Durée (min)')
     reason = fields.Char(string='Motif')
     is_justified = fields.Boolean(string='Justifié', default=False)
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+        return super(SchoolAttendance, self).create(vals_list)
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
@@ -413,7 +429,7 @@ class SchoolHomework(models.Model):
     level_id = fields.Many2one('school.level', string='Niveau / Classe', help="Sélectionnez une classe pour charger automatiquement tous ses élèves de l'année scolaire en cours")
     student_ids = fields.Many2many('school.student', 'school_homework_student_rel', 'homework_id', 'student_id', string='Élèves concernés')
     student_id = fields.Many2one('school.student', string='Élève individuel')
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
     state = fields.Selection([('draft', 'En cours'), ('done', 'Fait')], default='draft')
     attachment = fields.Binary(string='Pièce Jointe')
     attachment_name = fields.Char(string='Nom du fichier')
@@ -488,7 +504,7 @@ class SchoolGrade(models.Model):
     subject_id = fields.Many2one('school.subject', string='Matière (Sélection)', required=True)
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
     semester_id = fields.Many2one('school.semester', string='Semestre (Sélection)')
     semester = fields.Selection([
         ('S1', 'Semestre 1'),
@@ -500,6 +516,14 @@ class SchoolGrade(models.Model):
     mid_term_mark = fields.Float(string='Note Mid-term', default=0.0)
     final_mark = fields.Float(string='Note Finale', default=0.0)
     student_id = fields.Many2one('school.student', string='Élève', ondelete='cascade', required=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+        return super(SchoolGrade, self).create(vals_list)
 
     @api.onchange('cc1', 'cc2', 'oral_mark', 'mid_term_mark')
     def _onchange_marks(self):
@@ -599,7 +623,7 @@ class SchoolSchedule(models.Model):
     teacher = fields.Char(string='Enseignant (Texte)')
     teacher_id = fields.Many2one('school.teacher', string='Professeur (Sélection)')
     level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True)
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
 
     @api.onchange('subject_id')
     def _onchange_subject_id(self):
@@ -629,7 +653,7 @@ class SchoolAnnouncement(models.Model):
     author_id = fields.Many2one('res.users', string='Auteur', default=lambda self: self.env.user)
     attachment = fields.Binary(string='Pièce Jointe')
     attachment_name = fields.Char(string='Nom du fichier')
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
 
 
 class SchoolConfig(models.Model):
@@ -663,7 +687,7 @@ class SchoolPayment(models.Model):
 
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
     student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, required=True)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, required=True, readonly=True)
     month = fields.Selection([
         ('01', 'Janvier'), ('02', 'Février'), ('03', 'Mars'),
         ('04', 'Avril'), ('05', 'Mai'), ('06', 'Juin'),
@@ -677,6 +701,14 @@ class SchoolPayment(models.Model):
         ('unpaid', 'Non payé'),
         ('partial', 'Partiel'),
     ], string='État', default='paid')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+        return super(SchoolPayment, self).create(vals_list)
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
@@ -740,7 +772,15 @@ class SchoolCahierTransmission(models.Model):
     date = fields.Datetime(string='Date', default=fields.Datetime.now)
     requires_signature = fields.Boolean(string='Signature requise', default=False)
     signed = fields.Boolean(string='Signé', default=False)
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+        return super(SchoolCahierTransmission, self).create(vals_list)
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
@@ -792,7 +832,15 @@ class SchoolResource(models.Model):
     url = fields.Char(string='URL')
     datas = fields.Binary(string='Fichier (Données)')
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+        return super(SchoolResource, self).create(vals_list)
 
 
 class SchoolPedagogicalComment(models.Model):
@@ -815,7 +863,15 @@ class SchoolPedagogicalComment(models.Model):
         ('neutral', 'Neutre'),
     ], string='Sentiment', required=True, default='neutral')
     text = fields.Text(string='Commentaire', required=True)
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+        return super(SchoolPedagogicalComment, self).create(vals_list)
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
@@ -870,7 +926,15 @@ class SchoolWalletTransaction(models.Model):
         ('debit', 'Achat boutique'),
     ], string='Type', required=True, default='debit')
     description = fields.Char(string='Description', required=True)
-    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+        return super(SchoolWalletTransaction, self).create(vals_list)
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
