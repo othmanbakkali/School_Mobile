@@ -442,8 +442,8 @@ class SchoolHomework(models.Model):
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
     date_due = fields.Date(string="Date d'échéance")
     level_id = fields.Many2one('school.level', string='Niveau / Classe', help="Sélectionnez une classe pour charger automatiquement tous ses élèves de l'année scolaire en cours")
-    student_ids = fields.Many2many('school.student', 'school_homework_student_rel', 'homework_id', 'student_id', string='Élèves concernés')
-    student_id = fields.Many2one('school.student', string='Élève individuel')
+    student_ids = fields.Many2many('school.student', 'school_homework_student_rel', 'homework_id', 'student_id', string='Élèves concernés', domain="[('level_id', '=', level_id)]")
+    student_id = fields.Many2one('school.student', string='Élève individuel', domain="[('level_id', '=', level_id)]")
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
     state = fields.Selection([('draft', 'En cours'), ('done', 'Fait')], default='draft')
     attachment = fields.Binary(string='Pièce Jointe')
@@ -452,22 +452,18 @@ class SchoolHomework(models.Model):
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
         year = self.year_id or _get_current_year_record(self.env)
-        domain = []
         if self.level_id:
-            domain.append(('level_id', '=', self.level_id.id))
-        if year:
-            domain.append(('year_id', '=', year.id))
-
-        if self.level_id:
+            domain = [('level_id', '=', self.level_id.id)]
+            if year:
+                domain.append(('year_id', '=', year.id))
             students = self.env['school.student'].search(domain)
             self.student_ids = [(6, 0, students.ids)]
             self.student_id = False
-            return {'domain': {'student_ids': domain, 'student_id': domain}}
+            return {'domain': {'student_ids': [('level_id', '=', self.level_id.id)], 'student_id': [('level_id', '=', self.level_id.id)]}}
         else:
             self.student_ids = [(5, 0, 0)]
             self.student_id = False
-            domain_no_level = [('year_id', '=', year.id)] if year else []
-            return {'domain': {'student_ids': domain_no_level, 'student_id': domain_no_level}}
+            return {'domain': {'student_ids': [], 'student_id': []}}
 
     @api.onchange('subject_id')
     def _onchange_subject_id(self):

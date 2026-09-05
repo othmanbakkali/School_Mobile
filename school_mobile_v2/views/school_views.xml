@@ -768,7 +768,7 @@
                     <group>
                         <group string="Élève &amp; Classe">
                             <field name="level_id" placeholder="Sélectionnez une classe"/>
-                            <field name="student_id" options="{'no_create': True}"/>
+                            <field name="student_id" options="{'no_create': True}" domain="[('level_id', '=', level_id)]"/>
                             <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
                         <group string="Détails Absence / Retard">
@@ -830,7 +830,7 @@
                         </group>
                         <group string="Classe &amp; Destinataires">
                             <field name="level_id" placeholder="Sélectionnez une classe / niveau"/>
-                            <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" placeholder="Tous les élèves de la classe ou sélectionnez un/plusieurs élèves"/>
+                            <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" domain="[('level_id', '=', level_id)]" placeholder="Tous les élèves de la classe ou sélectionnez un/plusieurs élèves"/>
                         </group>
                     </group>
                     <group string="Document / Fichier">
@@ -916,8 +916,8 @@
                     <group>
                         <group string="Destinataire(s)">
                             <field name="level_id" placeholder="Sélectionnez une classe"/>
-                            <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" placeholder="Tous les élèves de la classe"/>
-                            <field name="student_id" options="{'no_create': True}"/>
+                            <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" domain="[('level_id', '=', level_id)]" placeholder="Tous les élèves de la classe"/>
+                            <field name="student_id" options="{'no_create': True}" domain="[('level_id', '=', level_id)]"/>
                             <field name="type"/>
                             <field name="title"/>
                             <field name="author"/>
@@ -1007,7 +1007,7 @@
                     <group>
                         <group string="Élève &amp; Enseignant">
                             <field name="level_id" placeholder="Sélectionnez une classe"/>
-                            <field name="student_id" options="{'no_create': True}"/>
+                            <field name="student_id" options="{'no_create': True}" domain="[('level_id', '=', level_id)]"/>
                             <field name="teacher"/>
                             <field name="subject"/>
                         </group>
@@ -1203,7 +1203,7 @@
                     <group>
                         <group string="Élève &amp; Période">
                             <field name="level_id" placeholder="Sélectionnez une classe"/>
-                            <field name="student_id" options="{'no_create': True}"/>
+                            <field name="student_id" options="{'no_create': True}" domain="[('level_id', '=', level_id)]"/>
                             <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                             <field name="month"/>
                         </group>
