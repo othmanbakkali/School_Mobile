@@ -5,6 +5,7 @@ access_school_student,school_student,model_school_student,,1,1,1,1
 access_school_attendance,school_attendance,model_school_attendance,,1,1,1,1
 access_school_homework,school_homework,model_school_homework,,1,1,1,1
 access_school_grade,school_grade,model_school_grade,,1,1,1,1
+access_school_grade_summary,school_grade_summary,model_school_grade_summary,,1,1,1,1
 access_school_canteen,school_canteen,model_school_canteen_menu,,1,1,1,1
 access_school_schedule,school_schedule,model_school_schedule,,1,1,1,1
 access_school_announcement,school_announcement,model_school_announcement,,1,1,1,1
@@ -23,4 +24,3 @@ access_school_transport,school_transport,model_school_transport,,1,1,1,1
 access_school_wallet_transaction,school_wallet_transaction,model_school_wallet_transaction,,1,1,1,1
 access_school_shop_product,school_shop_product,model_school_shop_product,,1,1,1,1
 access_school_mobile_tab,school_mobile_tab,model_school_mobile_tab,,1,1,1,1
-

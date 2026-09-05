@@ -10,6 +10,9 @@
     </ion-header>
 
     <ion-content class="ion-padding gray-bg">
+      <!-- Student Header Badge -->
+      <StudentHeaderBadge />
+
       <!-- Loading State -->
       <div v-if="loading" class="loading-center">
         <ion-spinner name="crescent" color="primary"/>
@@ -65,11 +68,12 @@ import {
   IonIcon, IonSpinner, IonButton, IonButtons, IonMenuButton
 } from '@ionic/vue';
 import { timeOutline, documentAttachOutline } from 'ionicons/icons';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
 import { useI18n } from '@/services/translationService';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const { t } = useI18n();
 
@@ -130,8 +134,17 @@ const downloadAttachment = (item: any) => {
   link.click();
 };
 
+const handleStudentChanged = () => {
+  fetchData();
+};
+
 onMounted(() => {
   fetchData();
+  window.addEventListener('student-changed', handleStudentChanged);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

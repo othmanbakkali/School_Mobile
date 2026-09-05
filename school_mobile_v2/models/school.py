@@ -40,6 +40,30 @@ class SchoolParent(models.Model):
     student_ids = fields.One2many('school.student', 'parent_id', string='Enfants')
 
 
+class SchoolGradeSummary(models.Model):
+    _name = 'school.grade.summary'
+    _description = 'Synthèse des Notes par Matière'
+    _order = 'subject_id, semester'
+
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade', index=True)
+    subject_id = fields.Many2one('school.subject', string='Matière', required=True)
+    subject_name = fields.Char(related='subject_id.name', string='Nom Matière', store=True)
+    semester = fields.Selection([
+        ('S1', 'Semestre 1'),
+        ('S2', 'Semestre 2'),
+    ], string='Semestre', default='S1', required=True)
+    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    sub_subject_count = fields.Integer(string='Nb Sous-matières', default=0)
+    avg_cc1 = fields.Float(string='Moyenne CC1', digits=(5, 2), default=0.0)
+    avg_cc2 = fields.Float(string='Moyenne CC2', digits=(5, 2), default=0.0)
+    avg_oral = fields.Float(string='Note Oral', digits=(5, 2), default=0.0)
+    avg_mid_term = fields.Float(string='Note Mid-term', digits=(5, 2), default=0.0)
+    final_mark = fields.Float(string='Moyenne Matière (/20)', digits=(5, 2), default=0.0)
+    coefficient = fields.Float(string='Coeff.', default=1.0)
+    weighted_mark = fields.Float(string='Note Pondérée', digits=(5, 2), default=0.0)
+    appreciation = fields.Char(string='Appréciation')
+
+
 class SchoolStudent(models.Model):
     _name = 'school.student'
     _inherit = ['mail.thread']
@@ -55,57 +79,190 @@ class SchoolStudent(models.Model):
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
     parent_id = fields.Many2one('school.parent', string='Parent Responsable')
-    average_grade = fields.Float(string='Moyenne', compute='_compute_average_grade', store=True)
+    
+    grade_ids = fields.One2many('school.grade', 'student_id', string='Détail des Notes (Sous-matières)')
+    grade_summary_ids = fields.One2many('school.grade.summary', 'student_id', string='Synthèse des Notes par Matière', compute='_compute_grade_summaries', store=True)
+    average_grade = fields.Float(string='Moyenne Générale', compute='_compute_average_grade', store=True)
+    
     photo = fields.Binary(string='Photo')
 
-    @api.depends('grade_ids.final_mark')
+    @api.depends(
+        'grade_ids.final_mark', 'grade_ids.cc1', 'grade_ids.cc2',
+        'grade_ids.oral_mark', 'grade_ids.mid_term_mark',
+        'grade_ids.subject_id', 'grade_ids.sub_subject_id', 'grade_ids.semester'
+    )
+    def _compute_grade_summaries(self):
+        for student in self:
+            groups = {}
+            for g in student.grade_ids:
+                subj = g.subject_id
+                if not subj:
+                    continue
+                key = (subj.id, g.semester or 'S1')
+                if key not in groups:
+                    groups[key] = {
+                        'subject': subj,
+                        'semester': g.semester or 'S1',
+                        'lines': [],
+                    }
+                groups[key]['lines'].append(g)
+
+            existing_summaries = { (s.subject_id.id, s.semester): s for s in student.grade_summary_ids }
+            new_lines = []
+            seen_keys = set()
+
+            for key, grp in groups.items():
+                seen_keys.add(key)
+                lines = grp['lines']
+                subj = grp['subject']
+                sub_count = len(lines)
+
+                final_marks = []
+                cc1_list = []
+                cc2_list = []
+                oral_list = []
+                mid_list = []
+
+                for l in lines:
+                    l_final = l.final_mark
+                    if not l_final:
+                        components = [c for c in [l.cc1, l.cc2, l.oral_mark, l.mid_term_mark] if c > 0]
+                        if components:
+                            l_final = sum(components) / len(components)
+                    final_marks.append(l_final)
+                    if l.cc1: cc1_list.append(l.cc1)
+                    if l.cc2: cc2_list.append(l.cc2)
+                    if l.oral_mark: oral_list.append(l.oral_mark)
+                    if l.mid_term_mark: mid_list.append(l.mid_term_mark)
+
+                avg_final = round(sum(final_marks) / sub_count, 2) if sub_count > 0 else 0.0
+                avg_cc1 = round(sum(cc1_list) / len(cc1_list), 2) if cc1_list else 0.0
+                avg_cc2 = round(sum(cc2_list) / len(cc2_list), 2) if cc2_list else 0.0
+                avg_oral = round(sum(oral_list) / len(oral_list), 2) if oral_list else 0.0
+                avg_mid = round(sum(mid_list) / len(mid_list), 2) if mid_list else 0.0
+                coeff = subj.coefficient or 1.0
+                weighted = round(avg_final * coeff, 2)
+
+                appr = ''
+                if avg_final >= 16:
+                    appr = 'Très Bien'
+                elif avg_final >= 14:
+                    appr = 'Bien'
+                elif avg_final >= 12:
+                    appr = 'Assez Bien'
+                elif avg_final >= 10:
+                    appr = 'Passable'
+                elif avg_final > 0:
+                    appr = 'Insuffisant'
+
+                vals = {
+                    'subject_id': subj.id,
+                    'semester': grp['semester'],
+                    'year_id': student.year_id.id if student.year_id else False,
+                    'sub_subject_count': sub_count,
+                    'avg_cc1': avg_cc1,
+                    'avg_cc2': avg_cc2,
+                    'avg_oral': avg_oral,
+                    'avg_mid_term': avg_mid,
+                    'final_mark': avg_final,
+                    'coefficient': coeff,
+                    'weighted_mark': weighted,
+                    'appreciation': appr,
+                }
+
+                if key in existing_summaries:
+                    new_lines.append((1, existing_summaries[key].id, vals))
+                else:
+                    new_lines.append((0, 0, vals))
+
+            for key, old_summary in existing_summaries.items():
+                if key not in seen_keys:
+                    new_lines.append((2, old_summary.id, 0))
+
+            student.grade_summary_ids = new_lines
+
+    @api.depends('grade_summary_ids.final_mark', 'grade_summary_ids.coefficient')
     def _compute_average_grade(self):
         for student in self:
-            if student.grade_ids:
-                student.average_grade = sum(student.grade_ids.mapped('final_mark')) / len(student.grade_ids)
+            summaries = student.grade_summary_ids
+            if summaries:
+                total_weighted = sum(s.final_mark * (s.coefficient or 1.0) for s in summaries)
+                total_coeff = sum(s.coefficient or 1.0 for s in summaries)
+                student.average_grade = round(total_weighted / total_coeff, 2) if total_coeff > 0 else 0.0
             else:
                 student.average_grade = 0.0
 
     @api.onchange('level_id')
     def _onchange_level_id(self):
-        """ Charge automatiquement les matières applicables au niveau sélectionné """
+        """ Charge automatiquement toutes les sous-matières applicables au niveau sélectionné """
         if self.level_id:
             subjects = self.env['school.subject'].search([
                 '|', ('level_ids', '=', False), ('level_ids', 'in', [self.level_id.id])
             ])
-            existing_subjs = self.grade_ids.mapped('subject_id')
             new_lines = []
             for subj in subjects:
-                if subj not in existing_subjs:
+                if subj.sub_subject_ids:
+                    for sub in subj.sub_subject_ids:
+                        new_lines.append((0, 0, {
+                            'subject_id': subj.id,
+                            'sub_subject_id': sub.id,
+                            'subject': subj.name,
+                            'semester': 'S1',
+                            'level_id': self.level_id.id,
+                            'year_id': self.year_id.id if self.year_id else False,
+                        }))
+                else:
                     new_lines.append((0, 0, {
                         'subject_id': subj.id,
+                        'sub_subject_id': False,
                         'subject': subj.name,
                         'semester': 'S1',
+                        'level_id': self.level_id.id,
+                        'year_id': self.year_id.id if self.year_id else False,
                     }))
             if new_lines:
-                self.grade_ids = [(5, 0, 0)] + [(0, 0, {
-                    'subject_id': s.id,
-                    'subject': s.name,
-                    'semester': 'S1',
-                }) for s in subjects]
+                self.grade_ids = [(5, 0, 0)] + new_lines
 
     def action_generate_grade_lines(self):
-        """ Bouton pour générer automatiquement toutes les matières du niveau dans l'onglet Notes """
+        """ Bouton pour générer automatiquement toutes les sous-matières du niveau dans l'onglet Notes """
         for student in self:
             if not student.level_id:
                 continue
             subjects = self.env['school.subject'].search([
                 '|', ('level_ids', '=', False), ('level_ids', 'in', [student.level_id.id])
             ])
-            existing_subjs = student.grade_ids.mapped('subject_id')
+            
+            # Supprimer les anciennes lignes génériques sans sous-matière si la matière a des sous-matières
+            to_delete = student.grade_ids.filtered(lambda g: not g.sub_subject_id and g.subject_id.sub_subject_ids)
+            if to_delete:
+                to_delete.unlink()
+
+            existing_tuples = set((g.subject_id.id, g.sub_subject_id.id if g.sub_subject_id else 0, g.semester) for g in student.grade_ids)
+
             for subj in subjects:
-                if subj not in existing_subjs:
-                    self.env['school.grade'].create({
-                        'student_id': student.id,
-                        'subject_id': subj.id,
-                        'subject': subj.name,
-                        'semester': 'S1',
-                    })
+                if subj.sub_subject_ids:
+                    for sub in subj.sub_subject_ids:
+                        if (subj.id, sub.id, 'S1') not in existing_tuples:
+                            self.env['school.grade'].create({
+                                'student_id': student.id,
+                                'level_id': student.level_id.id,
+                                'year_id': student.year_id.id if student.year_id else False,
+                                'subject_id': subj.id,
+                                'sub_subject_id': sub.id,
+                                'subject': subj.name,
+                                'semester': 'S1',
+                            })
+                else:
+                    if (subj.id, 0, 'S1') not in existing_tuples:
+                        self.env['school.grade'].create({
+                            'student_id': student.id,
+                            'level_id': student.level_id.id,
+                            'year_id': student.year_id.id if student.year_id else False,
+                            'subject_id': subj.id,
+                            'sub_subject_id': False,
+                            'subject': subj.name,
+                            'semester': 'S1',
+                        })
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -116,7 +273,6 @@ class SchoolStudent(models.Model):
         return records
 
     homework_ids = fields.Many2many('school.homework', 'school_homework_student_rel', 'student_id', 'homework_id', string='Devoirs')
-    grade_ids = fields.One2many('school.grade', 'student_id', string='Notes')
     attendance_ids = fields.One2many('school.attendance', 'student_id', string='Absences/Retards')
     payment_ids = fields.One2many('school.payment', 'student_id', string='Paiements')
     ems_id = fields.Integer(string='ID EMS')
@@ -322,14 +478,14 @@ class SchoolHomework(models.Model):
 
 class SchoolGrade(models.Model):
     _name = 'school.grade'
-    _description = 'Notes'
+    _description = 'Notes Détaillées (Sous-matières)'
 
     def _default_year_id(self):
         y = _get_current_year_record(self.env)
         return y.id if y else False
 
     subject = fields.Char(string='Matière (Texte)')
-    subject_id = fields.Many2one('school.subject', string='Matière (Sélection)')
+    subject_id = fields.Many2one('school.subject', string='Matière (Sélection)', required=True)
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
@@ -337,13 +493,19 @@ class SchoolGrade(models.Model):
     semester = fields.Selection([
         ('S1', 'Semestre 1'),
         ('S2', 'Semestre 2'),
-    ], string='Semestre (Texte)', default='S1')
+    ], string='Semestre', default='S1', required=True)
     cc1 = fields.Float(string='CC1', default=0.0)
     cc2 = fields.Float(string='CC2', default=0.0)
     oral_mark = fields.Float(string='Note Oral', default=0.0)
     mid_term_mark = fields.Float(string='Note Mid-term', default=0.0)
     final_mark = fields.Float(string='Note Finale', default=0.0)
-    student_id = fields.Many2one('school.student', string='Élève', ondelete='cascade')
+    student_id = fields.Many2one('school.student', string='Élève', ondelete='cascade', required=True)
+
+    @api.onchange('cc1', 'cc2', 'oral_mark', 'mid_term_mark')
+    def _onchange_marks(self):
+        components = [c for c in [self.cc1, self.cc2, self.oral_mark, self.mid_term_mark] if c > 0]
+        if components:
+            self.final_mark = round(sum(components) / len(components), 2)
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):

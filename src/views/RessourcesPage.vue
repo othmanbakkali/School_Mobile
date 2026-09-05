@@ -11,6 +11,9 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge />
+
         <div class="page-hero">
           <div class="hero-icon">📚</div>
           <h1>Ressources Pédagogiques</h1>
@@ -72,10 +75,11 @@ import {
   IonButtons, IonMenuButton, IonIcon, IonSpinner, IonButton, onIonViewWillEnter
 } from '@ionic/vue';
 import { searchOutline, documentOutline, downloadOutline } from 'ionicons/icons';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const router = useRouter();
 const loading = ref(true);
@@ -161,8 +165,18 @@ const fetchData = async () => {
   }
 };
 
+const handleStudentChanged = () => {
+  fetchData();
+};
+
 onIonViewWillEnter(() => fetchData());
-onMounted(() => fetchData());
+onMounted(() => {
+  fetchData();
+  window.addEventListener('student-changed', handleStudentChanged);
+});
+onUnmounted(() => {
+  window.removeEventListener('student-changed', handleStudentChanged);
+});
 </script>
 
 <style scoped>

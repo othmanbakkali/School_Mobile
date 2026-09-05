@@ -632,20 +632,105 @@ app.post('/api/school/grades', async (req, res) => {
             console.warn('Erreur lecture grade_scale:', confErr.message);
         }
 
-        const result = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [domain], { fields: ['subject_id', 'sub_subject_id', 'subject', 'year_id', 'semester_id', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
+        const rawGrades = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', 
+            [domain], 
+            { fields: ['id', 'subject_id', 'sub_subject_id', 'subject', 'year_id', 'semester_id', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark'] }
         ]);
-        // Normalisation pour le frontend (utiliser subject_id[1] et sub_subject_id[1] s'ils existent)
-        const formatted = result.map(n => ({
-            ...n,
-            subject: n.subject_id ? n.subject_id[1] : (n.subject || 'Matière'),
-            sub_subject: n.sub_subject_id ? n.sub_subject_id[1] : null,
-            grade_scale: gradeScale,
-            academic_year: n.year_id ? n.year_id[1] : '',
-            semester_name: n.semester_id ? n.semester_id[1] : (n.semester || '')
-        }));
+
+        // Grouper par Semestre et par Matière parente
+        const groups = new Map(); // key: `${semester}_${subjectId}`
+
+        for (const g of rawGrades) {
+            const sem = g.semester || 'S1';
+            const subjId = g.subject_id ? g.subject_id[0] : 0;
+            const subjName = g.subject_id ? g.subject_id[1] : (g.subject || 'Matière');
+            const groupKey = `${sem}_${subjId}_${subjName}`;
+
+            if (!groups.has(groupKey)) {
+                groups.set(groupKey, {
+                    semester: sem,
+                    subject_id: g.subject_id ? g.subject_id[0] : null,
+                    subject: subjName,
+                    academic_year: g.year_id ? g.year_id[1] : '',
+                    semester_name: g.semester_id ? g.semester_id[1] : sem,
+                    parent_record: null,
+                    sub_sections: []
+                });
+            }
+
+            const group = groups.get(groupKey);
+
+            if (g.sub_subject_id) {
+                // Ligne de sous-section (sous-matière)
+                const subName = g.sub_subject_id[1] || g.subject || 'Sous-matière';
+                group.sub_sections.push({
+                    id: g.id,
+                    sub_subject_id: g.sub_subject_id[0],
+                    name: subName,
+                    cc1: g.cc1 || 0,
+                    cc2: g.cc2 || 0,
+                    oral_mark: g.oral_mark || 0,
+                    mid_term_mark: g.mid_term_mark || 0,
+                    final_mark: g.final_mark || 0
+                });
+            } else {
+                // Ligne parente principale
+                group.parent_record = g;
+            }
+        }
+
+        const formatted = [];
+
+        groups.forEach(group => {
+            const subCount = group.sub_sections.length;
+            let finalMark = 0;
+            let cc1 = 0;
+            let cc2 = 0;
+            let oral = 0;
+            let midTerm = 0;
+
+            if (subCount > 0) {
+                // RÈGLE MÉTIER : La note de la section parente est la MOYENNE des sous-sections
+                cc1 = Math.round((group.sub_sections.reduce((acc, s) => acc + (s.cc1 || 0), 0) / subCount) * 100) / 100;
+                cc2 = Math.round((group.sub_sections.reduce((acc, s) => acc + (s.cc2 || 0), 0) / subCount) * 100) / 100;
+                oral = Math.round((group.sub_sections.reduce((acc, s) => acc + (s.oral_mark || 0), 0) / subCount) * 100) / 100;
+                midTerm = Math.round((group.sub_sections.reduce((acc, s) => acc + (s.mid_term_mark || 0), 0) / subCount) * 100) / 100;
+                finalMark = Math.round((group.sub_sections.reduce((acc, s) => acc + (s.final_mark || 0), 0) / subCount) * 100) / 100;
+            } else if (group.parent_record) {
+                cc1 = group.parent_record.cc1 || 0;
+                cc2 = group.parent_record.cc2 || 0;
+                oral = group.parent_record.oral_mark || 0;
+                midTerm = group.parent_record.mid_term_mark || 0;
+                finalMark = group.parent_record.final_mark || 0;
+            }
+
+            formatted.push({
+                id: group.parent_record ? group.parent_record.id : (group.sub_sections[0] ? group.sub_sections[0].id : Math.floor(Math.random() * 100000)),
+                subject_id: group.subject_id,
+                subject: group.subject,
+                semester: group.semester,
+                semester_name: group.semester_name,
+                academic_year: group.academic_year,
+                grade_scale: gradeScale,
+                cc1: cc1,
+                cc2: cc2,
+                oral_mark: oral,
+                mid_term_mark: midTerm,
+                final_mark: finalMark,
+                sub_sections_count: subCount,
+                sub_sections: group.sub_sections
+            });
+        });
+
+        // Trier les matières de façon cohérente
+        formatted.sort((a, b) => (a.subject || '').localeCompare(b.subject || ''));
+
         res.json(formatted);
-    } catch (error) { res.status(500).json({ error: error.message }); }
+    } catch (error) { 
+        console.error('Erreur /api/school/grades:', error.message);
+        res.status(500).json({ error: error.message }); 
+    }
 });
 
 app.post('/api/school/canteen', async (req, res) => {

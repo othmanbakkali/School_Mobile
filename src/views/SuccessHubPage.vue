@@ -27,6 +27,8 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge />
 
         <!-- ==================== TAB 1: MES BADGES ==================== -->
         <div v-if="activeSegment === 'badges'" class="badges-view">
@@ -330,6 +332,7 @@ import {
   IonSegment, IonSegmentButton, IonLabel, IonButtons, IonMenuButton
 } from '@ionic/vue';
 import { ref, computed } from 'vue';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const activeSegment = ref('badges');
 

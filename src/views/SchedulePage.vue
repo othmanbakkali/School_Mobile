@@ -10,6 +10,9 @@
     </ion-header>
 
     <ion-content class="ion-padding gray-bg">
+      <!-- Student Header Badge -->
+      <StudentHeaderBadge />
+
       <!-- Loading State -->
       <div v-if="loading" class="loading-center">
         <ion-spinner name="crescent" color="primary"/>
@@ -57,10 +60,11 @@ import {
   IonIcon, IonSpinner, IonButtons, IonMenuButton
 } from '@ionic/vue';
 import { personOutline } from 'ionicons/icons';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const router = useRouter();
 const schedule = ref<any[]>([]);
@@ -107,9 +111,9 @@ const fetchData = async () => {
       const levelId = student.level_id?.[0];
       
       if (levelId) {
-        console.log('SchedulePage: Fetching schedule for level:', levelId);
         schedule.value = await odoo.getSchedule(levelId);
       } else {
+        schedule.value = [];
         console.warn('Student has no level assigned. Schedule will be empty.');
       }
     }
@@ -124,8 +128,17 @@ const fetchData = async () => {
   }
 };
 
+const handleStudentChanged = () => {
+  fetchData();
+};
+
 onMounted(() => {
   fetchData();
+  window.addEventListener('student-changed', handleStudentChanged);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

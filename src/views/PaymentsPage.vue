@@ -11,6 +11,9 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge />
+
         <div class="section-title">
           <h2>💰 Historique des Paiements</h2>
           <p>Suivi de vos frais de scolarité</p>
@@ -46,9 +49,10 @@ import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
   IonSpinner, IonButtons, IonMenuButton, onIonViewWillEnter
 } from '@ionic/vue';
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const payments = ref<any[]>([]);
 const loading = ref(true);
@@ -84,8 +88,21 @@ const fetchPayments = async () => {
     }
 };
 
+const handleStudentChanged = () => {
+  fetchPayments();
+};
+
 onIonViewWillEnter(() => {
   fetchPayments();
+});
+
+onMounted(() => {
+  fetchPayments();
+  window.addEventListener('student-changed', handleStudentChanged);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

@@ -644,24 +644,31 @@ const fetchData = async (isSync = false) => {
 
 const selectStudent = (student: any) => {
   odoo.setSelectedStudentId(student.id);
+  window.dispatchEvent(new CustomEvent('student-changed', { detail: student }));
   fetchData(); 
 };
 
+const handleStudentChanged = () => {
+  fetchData();
+};
+
 onIonViewWillEnter(() => {
-  loadSavedShortcuts();
   fetchData();
 });
 
 onMounted(() => {
   loadSavedShortcuts();
   fetchData();
+  window.addEventListener('student-changed', handleStudentChanged);
+  // Auto-sync notifications and updates every 30 seconds
   syncInterval = setInterval(() => {
     fetchData(true);
-  }, 60000);
+  }, 30000);
 });
 
 onUnmounted(() => {
   if (syncInterval) clearInterval(syncInterval);
+  window.removeEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

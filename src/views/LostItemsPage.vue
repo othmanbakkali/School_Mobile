@@ -11,6 +11,9 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge />
+
         <div class="section-title">
           <h2>🔍 Objets Trouvés</h2>
           <p>Consultez la liste des objets en attente au secrétariat</p>
@@ -51,8 +54,9 @@ import {
   IonSpinner, IonIcon, IonButtons, IonMenuButton, onIonViewWillEnter
 } from '@ionic/vue';
 import { locationOutline, calendarOutline } from 'ionicons/icons';
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { odoo } from '@/services/odoo';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const items = ref<any[]>([]);
 const loading = ref(true);
@@ -74,6 +78,10 @@ const fetchItems = async () => {
 };
 
 onIonViewWillEnter(() => {
+  fetchItems();
+});
+
+onMounted(() => {
   fetchItems();
 });
 </script>

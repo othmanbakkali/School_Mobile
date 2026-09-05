@@ -20,6 +20,11 @@
 
     <ion-content ref="content" class="chat-bg" :scroll-events="true">
       <div class="messages-container">
+        <!-- Student Header Badge -->
+        <div style="padding: 10px 10px 0 10px;">
+          <StudentHeaderBadge />
+        </div>
+
         <div v-if="loading" class="ion-text-center ion-padding">
           <ion-spinner name="crescent" color="primary"></ion-spinner>
         </div>
@@ -150,6 +155,7 @@ import {
 } from 'ionicons/icons';
 import { ref, onMounted, nextTick, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const messages = ref<any[]>([]);
 const newMessage = ref('');
@@ -311,13 +317,19 @@ const shouldShowDate = (index: number) => {
   return curr !== prev;
 };
 
+const handleStudentChanged = () => {
+  fetchData();
+};
+
 onMounted(() => {
   fetchData();
   pollInterval = setInterval(() => fetchData(true), 5000); // Polling every 5s
+  window.addEventListener('student-changed', handleStudentChanged);
 });
 
 onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval);
+  window.removeEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

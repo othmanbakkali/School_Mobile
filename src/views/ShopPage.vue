@@ -11,6 +11,9 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge />
+
         <!-- Balance Indicator -->
         <div class="shop-balance-bar" @click="goToWallet">
           <div class="balance-text">
@@ -131,10 +134,11 @@ import {
 import { 
   walletOutline, cartOutline 
 } from 'ionicons/icons';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const router = useRouter();
 const loading = ref(true);
@@ -247,8 +251,17 @@ const handlePurchase = async () => {
   }
 };
 
+const handleStudentChanged = () => {
+  fetchShopData();
+};
+
 onMounted(() => {
   fetchShopData();
+  window.addEventListener('student-changed', handleStudentChanged);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

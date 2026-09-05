@@ -18,6 +18,9 @@
       </div>
 
       <div class="fade-in" v-else>
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge />
+
         <!-- Parent Profile Header -->
         <div class="account-header premium-card ion-padding">
           <div class="avatar-large">
@@ -117,6 +120,7 @@ import { ref, computed, onMounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useI18n } from '@/services/translationService';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const { t, setLocale, locale } = useI18n();
 

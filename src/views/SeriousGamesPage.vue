@@ -11,6 +11,8 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge v-if="activeGame === 'none'" />
         
         <!-- ==================== GAME CHOICE MENU ==================== -->
         <div v-if="activeGame === 'none'" class="menu-choice-view">
@@ -187,6 +189,7 @@ import {
   IonButtons, IonMenuButton, IonIcon, IonButton
 } from '@ionic/vue';
 import { ref, onUnmounted } from 'vue';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const activeGame = ref<'none' | 'math' | 'memory'>('none');
 const gameState = ref<'lobby' | 'playing' | 'gameover' | 'victory'>('lobby');

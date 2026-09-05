@@ -11,6 +11,9 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge />
+
         <div class="page-hero">
           <div class="hero-icon">🎓</div>
           <h1>Suivi Pédagogique</h1>
@@ -81,10 +84,11 @@ import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonButtons, IonMenuButton, IonSpinner, IonChip, onIonViewWillEnter
 } from '@ionic/vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const router = useRouter();
 const loading = ref(true);
@@ -119,7 +123,7 @@ const fetchData = async () => {
       subjects.value = grades.map((g: any) => ({
         name: g.subject || 'Matière',
         avg: g.final_mark || 0,
-        trend: (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 2).toFixed(1)
+        trend: (Math.random() > 0.5 ? 1 : -1) * parseFloat((Math.random() * 2).toFixed(1))
       }));
 
       // Try to get pedagogical comments
@@ -139,8 +143,18 @@ const fetchData = async () => {
   }
 };
 
+const handleStudentChanged = () => {
+  fetchData();
+};
+
 onIonViewWillEnter(() => fetchData());
-onMounted(() => fetchData());
+onMounted(() => {
+  fetchData();
+  window.addEventListener('student-changed', handleStudentChanged);
+});
+onUnmounted(() => {
+  window.removeEventListener('student-changed', handleStudentChanged);
+});
 </script>
 
 <style scoped>

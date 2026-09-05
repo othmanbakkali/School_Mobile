@@ -11,6 +11,9 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge />
+
         <!-- Loading State -->
         <div v-if="loading" class="ion-text-center ion-padding mt-4">
           <ion-spinner name="crescent" color="primary"></ion-spinner>
@@ -92,10 +95,11 @@ import {
   onIonViewWillEnter 
 } from '@ionic/vue';
 import { imagesOutline, downloadOutline, closeOutline } from 'ionicons/icons';
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const router = useRouter();
 const albumPhotos = ref<any[]>([]);
@@ -193,12 +197,21 @@ const downloadImage = (photo: any) => {
   document.body.removeChild(link);
 };
 
+const handleStudentChanged = () => {
+  fetchPhotos();
+};
+
 onIonViewWillEnter(() => {
   fetchPhotos();
 });
 
 onMounted(() => {
   fetchPhotos();
+  window.addEventListener('student-changed', handleStudentChanged);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

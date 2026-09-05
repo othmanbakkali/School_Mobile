@@ -12,6 +12,8 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge />
         
         <div class="section-container">
           <div class="section-title">
@@ -154,10 +156,11 @@ import {
   IonAvatar, IonButton, IonIcon, IonButtons, IonMenuButton, onIonViewWillEnter
 } from '@ionic/vue';
 import { chatbubbleEllipsesOutline, callOutline, chatbubblesOutline, chevronForwardOutline } from 'ionicons/icons';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const router = useRouter();
 const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
@@ -208,12 +211,21 @@ const fetchData = async () => {
     }
 };
 
+const handleStudentChanged = () => {
+  fetchData();
+};
+
 onIonViewWillEnter(() => {
   fetchData();
 });
 
 onMounted(() => {
     fetchData();
+    window.addEventListener('student-changed', handleStudentChanged);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('student-changed', handleStudentChanged);
 });
 
 const currentMenu = computed(() => {

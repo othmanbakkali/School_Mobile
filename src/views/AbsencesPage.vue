@@ -10,6 +10,9 @@
     </ion-header>
 
     <ion-content class="ion-padding gray-bg">
+      <!-- Student Header Badge -->
+      <StudentHeaderBadge />
+
       <!-- Loading State -->
       <div v-if="loading" class="loading-center">
         <ion-spinner name="crescent" color="primary"/>
@@ -63,10 +66,11 @@ import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonSpinner, IonButtons, IonMenuButton
 } from '@ionic/vue';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const router = useRouter();
 const attendances = ref<any[]>([]);
@@ -108,8 +112,17 @@ const fetchData = async () => {
   }
 };
 
+const handleStudentChanged = () => {
+  fetchData();
+};
+
 onMounted(() => {
   fetchData();
+  window.addEventListener('student-changed', handleStudentChanged);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

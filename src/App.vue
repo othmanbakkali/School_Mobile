@@ -271,8 +271,17 @@ async function handleItemClick(item: any) {
   }
 }
 
+const handleStudentChanged = (e: any) => {
+  if (e.detail) {
+    studentData.value = e.detail;
+  } else {
+    fetchStudentInfo();
+  }
+};
+
 onMounted(() => {
   onMenuOpen();
+  window.addEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

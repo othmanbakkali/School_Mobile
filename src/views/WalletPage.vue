@@ -11,6 +11,9 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
+        <!-- Student Header Badge -->
+        <StudentHeaderBadge />
+
         <!-- Balance Card -->
         <div class="premium-card balance-card ion-padding">
           <div class="card-inner">
@@ -121,9 +124,10 @@ import {
 import { 
   cardOutline, addOutline, swapHorizontalOutline, arrowDownOutline, arrowUpOutline 
 } from 'ionicons/icons';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const loading = ref(true);
 const refilling = ref(false);
@@ -217,8 +221,17 @@ const handleRefill = async () => {
   }
 };
 
+const handleStudentChanged = () => {
+  fetchWalletData();
+};
+
 onMounted(() => {
   fetchWalletData();
+  window.addEventListener('student-changed', handleStudentChanged);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

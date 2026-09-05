@@ -10,6 +10,9 @@
     </ion-header>
 
     <ion-content class="ion-padding gray-bg">
+      <!-- Student Header Badge -->
+      <StudentHeaderBadge />
+
       <div class="fade-in" v-if="loading">
         <div class="loading-center">
           <ion-spinner name="crescent" color="primary"></ion-spinner>
@@ -124,9 +127,10 @@ import {
 import { 
   busOutline, callOutline, carOutline, timeOutline, call 
 } from 'ionicons/icons';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
+import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const loading = ref(true);
 const transportData = ref<any>(null);
@@ -153,8 +157,17 @@ const fetchTransportInfo = async () => {
   }
 };
 
+const handleStudentChanged = () => {
+  fetchTransportInfo();
+};
+
 onMounted(() => {
   fetchTransportInfo();
+  window.addEventListener('student-changed', handleStudentChanged);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('student-changed', handleStudentChanged);
 });
 </script>
 

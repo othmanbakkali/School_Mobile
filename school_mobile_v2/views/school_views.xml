@@ -516,7 +516,7 @@
         <field name="arch" type="xml">
             <form string="Fiche Élève">
                 <header>
-                    <button name="action_generate_grade_lines" type="object" string="Générer les matières du niveau" class="oe_highlight" icon="fa-list"/>
+                    <button name="action_generate_grade_lines" type="object" string="Générer les sous-matières du niveau" class="oe_highlight" icon="fa-list"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -547,17 +547,34 @@
                         </group>
                     </group>
                     <notebook>
-                        <page string="Notes" name="grades">
+                        <page string="Détail des Notes (Sous-matières)" name="grades">
                             <field name="grade_ids" mode="list">
                                 <list editable="bottom">
-                                    <field name="subject_id"/>
-                                    <field name="sub_subject_id"/>
-                                    <field name="semester"/>
-                                    <field name="cc1"/>
-                                    <field name="cc2"/>
-                                    <field name="oral_mark"/>
-                                    <field name="mid_term_mark"/>
-                                    <field name="final_mark" decoration-bf="1"/>
+                                    <field name="subject_id" string="Matière parente"/>
+                                    <field name="sub_subject_id" string="Sous-matière / Épreuve" domain="[('subject_id', '=', subject_id)]"/>
+                                    <field name="semester" string="Semestre"/>
+                                    <field name="cc1" string="CC1"/>
+                                    <field name="cc2" string="CC2"/>
+                                    <field name="oral_mark" string="Note Oral"/>
+                                    <field name="mid_term_mark" string="Note Mid-term"/>
+                                    <field name="final_mark" string="Note Finale" decoration-bf="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Synthèse par Matière &amp; Moyennes" name="grade_summary">
+                            <field name="grade_summary_ids" mode="list" readonly="1">
+                                <list create="0" delete="0" edit="0">
+                                    <field name="subject_id" string="Matière" decoration-bf="1"/>
+                                    <field name="semester" string="Semestre"/>
+                                    <field name="sub_subject_count" string="Nb Sous-matières"/>
+                                    <field name="avg_cc1" string="Moyenne CC1"/>
+                                    <field name="avg_cc2" string="Moyenne CC2"/>
+                                    <field name="avg_oral" string="Moyenne Oral"/>
+                                    <field name="avg_mid_term" string="Moyenne Mid-term"/>
+                                    <field name="final_mark" string="Moyenne Matière (/20)" decoration-bf="1" decoration-success="final_mark >= 10" decoration-danger="final_mark &lt; 10"/>
+                                    <field name="coefficient" string="Coeff."/>
+                                    <field name="weighted_mark" string="Note Pondérée"/>
+                                    <field name="appreciation" string="Appréciation" decoration-info="appreciation in ('Très Bien', 'Bien')"/>
                                 </list>
                             </field>
                         </page>
