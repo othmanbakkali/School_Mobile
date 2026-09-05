@@ -286,6 +286,8 @@ class SchoolStudent(models.Model):
         curr_year = _get_current_year_record(self.env)
         def_level = _get_default_level_record(self.env)
         for vals in vals_list:
+            if 'active' not in vals:
+                vals['active'] = True
             if not vals.get('year_id') and curr_year:
                 vals['year_id'] = curr_year.id
             if not vals.get('level_id') and def_level:
