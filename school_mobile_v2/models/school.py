@@ -1079,6 +1079,7 @@ class SchoolStudentTransitionWizard(models.TransientModel):
     registration_fee = fields.Float(string='Frais d\'inscription / réinscription (DH)', default=1000.0)
     monthly_fee = fields.Float(string='Frais de scolarité mensuel (DH)', default=1500.0)
     archive_source_students = fields.Boolean(string='Archiver les anciens profils dans l\'année précédente', default=True)
+    target_active = fields.Boolean(string='Statut Actif (Nouvelle Année)', default=True, help="Si coché, les élèves inscrits dans la nouvelle année scolaire seront marqués comme Actifs.")
 
     @api.onchange('source_level_id', 'source_year_id')
     def _onchange_source_level(self):
@@ -1115,7 +1116,7 @@ class SchoolStudentTransitionWizard(models.TransientModel):
                 'year_id': self.target_year_id.id,
                 'parent_id': st.parent_id.id if st.parent_id else False,
                 'photo': st.photo,
-                'active': True,
+                'active': self.target_active,
                 'wallet_balance': getattr(st, 'wallet_balance', 150.0),
             })
             created_students |= new_st

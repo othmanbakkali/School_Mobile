@@ -531,6 +531,7 @@
                 <field name="level_id"/>
                 <field name="parent_id"/>
                 <field name="average_grade" avg="Moyenne" decoration-bf="1"/>
+                <field name="active" widget="boolean_toggle" string="Actif"/>
             </list>
         </field>
     </record>
@@ -566,6 +567,7 @@
                             <field name="level_id" options="{'no_open': True, 'no_create': True}"/>
                             <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                             <field name="parent_id" options="{'no_quick_create': True}"/>
+                            <field name="active" widget="boolean_toggle" string="Actif"/>
                             <field name="transport_id"/>
                             <field name="wallet_balance"/>
                         </group>
@@ -654,6 +656,26 @@
                     </notebook>
                 </sheet>
             </form>
+        </field>
+    </record>
+
+    <record id="view_school_student_search" model="ir.ui.view">
+        <field name="name">school.student.search</field>
+        <field name="model">school.student</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="massar_number"/>
+                <field name="level_id"/>
+                <field name="year_id"/>
+                <field name="parent_id"/>
+                <separator/>
+                <filter name="active" string="Actifs" domain="[('active', '=', True)]"/>
+                <filter name="archived" string="Archivés / Inactifs" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter name="group_by_level" string="Grouper par Niveau" context="{'group_by': 'level_id'}"/>
+                <filter name="group_by_year" string="Grouper par Année" context="{'group_by': 'year_id'}"/>
+            </search>
         </field>
     </record>
 
@@ -1637,6 +1659,7 @@
                         </group>
                         <group>
                             <field name="archive_source_students" widget="boolean_toggle"/>
+                            <field name="target_active" widget="boolean_toggle" string="Statut Actif (Nouvelle Année)"/>
                         </group>
                     </group>
                     <separator string="Élèves à faire passer / réinscrire"/>
