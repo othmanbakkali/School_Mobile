@@ -372,13 +372,10 @@ class SchoolYear(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            if 'state' not in vals:
+                vals['state'] = 'draft'
         records = super(SchoolYear, self).create(vals_list)
-        for rec in records:
-            if rec.state == 'open':
-                # Quand une nouvelle année scolaire ouverte est créée, archiver les élèves des autres années
-                prev_students = self.env['school.student'].search([('year_id', '!=', rec.id), ('active', '=', True)])
-                if prev_students:
-                    prev_students.write({'active': False})
         return records
 
     def action_open_transition_wizard(self):
