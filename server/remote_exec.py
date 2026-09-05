@@ -47,7 +47,8 @@ sleep 3
 systemctl status odoo19 --no-pager | head -n 10 || systemctl status odoo --no-pager | head -n 10 || true
 
 echo "=== 4. Updating module via odoo-bin if possible ==="
-su - odoo19 -s /bin/bash -c "/opt/odoo19/odoo-venv/bin/python3 /opt/odoo19/odoo/odoo-bin -c /etc/odoo19.conf -u school_mobile_v2 -d alibdaealamia --stop-after-init" 2>&1 || true
+su - odoo19 -s /bin/bash -c "/opt/odoo19/venv/bin/python3 /opt/odoo19/odoo/odoo-bin -c /etc/odoo19.conf -u school_mobile_v2 -d alibdaealamia --stop-after-init" 2>&1 || true
+systemctl restart odoo19 || true
 """
 
 print("\nExecuting server deployment...")
