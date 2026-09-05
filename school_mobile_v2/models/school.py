@@ -95,6 +95,7 @@ class SchoolStudent(models.Model):
     level_id = fields.Many2one('school.level', string='Niveau / Classe', default=_default_level_id)
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
     parent_id = fields.Many2one('school.parent', string='Parent Responsable')
+    active = fields.Boolean(string='Actif', default=True)
     
     grade_ids = fields.One2many('school.grade', 'student_id', string='Détail des Notes (Sous-matières)')
     grade_summary_ids = fields.One2many('school.grade.summary', 'student_id', string='Synthèse des Notes par Matière', compute='_compute_grade_summaries', store=True)
@@ -367,6 +368,47 @@ class SchoolYear(models.Model):
         ('name_unique', 'unique(name)', 'L\'année scolaire doit être unique !')
     ]
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super(SchoolYear, self).create(vals_list)
+        for rec in records:
+            if rec.state == 'open':
+                # Quand une nouvelle année scolaire ouverte est créée, archiver les élèves des autres années
+                prev_students = self.env['school.student'].search([('year_id', '!=', rec.id), ('active', '=', True)])
+                if prev_students:
+                    prev_students.write({'active': False})
+        return records
+
+    def action_open_transition_wizard(self):
+        """ Ouvre le wizard de passage/réinscription vers cette année """
+        self.ensure_one()
+        return {
+            'name': '🎓 Inscription / Passage Nouvelle Année',
+            'type': 'ir.actions.act_window',
+            'res_model': 'school.student.transition.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_target_year_id': self.id},
+        }
+
+    def action_archive_previous_students(self):
+        """ Archive tous les élèves qui ne sont pas de cette année scolaire """
+        self.ensure_one()
+        prev_students = self.env['school.student'].search([('year_id', '!=', self.id), ('active', '=', True)])
+        count = len(prev_students)
+        if prev_students:
+            prev_students.write({'active': False})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Archivage des élèves',
+                'message': f"{count} élève(s) des années précédentes ont été archivés avec succès.",
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
 
 class SchoolSemester(models.Model):
     _name = 'school.semester'
@@ -386,7 +428,7 @@ class SchoolAttendance(models.Model):
         return y.id if y else False
 
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
-    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade', domain="[('level_id', '=', level_id)]")
     date = fields.Datetime(string='Date & Heure', default=fields.Datetime.now, required=True)
     type = fields.Selection([
         ('absence', 'Absence'),
@@ -408,14 +450,16 @@ class SchoolAttendance(models.Model):
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
         year = self.year_id or _get_current_year_record(self.env)
-        domain = []
         if self.level_id:
-            domain.append(('level_id', '=', self.level_id.id))
-        if year:
-            domain.append(('year_id', '=', year.id))
-        if self.student_id and self.level_id and self.student_id.level_id != self.level_id:
+            domain = [('level_id', '=', self.level_id.id)]
+            if year:
+                domain.append(('year_id', '=', year.id))
+            if self.student_id and self.student_id.level_id != self.level_id:
+                self.student_id = False
+            return {'domain': {'student_id': domain}}
+        else:
             self.student_id = False
-        return {'domain': {'student_id': domain}}
+            return {'domain': {'student_id': [('id', '=', False)]}}
 
     @api.onchange('student_id')
     def _onchange_student_id(self):
@@ -441,7 +485,7 @@ class SchoolHomework(models.Model):
     subject_id = fields.Many2one('school.subject', string='Matière')
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
     date_due = fields.Date(string="Date d'échéance")
-    level_id = fields.Many2one('school.level', string='Niveau / Classe', help="Sélectionnez une classe pour charger automatiquement tous ses élèves de l'année scolaire en cours")
+    level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True, help="Sélectionnez une classe pour charger automatiquement tous ses élèves de l'année scolaire en cours")
     student_ids = fields.Many2many('school.student', 'school_homework_student_rel', 'homework_id', 'student_id', string='Élèves concernés', domain="[('level_id', '=', level_id)]")
     student_id = fields.Many2one('school.student', string='Élève individuel', domain="[('level_id', '=', level_id)]")
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
@@ -457,13 +501,13 @@ class SchoolHomework(models.Model):
             if year:
                 domain.append(('year_id', '=', year.id))
             students = self.env['school.student'].search(domain)
-            self.student_ids = [(6, 0, students.ids)]
+            self.student_ids = students
             self.student_id = False
-            return {'domain': {'student_ids': [('level_id', '=', self.level_id.id)], 'student_id': [('level_id', '=', self.level_id.id)]}}
+            return {'domain': {'student_ids': domain, 'student_id': domain}}
         else:
-            self.student_ids = [(5, 0, 0)]
+            self.student_ids = self.env['school.student']
             self.student_id = False
-            return {'domain': {'student_ids': [], 'student_id': []}}
+            return {'domain': {'student_ids': [('id', '=', False)], 'student_id': [('id', '=', False)]}}
 
     @api.onchange('subject_id')
     def _onchange_subject_id(self):
@@ -713,15 +757,22 @@ class SchoolPayment(models.Model):
         y = _get_current_year_record(self.env)
         return y.id if y else False
 
+    payment_type = fields.Selection([
+        ('tuition', 'Scolarité Mensuelle'),
+        ('registration', 'Frais d\'inscription / Réinscription'),
+        ('transport', 'Transport'),
+        ('canteen', 'Cantine'),
+        ('other', 'Autre'),
+    ], string='Type de Frais', default='tuition', required=True)
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
-    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade', domain="[('level_id', '=', level_id)]")
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, required=True, readonly=True)
     month = fields.Selection([
         ('01', 'Janvier'), ('02', 'Février'), ('03', 'Mars'),
         ('04', 'Avril'), ('05', 'Mai'), ('06', 'Juin'),
         ('07', 'Juillet'), ('08', 'Août'), ('09', 'Septembre'),
         ('10', 'Octobre'), ('11', 'Novembre'), ('12', 'Décembre'),
-    ], string='Mois', required=True)
+    ], string='Mois')
     amount = fields.Float(string='Montant', required=True)
     date = fields.Date(string='Date de paiement', default=fields.Date.today)
     state = fields.Selection([
@@ -741,14 +792,16 @@ class SchoolPayment(models.Model):
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
         year = self.year_id or _get_current_year_record(self.env)
-        domain = []
         if self.level_id:
-            domain.append(('level_id', '=', self.level_id.id))
-        if year:
-            domain.append(('year_id', '=', year.id))
-        if self.student_id and self.level_id and self.student_id.level_id != self.level_id:
+            domain = [('level_id', '=', self.level_id.id)]
+            if year:
+                domain.append(('year_id', '=', year.id))
+            if self.student_id and self.student_id.level_id != self.level_id:
+                self.student_id = False
+            return {'domain': {'student_id': domain}}
+        else:
             self.student_id = False
-        return {'domain': {'student_id': domain}}
+            return {'domain': {'student_id': [('id', '=', False)]}}
 
     @api.onchange('student_id')
     def _onchange_student_id(self):
@@ -784,9 +837,9 @@ class SchoolCahierTransmission(models.Model):
         y = _get_current_year_record(self.env)
         return y.id if y else False
 
-    level_id = fields.Many2one('school.level', string='Niveau / Classe')
-    student_ids = fields.Many2many('school.student', 'school_transmission_student_rel', 'transmission_id', 'student_id', string='Élèves concernés')
-    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
+    level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True)
+    student_ids = fields.Many2many('school.student', 'school_transmission_student_rel', 'transmission_id', 'student_id', string='Élèves concernés', domain="[('level_id', '=', level_id)]")
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade', domain="[('level_id', '=', level_id)]")
     type = fields.Selection([
         ('info', 'Information'),
         ('warning', 'Avertissement'),
@@ -813,17 +866,19 @@ class SchoolCahierTransmission(models.Model):
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
         year = self.year_id or _get_current_year_record(self.env)
-        domain = []
         if self.level_id:
-            domain.append(('level_id', '=', self.level_id.id))
-        if year:
-            domain.append(('year_id', '=', year.id))
-        if self.level_id:
+            domain = [('level_id', '=', self.level_id.id)]
+            if year:
+                domain.append(('year_id', '=', year.id))
             students = self.env['school.student'].search(domain)
-            self.student_ids = [(6, 0, students.ids)]
+            self.student_ids = students
             if students and (not self.student_id or self.student_id not in students):
                 self.student_id = students[0]
-        return {'domain': {'student_id': domain, 'student_ids': domain}}
+            return {'domain': {'student_id': domain, 'student_ids': domain}}
+        else:
+            self.student_ids = self.env['school.student']
+            self.student_id = False
+            return {'domain': {'student_id': [('id', '=', False)], 'student_ids': [('id', '=', False)]}}
 
     @api.onchange('student_id')
     def _onchange_student_id(self):
@@ -1000,3 +1055,105 @@ class SchoolShopProduct(models.Model):
     description = fields.Text(string='Description')
     photo = fields.Binary(string='Photo')
     stock = fields.Integer(string='Stock disponible', default=10)
+
+
+class SchoolStudentTransitionWizard(models.TransientModel):
+    _name = 'school.student.transition.wizard'
+    _description = 'Assistant Inscription & Passage Nouvelle Année'
+
+    def _default_target_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    def _default_source_year_id(self):
+        years = self.env['school.year'].search([], order='id desc')
+        if len(years) > 1:
+            return years[1].id
+        return years[0].id if years else False
+
+    source_year_id = fields.Many2one('school.year', string='Année Source / Précédente', default=_default_source_year_id, required=True)
+    target_year_id = fields.Many2one('school.year', string='Nouvelle Année Scolaire (Cible)', default=_default_target_year_id, required=True)
+    source_level_id = fields.Many2one('school.level', string='Ancien Niveau / Classe (Source)', required=True)
+    target_level_id = fields.Many2one('school.level', string='Nouveau Niveau / Classe (Passage vers)', required=True)
+    student_ids = fields.Many2many('school.student', 'school_trans_wiz_student_rel', 'wizard_id', 'student_id', string='Élèves à inscrire / faire passer', required=True)
+    registration_fee = fields.Float(string='Frais d\'inscription / réinscription (DH)', default=1000.0)
+    monthly_fee = fields.Float(string='Frais de scolarité mensuel (DH)', default=1500.0)
+    archive_source_students = fields.Boolean(string='Archiver les anciens profils dans l\'année précédente', default=True)
+
+    @api.onchange('source_level_id', 'source_year_id')
+    def _onchange_source_level(self):
+        if self.source_level_id:
+            domain = [('level_id', '=', self.source_level_id.id)]
+            if self.source_year_id:
+                domain.append(('year_id', '=', self.source_year_id.id))
+            students = self.env['school.student'].with_context(active_test=False).search(domain)
+            self.student_ids = students
+            return {'domain': {'student_ids': [('level_id', '=', self.source_level_id.id)]}}
+        else:
+            self.student_ids = self.env['school.student']
+            return {'domain': {'student_ids': [('id', '=', False)]}}
+
+    def action_apply_transition(self):
+        self.ensure_one()
+        if not self.student_ids:
+            return
+
+        months = ['09', '10', '11', '12', '01', '02', '03', '04', '05', '06', '07']
+        created_students = self.env['school.student']
+
+        for st in self.student_ids:
+            # 1. Archiver l'ancien profil de l'année précédente si demandé
+            if self.archive_source_students:
+                st.write({'active': False})
+
+            # 2. Créer le profil de l'élève dans la nouvelle année et nouveau niveau
+            new_st = self.env['school.student'].create({
+                'name': st.name,
+                'full_name': st.full_name,
+                'massar_number': st.massar_number,
+                'level_id': self.target_level_id.id,
+                'year_id': self.target_year_id.id,
+                'parent_id': st.parent_id.id if st.parent_id else False,
+                'photo': st.photo,
+                'active': True,
+                'wallet_balance': getattr(st, 'wallet_balance', 150.0),
+            })
+            created_students |= new_st
+
+            # 3. Générer automatiquement toutes les matières et sous-matières du nouveau niveau
+            new_st.action_generate_grade_lines()
+
+            # 4. Créer la ligne de paiement des frais d'inscription
+            if self.registration_fee > 0:
+                self.env['school.payment'].create({
+                    'student_id': new_st.id,
+                    'level_id': self.target_level_id.id,
+                    'year_id': self.target_year_id.id,
+                    'month': '09',
+                    'amount': self.registration_fee,
+                    'payment_type': 'registration',
+                    'date': fields.Date.today(),
+                    'state': 'unpaid',
+                })
+
+            # 5. Créer les 11 mensualités à payer de septembre à juillet
+            for m in months:
+                self.env['school.payment'].create({
+                    'student_id': new_st.id,
+                    'level_id': self.target_level_id.id,
+                    'year_id': self.target_year_id.id,
+                    'month': m,
+                    'amount': self.monthly_fee,
+                    'payment_type': 'tuition',
+                    'date': fields.Date.today(),
+                    'state': 'unpaid',
+                })
+
+        return {
+            'name': f'Élèves inscrits - {self.target_level_id.name}',
+            'type': 'ir.actions.act_window',
+            'res_model': 'school.student',
+            'view_mode': 'list,kanban,form',
+            'domain': [('id', 'in', created_students.ids)],
+            'target': 'current',
+        }

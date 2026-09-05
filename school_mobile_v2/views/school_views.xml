@@ -151,6 +151,13 @@
         <field name="target">new</field>
     </record>
 
+    <record id="action_school_student_transition_wizard" model="ir.actions.act_window">
+        <field name="name">🎓 Inscription &amp; Passage Nouvelle Année</field>
+        <field name="res_model">school.student.transition.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
     <!-- MENUS -->
     <!-- Menu Racine -->
     <menuitem id="menu_mobile_v2_root" 
@@ -164,6 +171,12 @@
               parent="menu_mobile_v2_root" 
               action="action_student_mobile" 
               sequence="10"/>
+
+    <menuitem id="menu_mobile_v2_student_transition" 
+              name="🎓 Inscription / Passage Année" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_student_transition_wizard" 
+              sequence="12"/>
 
     <menuitem id="menu_mobile_v2_grade" 
               name="Notes" 
@@ -517,6 +530,7 @@
             <form string="Fiche Élève">
                 <header>
                     <button name="action_generate_grade_lines" type="object" string="Générer les sous-matières du niveau" class="oe_highlight" icon="fa-list"/>
+                    <button name="%(action_school_student_transition_wizard)d" type="action" string="🎓 Inscription / Passage Nouvelle Année" class="btn-primary" icon="fa-graduation-cap"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
@@ -829,8 +843,8 @@
                             <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
                         <group string="Classe &amp; Destinataires">
-                            <field name="level_id" placeholder="Sélectionnez une classe / niveau"/>
-                            <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" domain="[('level_id', '=', level_id)]" placeholder="Tous les élèves de la classe ou sélectionnez un/plusieurs élèves"/>
+                            <field name="level_id" required="1" placeholder="Sélectionnez obligatoirement une classe"/>
+                            <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" domain="[('level_id', '=', level_id)]" placeholder="Sélectionnez les élèves du niveau..."/>
                         </group>
                     </group>
                     <group string="Document / Fichier">
@@ -866,6 +880,8 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_open_transition_wizard" type="object" string="🎓 Inscription / Passage Nouvelle Année" class="oe_highlight" icon="fa-graduation-cap"/>
+                    <button name="action_archive_previous_students" type="object" string="Archiver anciens élèves" class="btn-secondary" icon="fa-archive" confirm="Êtes-vous sûr de vouloir archiver tous les élèves qui ne sont pas de cette année scolaire ?"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,open,closed"/>
                 </header>
                 <sheet>
@@ -1150,6 +1166,7 @@
                                 <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-warning="state == 'partial'" decoration-danger="state == 'unpaid'"/>
                             </div>
                             <div class="text-muted small">
+                                <div><i class="fa fa-tag me-1"/> <strong>Type :</strong> <field name="payment_type"/></div>
                                 <div><i class="fa fa-calendar-o me-1"/> <strong>Année :</strong> <field name="year_id"/></div>
                                 <div><i class="fa fa-clock-o me-1"/> <strong>Mois :</strong> <field name="month"/></div>
                                 <div><i class="fa fa-money me-1"/> <strong>Montant :</strong> <field name="amount"/> DH</div>
@@ -1166,6 +1183,7 @@
                                 <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-warning="state == 'partial'" decoration-danger="state == 'unpaid'"/>
                             </div>
                             <div class="text-muted small">
+                                <div><i class="fa fa-tag me-1"/> <strong>Type :</strong> <field name="payment_type"/></div>
                                 <div><i class="fa fa-calendar-o me-1"/> <strong>Année :</strong> <field name="year_id"/></div>
                                 <div><i class="fa fa-clock-o me-1"/> <strong>Mois :</strong> <field name="month"/></div>
                                 <div><i class="fa fa-money me-1"/> <strong>Montant :</strong> <field name="amount"/> DH</div>
@@ -1183,6 +1201,7 @@
         <field name="model">school.payment</field>
         <field name="arch" type="xml">
             <list string="Paiements Mensuels">
+                <field name="payment_type" widget="badge" decoration-info="payment_type == 'tuition'" decoration-primary="payment_type == 'registration'"/>
                 <field name="level_id"/>
                 <field name="student_id"/>
                 <field name="year_id" readonly="1"/>
@@ -1201,15 +1220,22 @@
             <form string="Paiement Scolarité">
                 <sheet>
                     <group>
-                        <group string="Élève &amp; Période">
+                        <group string="Type &amp; Période">
+                            <field name="payment_type" widget="radio"/>
+                            <field name="month" invisible="payment_type == 'registration'"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
+                        </group>
+                        <group string="Élève &amp; Classe">
                             <field name="level_id" placeholder="Sélectionnez une classe"/>
                             <field name="student_id" options="{'no_create': True}" domain="[('level_id', '=', level_id)]"/>
-                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
-                            <field name="month"/>
                         </group>
-                        <group string="Détails du Paiement">
+                    </group>
+                    <group string="Détails du Paiement">
+                        <group>
                             <field name="amount"/>
                             <field name="date"/>
+                        </group>
+                        <group>
                             <field name="state" widget="radio"/>
                         </group>
                     </group>
@@ -1533,6 +1559,49 @@
                         </group>
                     </group>
                 </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- WIZARD INSCRIPTION & PASSAGE NOUVELLE ANNÉE -->
+    <record id="view_school_student_transition_wizard_form" model="ir.ui.view">
+        <field name="name">school.student.transition.wizard.form</field>
+        <field name="model">school.student.transition.wizard</field>
+        <field name="arch" type="xml">
+            <form string="🎓 Assistant Inscription &amp; Passage Nouvelle Année">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        <strong><i class="fa fa-info-circle me-1"/> Processus automatisé :</strong>
+                        Cet assistant permet de réinscrire les élèves d'un niveau source vers le niveau supérieur pour la nouvelle année scolaire. 
+                        Il archive les anciens profils dans l'année précédente, génère automatiquement toutes les matières &amp; sous-matières, 
+                        crée la ligne des frais d'inscription et prépare les 11 mensualités à payer de septembre à juillet.
+                    </div>
+                    <group>
+                        <group string="Années Scolaires">
+                            <field name="source_year_id" options="{'no_create': True}"/>
+                            <field name="target_year_id" options="{'no_create': True}"/>
+                        </group>
+                        <group string="Niveaux / Classes">
+                            <field name="source_level_id" options="{'no_create': True}" placeholder="Ex: 1APG (Niveau actuel)"/>
+                            <field name="target_level_id" options="{'no_create': True}" placeholder="Ex: 2APG (Passage vers)"/>
+                        </group>
+                    </group>
+                    <group string="Frais &amp; Paramètres Financiers">
+                        <group>
+                            <field name="registration_fee" widget="monetary" options="{'currency_field': 'company_currency_id'}"/>
+                            <field name="monthly_fee" widget="monetary" options="{'currency_field': 'company_currency_id'}"/>
+                        </group>
+                        <group>
+                            <field name="archive_source_students" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <separator string="Élèves à faire passer / réinscrire"/>
+                    <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" domain="[('level_id', '=', source_level_id)]" placeholder="Sélectionnez les élèves à faire passer..."/>
+                </sheet>
+                <footer>
+                    <button name="action_apply_transition" string="🚀 Valider l'Inscription &amp; le Passage de Niveau" type="object" class="btn-primary" icon="fa-check-circle"/>
+                    <button string="Annuler" class="btn-secondary" special="cancel"/>
+                </footer>
             </form>
         </field>
     </record>
