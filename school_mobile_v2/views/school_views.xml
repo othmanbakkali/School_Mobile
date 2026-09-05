@@ -450,7 +450,8 @@
         <field name="model">school.grade</field>
         <field name="arch" type="xml">
             <list editable="bottom">
-                <field name="student_id"/>
+                <field name="level_id" placeholder="Classe"/>
+                <field name="student_id" options="{'no_create': True}"/>
                 <field name="year_id"/>
                 <field name="subject_id"/>
                 <field name="sub_subject_id"/>
@@ -471,14 +472,15 @@
             <form>
                 <sheet>
                     <group>
-                        <group>
-                            <field name="student_id"/>
+                        <group string="Élève &amp; Matière">
+                            <field name="level_id" placeholder="Sélectionnez la classe"/>
+                            <field name="student_id" options="{'no_create': True}"/>
                             <field name="year_id"/>
                             <field name="subject_id"/>
                             <field name="sub_subject_id" invisible="not subject_id"/>
                             <field name="semester_id"/>
                         </group>
-                        <group>
+                        <group string="Notes &amp; Évaluations">
                             <field name="cc1"/>
                             <field name="cc2"/>
                             <field name="oral_mark"/>
@@ -726,13 +728,41 @@
         <field name="name">school.attendance.tree</field>
         <field name="model">school.attendance</field>
         <field name="arch" type="xml">
-            <list decoration-danger="type == 'absence'" decoration-warning="type == 'late'">
+            <list decoration-danger="type == 'absence'" decoration-warning="type == 'late'" editable="bottom">
                 <field name="date"/>
-                <field name="student_id"/>
+                <field name="level_id" placeholder="Classe"/>
+                <field name="student_id" options="{'no_create': True}"/>
                 <field name="type"/>
                 <field name="duration" invisible="type != 'late'"/>
                 <field name="is_justified" widget="boolean_toggle"/>
+                <field name="reason"/>
+                <field name="year_id" options="{'no_create': True}"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_attendance_form" model="ir.ui.view">
+        <field name="name">school.attendance.form</field>
+        <field name="model">school.attendance</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group string="Élève &amp; Classe">
+                            <field name="level_id" placeholder="Sélectionnez une classe"/>
+                            <field name="student_id" options="{'no_create': True}"/>
+                            <field name="year_id" options="{'no_create': True}"/>
+                        </group>
+                        <group string="Détails Absence / Retard">
+                            <field name="date"/>
+                            <field name="type"/>
+                            <field name="duration" invisible="type != 'late'"/>
+                            <field name="is_justified" widget="boolean_toggle"/>
+                            <field name="reason"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
         </field>
     </record>
 
@@ -848,6 +878,7 @@
         <field name="arch" type="xml">
             <list>
                 <field name="date"/>
+                <field name="level_id"/>
                 <field name="student_id"/>
                 <field name="type"/>
                 <field name="title"/>
@@ -865,17 +896,19 @@
             <form>
                 <sheet>
                     <group>
-                        <group>
-                            <field name="student_id"/>
+                        <group string="Destinataire(s)">
+                            <field name="level_id" placeholder="Sélectionnez une classe"/>
+                            <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" placeholder="Tous les élèves de la classe"/>
+                            <field name="student_id" options="{'no_create': True}"/>
                             <field name="type"/>
                             <field name="title"/>
                             <field name="author"/>
                         </group>
-                        <group>
+                        <group string="Planning &amp; Signature">
                             <field name="date"/>
                             <field name="requires_signature"/>
                             <field name="signed" invisible="not requires_signature"/>
-                            <field name="year_id"/>
+                            <field name="year_id" options="{'no_create': True}"/>
                         </group>
                     </group>
                     <separator string="Contenu"/>
@@ -938,6 +971,7 @@
         <field name="arch" type="xml">
             <list>
                 <field name="date"/>
+                <field name="level_id"/>
                 <field name="student_id"/>
                 <field name="teacher"/>
                 <field name="subject"/>
@@ -953,15 +987,16 @@
             <form>
                 <sheet>
                     <group>
-                        <group>
-                            <field name="student_id"/>
+                        <group string="Élève &amp; Enseignant">
+                            <field name="level_id" placeholder="Sélectionnez une classe"/>
+                            <field name="student_id" options="{'no_create': True}"/>
                             <field name="teacher"/>
                             <field name="subject"/>
                         </group>
-                        <group>
+                        <group string="Détails">
                             <field name="date"/>
                             <field name="sentiment"/>
-                            <field name="year_id"/>
+                            <field name="year_id" options="{'no_create': True}"/>
                         </group>
                     </group>
                     <separator string="Commentaire"/>
@@ -1130,6 +1165,7 @@
         <field name="model">school.payment</field>
         <field name="arch" type="xml">
             <list string="Paiements Mensuels">
+                <field name="level_id"/>
                 <field name="student_id"/>
                 <field name="year_id"/>
                 <field name="month"/>
@@ -1148,8 +1184,9 @@
                 <sheet>
                     <group>
                         <group string="Élève &amp; Période">
-                            <field name="student_id"/>
-                            <field name="year_id"/>
+                            <field name="level_id" placeholder="Sélectionnez une classe"/>
+                            <field name="student_id" options="{'no_create': True}"/>
+                            <field name="year_id" options="{'no_create': True}"/>
                             <field name="month"/>
                         </group>
                         <group string="Détails du Paiement">

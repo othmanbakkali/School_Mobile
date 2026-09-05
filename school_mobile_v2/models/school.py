@@ -1,13 +1,33 @@
 from odoo import models, fields, api
 
 
+def _get_current_year_record(env):
+    """ Récupère l'année scolaire active courante depuis la configuration ou l'état en cours """
+    config = env['school.config'].sudo().search([], limit=1)
+    if config and config.current_year_id:
+        return config.current_year_id
+    open_year = env['school.year'].sudo().search([('state', '=', 'open')], limit=1)
+    if open_year:
+        return open_year
+    return env['school.year'].sudo().search([], limit=1)
+
+
 class SchoolLevel(models.Model):
     _name = 'school.level'
     _description = 'Niveau Scolaire'
 
     name = fields.Char(string='Niveau / Classe', required=True)
-    student_ids = fields.One2many('school.student', 'level_id', string='Élèves')
+    student_ids = fields.One2many('school.student', 'level_id', string='Tous les élèves')
+    current_student_ids = fields.Many2many('school.student', compute='_compute_current_students', string='Élèves Année Courante')
     subject_ids = fields.Many2many('school.subject', 'school_subject_level_rel', 'level_id', 'subject_id', string='Matières du niveau')
+
+    def _compute_current_students(self):
+        curr_year = _get_current_year_record(self.env)
+        for level in self:
+            domain = [('level_id', '=', level.id)]
+            if curr_year:
+                domain.append(('year_id', '=', curr_year.id))
+            level.current_student_ids = self.env['school.student'].search(domain)
 
 
 class SchoolParent(models.Model):
@@ -25,11 +45,15 @@ class SchoolStudent(models.Model):
     _inherit = ['mail.thread']
     _description = 'Élève'
 
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
     name = fields.Char(string='Nom', required=True)
     full_name = fields.Char(string='Prénom & Nom')
     massar_number = fields.Char(string='Code / N° Massar (رقم مسار)', index=True, help="Identifiant national de l'élève (Code MASSAR)")
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
     parent_id = fields.Many2one('school.parent', string='Parent Responsable')
     average_grade = fields.Float(string='Moyenne', compute='_compute_average_grade', store=True)
     photo = fields.Binary(string='Photo')
@@ -90,6 +114,7 @@ class SchoolStudent(models.Model):
             if rec.level_id and not rec.grade_ids:
                 rec.action_generate_grade_lines()
         return records
+
     homework_ids = fields.Many2many('school.homework', 'school_homework_student_rel', 'student_id', 'homework_id', string='Devoirs')
     grade_ids = fields.One2many('school.grade', 'student_id', string='Notes')
     attendance_ids = fields.One2many('school.attendance', 'student_id', string='Absences/Retards')
@@ -146,19 +171,6 @@ class SchoolSubject(models.Model):
             rec.sub_subject_count = len(rec.sub_subject_ids)
 
 
-class SchoolSubSubject(models.Model):
-    _name = 'school.sub.subject'
-    _description = 'Sous-matière / Détail Matière'
-    _order = 'sequence, name'
-
-    name = fields.Char(string='Nom de la sous-matière / détail', required=True)
-    code = fields.Char(string='Code')
-    sequence = fields.Integer(string='Séquence', default=10)
-    subject_id = fields.Many2one('school.subject', string='Matière principale', required=True, ondelete='cascade')
-    coefficient = fields.Float(string='Coefficient', default=1.0)
-    description = fields.Text(string='Description / Objectifs pédagogiques')
-
-
 class SchoolYear(models.Model):
     _name = 'school.year'
     _description = 'Année Scolaire'
@@ -190,6 +202,11 @@ class SchoolAttendance(models.Model):
     _description = 'Absences et Retards'
     _order = 'date desc'
 
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    level_id = fields.Many2one('school.level', string='Niveau / Classe')
     student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
     date = fields.Datetime(string='Date & Heure', default=fields.Datetime.now, required=True)
     type = fields.Selection([
@@ -199,7 +216,27 @@ class SchoolAttendance(models.Model):
     duration = fields.Integer(string='Durée (min)')
     reason = fields.Char(string='Motif')
     is_justified = fields.Boolean(string='Justifié', default=False)
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+
+    @api.onchange('level_id', 'year_id')
+    def _onchange_level_id(self):
+        year = self.year_id or _get_current_year_record(self.env)
+        domain = []
+        if self.level_id:
+            domain.append(('level_id', '=', self.level_id.id))
+        if year:
+            domain.append(('year_id', '=', year.id))
+        if self.student_id and self.level_id and self.student_id.level_id != self.level_id:
+            self.student_id = False
+        return {'domain': {'student_id': domain}}
+
+    @api.onchange('student_id')
+    def _onchange_student_id(self):
+        if self.student_id:
+            if self.student_id.level_id and not self.level_id:
+                self.level_id = self.student_id.level_id
+            if self.student_id.year_id and not self.year_id:
+                self.year_id = self.student_id.year_id
 
 
 class SchoolHomework(models.Model):
@@ -207,31 +244,43 @@ class SchoolHomework(models.Model):
     _description = 'Devoirs'
     _order = 'date_due desc'
 
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
     title = fields.Char(string='Titre', required=True)
     description = fields.Text(string='Description')
     subject = fields.Char(string='Matière (Texte)')
     subject_id = fields.Many2one('school.subject', string='Matière')
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
     date_due = fields.Date(string="Date d'échéance")
-    level_id = fields.Many2one('school.level', string='Niveau / Classe', help="Sélectionnez une classe pour charger automatiquement tous ses élèves")
+    level_id = fields.Many2one('school.level', string='Niveau / Classe', help="Sélectionnez une classe pour charger automatiquement tous ses élèves de l'année scolaire en cours")
     student_ids = fields.Many2many('school.student', 'school_homework_student_rel', 'homework_id', 'student_id', string='Élèves concernés')
     student_id = fields.Many2one('school.student', string='Élève individuel')
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
     state = fields.Selection([('draft', 'En cours'), ('done', 'Fait')], default='draft')
     attachment = fields.Binary(string='Pièce Jointe')
     attachment_name = fields.Char(string='Nom du fichier')
 
-    @api.onchange('level_id')
+    @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
+        year = self.year_id or _get_current_year_record(self.env)
+        domain = []
         if self.level_id:
-            students = self.env['school.student'].search([('level_id', '=', self.level_id.id)])
+            domain.append(('level_id', '=', self.level_id.id))
+        if year:
+            domain.append(('year_id', '=', year.id))
+
+        if self.level_id:
+            students = self.env['school.student'].search(domain)
             self.student_ids = [(6, 0, students.ids)]
             self.student_id = False
-            return {'domain': {'student_ids': [('level_id', '=', self.level_id.id)]}}
+            return {'domain': {'student_ids': domain, 'student_id': domain}}
         else:
             self.student_ids = [(5, 0, 0)]
             self.student_id = False
-            return {'domain': {'student_ids': []}}
+            domain_no_level = [('year_id', '=', year.id)] if year else []
+            return {'domain': {'student_ids': domain_no_level, 'student_id': domain_no_level}}
 
     @api.onchange('subject_id')
     def _onchange_subject_id(self):
@@ -251,8 +300,15 @@ class SchoolHomework(models.Model):
                 subj = self.env['school.subject'].browse(vals['subject_id'])
                 if subj.exists():
                     vals['subject'] = subj.name
+            if not vals.get('year_id'):
+                y = _get_current_year_record(self.env)
+                if y:
+                    vals['year_id'] = y.id
             if vals.get('level_id') and not vals.get('student_ids') and not vals.get('student_id'):
-                students = self.env['school.student'].search([('level_id', '=', vals['level_id'])])
+                domain = [('level_id', '=', vals['level_id'])]
+                if vals.get('year_id'):
+                    domain.append(('year_id', '=', vals['year_id']))
+                students = self.env['school.student'].search(domain)
                 if students:
                     vals['student_ids'] = [(6, 0, students.ids)]
             if vals.get('student_ids') and not vals.get('student_id'):
@@ -268,10 +324,15 @@ class SchoolGrade(models.Model):
     _name = 'school.grade'
     _description = 'Notes'
 
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
     subject = fields.Char(string='Matière (Texte)')
     subject_id = fields.Many2one('school.subject', string='Matière (Sélection)')
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    level_id = fields.Many2one('school.level', string='Niveau / Classe')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
     semester_id = fields.Many2one('school.semester', string='Semestre (Sélection)')
     semester = fields.Selection([
         ('S1', 'Semestre 1'),
@@ -283,6 +344,26 @@ class SchoolGrade(models.Model):
     mid_term_mark = fields.Float(string='Note Mid-term', default=0.0)
     final_mark = fields.Float(string='Note Finale', default=0.0)
     student_id = fields.Many2one('school.student', string='Élève', ondelete='cascade')
+
+    @api.onchange('level_id', 'year_id')
+    def _onchange_level_id(self):
+        year = self.year_id or _get_current_year_record(self.env)
+        domain = []
+        if self.level_id:
+            domain.append(('level_id', '=', self.level_id.id))
+        if year:
+            domain.append(('year_id', '=', year.id))
+        if self.student_id and self.level_id and self.student_id.level_id != self.level_id:
+            self.student_id = False
+        return {'domain': {'student_id': domain}}
+
+    @api.onchange('student_id')
+    def _onchange_student_id(self):
+        if self.student_id:
+            if self.student_id.level_id:
+                self.level_id = self.student_id.level_id
+            if self.student_id.year_id:
+                self.year_id = self.student_id.year_id
 
     @api.onchange('subject_id')
     def _onchange_subject_id(self):
@@ -335,6 +416,10 @@ class SchoolSchedule(models.Model):
     _description = 'Emploi du temps'
     _order = 'day_of_week, start_time'
 
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
     day_of_week = fields.Selection([
         ('0', 'Lundi'),
         ('1', 'Mardi'),
@@ -352,7 +437,7 @@ class SchoolSchedule(models.Model):
     teacher = fields.Char(string='Enseignant (Texte)')
     teacher_id = fields.Many2one('school.teacher', string='Professeur (Sélection)')
     level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True)
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
 
     @api.onchange('subject_id')
     def _onchange_subject_id(self):
@@ -371,6 +456,10 @@ class SchoolAnnouncement(models.Model):
     _description = 'Annonces aux Parents'
     _order = 'date desc'
 
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
     title = fields.Char(string='Titre', required=True)
     content = fields.Text(string='Contenu', required=True)
     date = fields.Datetime(string='Date d\'envoi', default=fields.Datetime.now)
@@ -378,7 +467,7 @@ class SchoolAnnouncement(models.Model):
     author_id = fields.Many2one('res.users', string='Auteur', default=lambda self: self.env.user)
     attachment = fields.Binary(string='Pièce Jointe')
     attachment_name = fields.Char(string='Nom du fichier')
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
 
 
 class SchoolConfig(models.Model):
@@ -399,13 +488,20 @@ class SchoolConfig(models.Model):
     staff_ids = fields.Many2many('school.staff', string='Personnel Administratif')
     teacher_ids = fields.Many2many('school.teacher', string='Corps Enseignant')
     subject_ids = fields.Many2many('school.subject', string='Matières de l\'école')
+
+
 class SchoolPayment(models.Model):
     _name = 'school.payment'
     _description = 'Paiement Scolarité'
     _order = 'date desc'
 
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    level_id = fields.Many2one('school.level', string='Niveau / Classe')
     student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
-    year_id = fields.Many2one('school.year', string='Année Scolaire', required=True)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, required=True)
     month = fields.Selection([
         ('01', 'Janvier'), ('02', 'Février'), ('03', 'Mars'),
         ('04', 'Avril'), ('05', 'Mai'), ('06', 'Juin'),
@@ -419,6 +515,26 @@ class SchoolPayment(models.Model):
         ('unpaid', 'Non payé'),
         ('partial', 'Partiel'),
     ], string='État', default='paid')
+
+    @api.onchange('level_id', 'year_id')
+    def _onchange_level_id(self):
+        year = self.year_id or _get_current_year_record(self.env)
+        domain = []
+        if self.level_id:
+            domain.append(('level_id', '=', self.level_id.id))
+        if year:
+            domain.append(('year_id', '=', year.id))
+        if self.student_id and self.level_id and self.student_id.level_id != self.level_id:
+            self.student_id = False
+        return {'domain': {'student_id': domain}}
+
+    @api.onchange('student_id')
+    def _onchange_student_id(self):
+        if self.student_id:
+            if self.student_id.level_id and not self.level_id:
+                self.level_id = self.student_id.level_id
+            if self.student_id.year_id and not self.year_id:
+                self.year_id = self.student_id.year_id
 
 
 class SchoolLostItem(models.Model):
@@ -442,6 +558,12 @@ class SchoolCahierTransmission(models.Model):
     _description = 'Cahier de Transmission'
     _order = 'date desc'
 
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    level_id = fields.Many2one('school.level', string='Niveau / Classe')
+    student_ids = fields.Many2many('school.student', 'school_transmission_student_rel', 'transmission_id', 'student_id', string='Élèves concernés')
     student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
     type = fields.Selection([
         ('info', 'Information'),
@@ -456,13 +578,40 @@ class SchoolCahierTransmission(models.Model):
     date = fields.Datetime(string='Date', default=fields.Datetime.now)
     requires_signature = fields.Boolean(string='Signature requise', default=False)
     signed = fields.Boolean(string='Signé', default=False)
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+
+    @api.onchange('level_id', 'year_id')
+    def _onchange_level_id(self):
+        year = self.year_id or _get_current_year_record(self.env)
+        domain = []
+        if self.level_id:
+            domain.append(('level_id', '=', self.level_id.id))
+        if year:
+            domain.append(('year_id', '=', year.id))
+        if self.level_id:
+            students = self.env['school.student'].search(domain)
+            self.student_ids = [(6, 0, students.ids)]
+            if students and (not self.student_id or self.student_id not in students):
+                self.student_id = students[0]
+        return {'domain': {'student_id': domain, 'student_ids': domain}}
+
+    @api.onchange('student_id')
+    def _onchange_student_id(self):
+        if self.student_id:
+            if self.student_id.level_id and not self.level_id:
+                self.level_id = self.student_id.level_id
+            if self.student_id.year_id and not self.year_id:
+                self.year_id = self.student_id.year_id
 
 
 class SchoolResource(models.Model):
     _name = 'school.resources'
     _description = 'Ressources Pédagogiques'
     _order = 'date desc'
+
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
 
     name = fields.Char(string='Nom', required=True)
     subject = fields.Char(string='Matière')
@@ -481,7 +630,7 @@ class SchoolResource(models.Model):
     url = fields.Char(string='URL')
     datas = fields.Binary(string='Fichier (Données)')
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
 
 
 class SchoolPedagogicalComment(models.Model):
@@ -489,6 +638,11 @@ class SchoolPedagogicalComment(models.Model):
     _description = 'Commentaires Pédagogiques'
     _order = 'date desc'
 
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    level_id = fields.Many2one('school.level', string='Niveau / Classe')
     student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
     teacher = fields.Char(string='Enseignant', required=True)
     subject = fields.Char(string='Matière')
@@ -499,7 +653,27 @@ class SchoolPedagogicalComment(models.Model):
         ('neutral', 'Neutre'),
     ], string='Sentiment', required=True, default='neutral')
     text = fields.Text(string='Commentaire', required=True)
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+
+    @api.onchange('level_id', 'year_id')
+    def _onchange_level_id(self):
+        year = self.year_id or _get_current_year_record(self.env)
+        domain = []
+        if self.level_id:
+            domain.append(('level_id', '=', self.level_id.id))
+        if year:
+            domain.append(('year_id', '=', year.id))
+        if self.student_id and self.level_id and self.student_id.level_id != self.level_id:
+            self.student_id = False
+        return {'domain': {'student_id': domain}}
+
+    @api.onchange('student_id')
+    def _onchange_student_id(self):
+        if self.student_id:
+            if self.student_id.level_id and not self.level_id:
+                self.level_id = self.student_id.level_id
+            if self.student_id.year_id and not self.year_id:
+                self.year_id = self.student_id.year_id
 
 
 class SchoolTransport(models.Model):
@@ -521,6 +695,11 @@ class SchoolWalletTransaction(models.Model):
     _description = 'Transactions Portefeuille'
     _order = 'date desc'
 
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    level_id = fields.Many2one('school.level', string='Niveau / Classe')
     student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
     date = fields.Datetime(string='Date & Heure', default=fields.Datetime.now, required=True)
     amount = fields.Float(string='Montant', required=True)
@@ -529,7 +708,27 @@ class SchoolWalletTransaction(models.Model):
         ('debit', 'Achat boutique'),
     ], string='Type', required=True, default='debit')
     description = fields.Char(string='Description', required=True)
-    year_id = fields.Many2one('school.year', string='Année Scolaire')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+
+    @api.onchange('level_id', 'year_id')
+    def _onchange_level_id(self):
+        year = self.year_id or _get_current_year_record(self.env)
+        domain = []
+        if self.level_id:
+            domain.append(('level_id', '=', self.level_id.id))
+        if year:
+            domain.append(('year_id', '=', year.id))
+        if self.student_id and self.level_id and self.student_id.level_id != self.level_id:
+            self.student_id = False
+        return {'domain': {'student_id': domain}}
+
+    @api.onchange('student_id')
+    def _onchange_student_id(self):
+        if self.student_id:
+            if self.student_id.level_id and not self.level_id:
+                self.level_id = self.student_id.level_id
+            if self.student_id.year_id and not self.year_id:
+                self.year_id = self.student_id.year_id
 
 
 class SchoolShopProduct(models.Model):
@@ -547,122 +746,3 @@ class SchoolShopProduct(models.Model):
     description = fields.Text(string='Description')
     photo = fields.Binary(string='Photo')
     stock = fields.Integer(string='Stock disponible', default=10)
-
-
-class SchoolMobileTab(models.Model):
-    _name = 'school.mobile.tab'
-    _description = 'Configuration des Onglets / Menus de l\'Application Mobile'
-    _order = 'sequence, id'
-
-    name = fields.Char(string='Nom de l\'onglet', required=True)
-    technical_code = fields.Char(string='Code Technique', required=True, help="Identifiant unique de l'onglet dans l'app (ex: homework, notes)")
-    icon = fields.Char(string='Icône (Ionicons)', required=True, default='document-text-outline')
-    path = fields.Char(string='Route / Chemin App', required=True, default='/tabs/dashboard')
-    sequence = fields.Integer(string='Séquence / Ordre', default=10)
-    is_active = fields.Boolean(string='Actif', default=True, help="Si décoché, l'onglet est masqué pour tout le monde")
-    
-    # Restrictons / Droits d'accès détaillés
-    group_ids = fields.Many2many(
-        'res.groups', 
-        'school_mobile_tab_group_rel', 
-        'tab_id', 
-        'group_id', 
-        string='Groupes d\'accès autorisés',
-        help="Si vide, l'onglet est accessible à tous les groupes"
-    )
-    allowed_user_ids = fields.Many2many(
-        'res.users', 
-        'school_mobile_tab_user_rel', 
-        'tab_id', 
-        'user_id', 
-        string='Utilisateurs autorisés spécifiques'
-    )
-    denied_user_ids = fields.Many2many(
-        'res.users', 
-        'school_mobile_tab_denied_user_rel', 
-        'tab_id', 
-        'user_id', 
-        string='Utilisateurs masqués spécifiques'
-    )
-
-    _sql_constraints = [
-        ('code_unique', 'unique(technical_code)', 'Le code technique de l\'onglet doit être unique !')
-    ]
-
-    @api.model
-    def _seed_default_tabs(self):
-        existing = set(self.search([]).mapped('technical_code'))
-        default_tabs = [
-            {'name': 'Tableau de bord', 'technical_code': 'dashboard', 'icon': 'globeOutline', 'path': '/tabs/dashboard', 'sequence': 10},
-            {'name': 'Emploi du temps', 'technical_code': 'schedule', 'icon': 'calendarOutline', 'path': '/tabs/schedule', 'sequence': 20},
-            {'name': 'Devoirs', 'technical_code': 'homework', 'icon': 'documentTextOutline', 'path': '/tabs/homework', 'sequence': 30},
-            {'name': 'Notes & Relevés', 'technical_code': 'notes', 'icon': 'ribbonOutline', 'path': '/tabs/notes', 'sequence': 40},
-            {'name': 'Absences & Retards', 'technical_code': 'absences', 'icon': 'alertCircleOutline', 'path': '/tabs/absences', 'sequence': 50},
-            {'name': 'Cahier de transmission', 'technical_code': 'transmission', 'icon': 'heartOutline', 'path': '/tabs/transmission', 'sequence': 60},
-            {'name': 'Suivi Pédagogique', 'technical_code': 'suivi', 'icon': 'schoolOutline', 'path': '/tabs/suivi-pedagogique', 'sequence': 70},
-            {'name': 'Ressources Pédagogiques', 'technical_code': 'ressources', 'icon': 'bookmarkOutline', 'path': '/tabs/ressources', 'sequence': 80},
-            {'name': 'Cantine / Menus', 'technical_code': 'canteen', 'icon': 'restaurantOutline', 'path': '/tabs/vie-scolaire', 'sequence': 90},
-            {'name': 'Transport Scolaire', 'technical_code': 'transport', 'icon': 'busOutline', 'path': '/tabs/transport', 'sequence': 100},
-            {'name': 'Boutique Scolaire', 'technical_code': 'shop', 'icon': 'cartOutline', 'path': '/tabs/shop', 'sequence': 110},
-            {'name': 'Portefeuille Portepay', 'technical_code': 'wallet', 'icon': 'swapHorizontalOutline', 'path': '/tabs/wallet', 'sequence': 120},
-            {'name': 'Jeux & Défis', 'technical_code': 'games', 'icon': 'gameControllerOutline', 'path': '/tabs/games', 'sequence': 130},
-            {'name': 'Succès & Badges', 'technical_code': 'success', 'icon': 'trophyOutline', 'path': '/tabs/success', 'sequence': 140},
-            {'name': 'Paiements Scolarité', 'technical_code': 'payments', 'icon': 'cardOutline', 'path': '/tabs/payments', 'sequence': 150},
-            {'name': 'Objets Perdus', 'technical_code': 'lostItems', 'icon': 'archiveOutline', 'path': '/tabs/lost-items', 'sequence': 160},
-            {'name': 'Messagerie Directe', 'technical_code': 'chat', 'icon': 'mailOutline', 'path': '/chat', 'sequence': 170},
-            {'name': 'Album Photo', 'technical_code': 'album', 'icon': 'imagesOutline', 'path': '/tabs/album', 'sequence': 180},
-            {'name': 'Mon Compte', 'technical_code': 'account', 'icon': 'personOutline', 'path': '/tabs/account', 'sequence': 190},
-        ]
-        for t in default_tabs:
-            if t['technical_code'] not in existing:
-                self.create(t)
-
-    @api.model
-    def init(self):
-        super(SchoolMobileTab, self).init()
-
-    def action_generate_default_tabs(self):
-        self.sudo()._seed_default_tabs()
-        return True
-
-
-
-
-    @api.model
-    def get_user_tabs(self, user_id=None):
-        """
-        Retourne la liste des onglets autorisés pour un utilisateur donné ou l'utilisateur courant.
-        """
-        if not user_id:
-            user = self.env.user
-        else:
-            user = self.env['res.users'].browse(user_id)
-            
-        tabs = self.search([('is_active', '=', True)], order='sequence, id')
-        result = []
-
-        user_group_ids = set(user.groups_id.ids)
-
-        for tab in tabs:
-            if user in tab.denied_user_ids:
-                continue
-            if tab.allowed_user_ids and user in tab.allowed_user_ids:
-                result.append(tab)
-                continue
-            if tab.group_ids:
-                tab_group_ids = set(tab.group_ids.ids)
-                if not tab_group_ids.intersection(user_group_ids):
-                    continue
-            result.append(tab)
-
-        return [{
-            'id': t.id,
-            'name': t.name,
-            'technical_code': t.technical_code,
-            'icon': t.icon,
-            'path': t.path,
-            'sequence': t.sequence,
-            'is_active': t.is_active,
-        } for t in result]
-
-
