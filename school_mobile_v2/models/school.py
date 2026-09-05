@@ -12,6 +12,14 @@ def _get_current_year_record(env):
     return env['school.year'].sudo().search([], limit=1)
 
 
+def _get_default_level_record(env):
+    """ Récupère le niveau/classe par défaut depuis la configuration ou le premier niveau """
+    config = env['school.config'].sudo().search([], limit=1)
+    if config and config.default_level_id:
+        return config.default_level_id
+    return env['school.level'].sudo().search([], limit=1)
+
+
 class SchoolLevel(models.Model):
     _name = 'school.level'
     _description = 'Niveau Scolaire'
@@ -77,10 +85,14 @@ class SchoolStudent(models.Model):
         y = _get_current_year_record(self.env)
         return y.id if y else False
 
+    def _default_level_id(self):
+        l = _get_default_level_record(self.env)
+        return l.id if l else False
+
     name = fields.Char(string='Nom', required=True)
     full_name = fields.Char(string='Prénom & Nom')
     massar_number = fields.Char(string='Code / N° Massar (رقم مسار)', index=True, help="Identifiant national de l'élève (Code MASSAR)")
-    level_id = fields.Many2one('school.level', string='Niveau / Classe')
+    level_id = fields.Many2one('school.level', string='Niveau / Classe', default=_default_level_id)
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
     parent_id = fields.Many2one('school.parent', string='Parent Responsable')
     
@@ -271,9 +283,12 @@ class SchoolStudent(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         curr_year = _get_current_year_record(self.env)
+        def_level = _get_default_level_record(self.env)
         for vals in vals_list:
             if not vals.get('year_id') and curr_year:
                 vals['year_id'] = curr_year.id
+            if not vals.get('level_id') and def_level:
+                vals['level_id'] = def_level.id
         records = super(SchoolStudent, self).create(vals_list)
         for rec in records:
             if rec.level_id and not rec.grade_ids:
@@ -500,10 +515,14 @@ class SchoolGrade(models.Model):
         y = _get_current_year_record(self.env)
         return y.id if y else False
 
+    def _default_level_id(self):
+        l = _get_default_level_record(self.env)
+        return l.id if l else False
+
     subject = fields.Char(string='Matière (Texte)')
     subject_id = fields.Many2one('school.subject', string='Matière (Sélection)', required=True)
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
-    level_id = fields.Many2one('school.level', string='Niveau / Classe')
+    level_id = fields.Many2one('school.level', string='Niveau / Classe', default=_default_level_id)
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
     semester_id = fields.Many2one('school.semester', string='Semestre (Sélection)')
     semester = fields.Selection([
@@ -520,7 +539,17 @@ class SchoolGrade(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         curr_year = _get_current_year_record(self.env)
+        def_level = _get_default_level_record(self.env)
         for vals in vals_list:
+            if vals.get('student_id'):
+                st = self.env['school.student'].browse(vals['student_id'])
+                if st.exists():
+                    if not vals.get('level_id') and st.level_id:
+                        vals['level_id'] = st.level_id.id
+                    if not vals.get('year_id') and st.year_id:
+                        vals['year_id'] = st.year_id.id
+            if not vals.get('level_id') and def_level:
+                vals['level_id'] = def_level.id
             if not vals.get('year_id') and curr_year:
                 vals['year_id'] = curr_year.id
         return super(SchoolGrade, self).create(vals_list)
@@ -550,6 +579,8 @@ class SchoolGrade(models.Model):
                 self.level_id = self.student_id.level_id
             if self.student_id.year_id:
                 self.year_id = self.student_id.year_id
+        elif not self.level_id:
+            self.level_id = _get_default_level_record(self.env)
 
     @api.onchange('subject_id')
     def _onchange_subject_id(self):
@@ -663,6 +694,7 @@ class SchoolConfig(models.Model):
     name = fields.Char(string='Nom de l\'école', default='Mon École')
     school_year = fields.Char(string='Année Scolaire (Texte)')
     current_year_id = fields.Many2one('school.year', string='Année Scolaire Actuelle')
+    default_level_id = fields.Many2one('school.level', string='Niveau / Classe par Défaut')
     grade_scale = fields.Selection([
         ('20', 'Sur 20 (/20)'),
         ('10', 'Sur 10 (/10)'),

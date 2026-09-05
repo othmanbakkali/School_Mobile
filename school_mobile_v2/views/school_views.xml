@@ -654,9 +654,10 @@
             <form>
                 <sheet>
                     <group>
-                        <group string="École &amp; Notation">
+                        <group string="École &amp; Paramètres par Défaut">
                             <field name="name"/>
-                            <field name="current_year_id"/>
+                            <field name="current_year_id" options="{'no_create': True}"/>
+                            <field name="default_level_id" options="{'no_create': True}"/>
                             <field name="grade_scale" widget="radio"/>
                             <field name="logo" widget="image" class="oe_avatar"/>
                         </group>
