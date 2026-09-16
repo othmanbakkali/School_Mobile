@@ -27,15 +27,28 @@
             </ion-segment-button>
           </ion-segment>
 
+          <div v-if="loginMode === 'parent'" class="auth-hint-banner">
+            <ion-icon :icon="informationCircleOutline"></ion-icon>
+            <span>Login : <strong>N° Téléphone</strong> • Mot de passe : <strong>20262027</strong></span>
+          </div>
+
           <div class="input-group">
             <div class="input-item">
-              <ion-icon :icon="personOutline"></ion-icon>
-              <ion-input v-model="username" :placeholder="loginMode === 'parent' ? 'Email Parent' : 'Email Administrateur'"></ion-input>
+              <ion-icon :icon="loginMode === 'parent' ? callOutline : personOutline"></ion-icon>
+              <ion-input 
+                v-model="username" 
+                :type="loginMode === 'parent' ? 'tel' : 'text'"
+                :placeholder="loginMode === 'parent' ? 'N° Téléphone Parent (ex: 06...)' : 'Email Administrateur'"
+              ></ion-input>
             </div>
 
             <div class="input-item">
               <ion-icon :icon="lockClosedOutline"></ion-icon>
-              <ion-input v-model="password" type="password" :placeholder="loginMode === 'parent' ? 'Téléphone' : 'Mot de passe'"></ion-input>
+              <ion-input 
+                v-model="password" 
+                type="password" 
+                :placeholder="loginMode === 'parent' ? 'Mot de passe (20262027)' : 'Mot de passe'"
+              ></ion-input>
             </div>
           </div>
 
@@ -64,7 +77,10 @@ import {
   IonPage, IonContent, IonInput, IonButton, IonIcon,
   IonSegment, IonSegmentButton, IonLabel
 } from '@ionic/vue';
-import { schoolOutline, globeOutline, personOutline, lockClosedOutline, arrowForwardOutline, serverOutline } from 'ionicons/icons';
+import { 
+  schoolOutline, globeOutline, personOutline, lockClosedOutline, 
+  arrowForwardOutline, serverOutline, callOutline, informationCircleOutline 
+} from 'ionicons/icons';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { odoo } from '@/services/odoo';
@@ -228,6 +244,26 @@ const handleLogin = async () => {
   min-height: 40px;
   border-radius: 10px;
   font-weight: 700;
+}
+
+.auth-hint-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: #4338ca;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.auth-hint-banner ion-icon {
+  font-size: 1.25rem;
+  color: #6366f1;
+  flex-shrink: 0;
 }
 
 .input-group {

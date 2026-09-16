@@ -94,49 +94,75 @@ const getCurrentYearId = async (adminUid) => {
 };
 
 app.post('/api/auth/login', async (req, res) => {
-    const { username, password } = req.body; // username = email, password = phone
+    const { username, password } = req.body; // username = phone number, password = 20262027
     try {
         const adminUid = await getAdminUid();
         const cleanUser = (username || '').trim();
         const cleanPass = (password || '').trim();
 
-        const normalizePhone = (p) => (p || '').replace(/[\s\-\.\+]/g, '').replace(/^212/, '0');
-        const passPhoneNorm = normalizePhone(cleanPass);
+        // 1. Vérification du mot de passe (doit être 20262027 pour tous les parents)
+        if (cleanPass !== '20262027' && cleanPass !== '2026-2027') {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Mot de passe incorrect. Le mot de passe requis est 20262027." 
+            });
+        }
 
-        // 1. Rechercher le parent par email (insensible à la casse)
+        // 2. Normalisation du numéro de téléphone saisi
+        const normalizePhoneCore = (p) => {
+            if (!p) return '';
+            let digits = String(p).replace(/[^\d]/g, '');
+            if (digits.startsWith('212')) digits = digits.slice(3);
+            if (digits.startsWith('0')) digits = digits.slice(1);
+            return digits; // ex: 661553611
+        };
+
+        const userPhoneCore = normalizePhoneCore(cleanUser);
+        if (!userPhoneCore && !cleanUser.includes('@')) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Veuillez renseigner le numéro de téléphone du parent responsable." 
+            });
+        }
+
+        // 3. Récupérer tous les parents depuis Odoo pour une recherche précise
         const parents = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'search_read', 
-            [[['email', '=ilike', cleanUser]]], 
-            { fields: ['id', 'name', 'email', 'phone'] }
+            [[]], 
+            { fields: ['id', 'name', 'email', 'phone', 'student_ids'] }
         ]);
 
-        if (parents && parents.length > 0) {
-            const matched = parents.find(p => {
-                const parentPhoneNorm = normalizePhone(p.phone);
-                return parentPhoneNorm === passPhoneNorm || (p.phone && p.phone.trim() === cleanPass);
+        // Recherche par numéro de téléphone normalisé
+        let matched = null;
+        if (userPhoneCore) {
+            matched = parents.find(p => {
+                const pCore = normalizePhoneCore(p.phone);
+                return pCore && pCore === userPhoneCore;
             });
-
-            if (matched) {
-                return res.json({ success: true, uid: matched.id, name: matched.name, email: matched.email });
-            }
         }
 
-        // 2. Recherche directe si l'utilisateur a saisi le téléphone en login
-        const fallbackParents = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'search_read', 
-            [[['phone', '=', cleanPass]]], 
-            { fields: ['id', 'name', 'email', 'phone'] }
-        ]);
-
-        if (fallbackParents && fallbackParents.length > 0) {
-            const matched = fallbackParents.find(p => (p.email || '').toLowerCase() === cleanUser.toLowerCase());
-            if (matched) {
-                return res.json({ success: true, uid: matched.id, name: matched.name, email: matched.email });
-            }
+        // Fallback si l'utilisateur a saisi son email
+        if (!matched && cleanUser.includes('@')) {
+            matched = parents.find(p => p.email && p.email.trim().toLowerCase() === cleanUser.toLowerCase());
         }
 
-        res.status(401).json({ success: false, message: "Email ou numéro de téléphone incorrect" });
-    } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+        if (matched) {
+            return res.json({ 
+                success: true, 
+                uid: matched.id, 
+                name: matched.name, 
+                phone: matched.phone,
+                email: matched.email || (matched.phone ? `${matched.phone.replace(/[^\d]/g, '')}@parent.school` : 'parent@school.ma')
+            });
+        }
+
+        res.status(401).json({ 
+            success: false, 
+            message: "Numéro de téléphone introuvable pour ce parent responsable. Veuillez vérifier le numéro saisi." 
+        });
+    } catch (error) { 
+        res.status(500).json({ success: false, message: error.message }); 
+    }
 });
 
 app.post('/api/auth/admin-login', async (req, res) => {
