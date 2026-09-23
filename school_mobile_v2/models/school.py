@@ -492,10 +492,13 @@ class SchoolHomework(models.Model):
         return y.id if y else False
 
     def _default_teacher_id(self):
-        teacher = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
-        if not teacher and self.env.user.email:
-            teacher = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
-        return teacher.id if teacher else False
+        try:
+            teacher = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
+            if not teacher and self.env.user.email:
+                teacher = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
+            return teacher.id if teacher else False
+        except Exception:
+            return False
 
     title = fields.Char(string='Titre', required=True)
     description = fields.Text(string='Description')
@@ -585,10 +588,13 @@ class SchoolGrade(models.Model):
         return l.id if l else False
 
     def _default_teacher_id(self):
-        teacher = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
-        if not teacher and self.env.user.email:
-            teacher = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
-        return teacher.id if teacher else False
+        try:
+            teacher = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
+            if not teacher and self.env.user.email:
+                teacher = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
+            return teacher.id if teacher else False
+        except Exception:
+            return False
 
     subject = fields.Char(string='Matière (Texte)')
     subject_id = fields.Many2one('school.subject', string='Matière (Sélection)', required=True)
