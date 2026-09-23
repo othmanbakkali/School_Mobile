@@ -1,28 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+        <!-- Privilège Odoo 19 pour intégrer la gestion des rôles dans la fiche Utilisateur -->
+        <record id="privilege_school_management" model="res.groups.privilege">
+            <field name="name">Gestion Scolaire</field>
+            <field name="category_id" ref="base.module_category_education"/>
+            <field name="sequence">10</field>
+        </record>
+
         <!-- Groupe : Parent / Élève (Portail Mobile) -->
         <record id="group_school_parent" model="res.groups">
-            <field name="name">Scolarité Mobile / Parent / Élève</field>
+            <field name="name">Parent / Élève</field>
         </record>
 
         <!-- Groupe 1 : Enseignant / Professeur (Interne Odoo) -->
         <record id="group_school_teacher" model="res.groups">
-            <field name="name">Scolarité Mobile / Enseignant</field>
+            <field name="name">Enseignant</field>
+            <field name="privilege_id" ref="privilege_school_management"/>
+            <field name="sequence">10</field>
             <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
             <field name="comment">Accès restreint à ses propres classes et matières : devoirs, notes, présences, emploi du temps.</field>
         </record>
 
         <!-- Groupe 2 : Administration / Scolarité (Accès restreint) -->
         <record id="group_school_staff" model="res.groups">
-            <field name="name">Scolarité Mobile / Administration (Accès restreint)</field>
+            <field name="name">Administration</field>
+            <field name="privilege_id" ref="privilege_school_management"/>
+            <field name="sequence">20</field>
             <field name="implied_ids" eval="[(4, ref('group_school_teacher'))]"/>
             <field name="comment">Accès opérationnel transversal sur toutes les classes et scolarité, sans accès configuration critique.</field>
         </record>
 
         <!-- Groupe 3 : Direction / Super Admin Scolaire (Accès Total) -->
         <record id="group_school_manager" model="res.groups">
-            <field name="name">Scolarité Mobile / Direction - Super Admin (Accès Total)</field>
+            <field name="name">Direction / Super Admin</field>
+            <field name="privilege_id" ref="privilege_school_management"/>
+            <field name="sequence">30</field>
             <field name="implied_ids" eval="[(4, ref('group_school_staff'))]"/>
             <field name="comment">Accès total et absolu à l'ensemble du système, configuration, finances et personnels.</field>
         </record>
