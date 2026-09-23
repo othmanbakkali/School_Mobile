@@ -905,12 +905,13 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_translate_auto" string="🔄 Traduire (Arabe ↔ Français)" type="object" class="btn-primary" icon="fa-language"/>
                     <field name="state" widget="statusbar" clickable="1"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
-                        <label for="title" string="Titre du devoir"/>
-                        <h1><field name="title" placeholder="Ex: Exercice 4 page 32"/></h1>
+                        <label for="title" string="Titre principal"/>
+                        <h1><field name="title" placeholder="Titre du devoir (généré ou saisi)"/></h1>
                     </div>
                     <group>
                         <group string="Matière &amp; Planning">
@@ -925,12 +926,32 @@
                             <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" domain="[('level_id', '=', level_id)]" placeholder="Sélectionnez les élèves du niveau..."/>
                         </group>
                     </group>
-                    <group string="Document / Fichier">
-                        <field name="attachment" filename="attachment_name"/>
-                        <field name="attachment_name" invisible="1"/>
-                    </group>
-                    <separator string="Consignes &amp; Description"/>
-                    <field name="description" placeholder="Détails du travail à faire, consignes particulières..."/>
+                    
+                    <notebook>
+                        <page string="Contenu Bilingue (Arabe ↔ Français)">
+                            <div class="alert alert-info py-2" role="status">
+                                ℹ️ <b>Traduction Automatique Instantanée :</b> Saisissez le titre ou les consignes en <b>Arabe</b> ou en <b>Français</b>, la traduction se génère automatiquement dans l'autre langue dès que vous quittez le champ. Vous pouvez également cliquer sur <b>🔄 Traduire</b>.
+                            </div>
+                            <group>
+                                <group string="🇫🇷 Version Française">
+                                    <field name="title_fr" placeholder="Titre en français..."/>
+                                    <field name="description_fr" placeholder="Consignes détaillées en français..."/>
+                                </group>
+                                <group string="🇲🇦 النسخة العربية">
+                                    <field name="title_ar" placeholder="العنوان بالعربية..."/>
+                                    <field name="description_ar" placeholder="التعليمات والتفاصيل بالعربية..."/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Consignes Globales &amp; Pièce Jointe">
+                            <group string="Document / Fichier">
+                                <field name="attachment" filename="attachment_name"/>
+                                <field name="attachment_name" invisible="1"/>
+                            </group>
+                            <separator string="Consignes &amp; Description"/>
+                            <field name="description" placeholder="Détails du travail à faire, consignes particulières..."/>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
@@ -943,6 +964,8 @@
             <list>
                 <field name="date_due"/>
                 <field name="title"/>
+                <field name="title_fr" optional="show"/>
+                <field name="title_ar" optional="show"/>
                 <field name="subject_id"/>
                 <field name="sub_subject_id"/>
                 <field name="teacher_id" optional="show"/>

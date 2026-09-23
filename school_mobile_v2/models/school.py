@@ -1,4 +1,41 @@
 from odoo import models, fields, api
+import urllib.request
+import urllib.parse
+import json
+import re
+import logging
+
+_logger = logging.getLogger(__name__)
+
+
+def _is_arabic(text):
+    return bool(re.search(r'[\u0600-\u06FF]', str(text or '')))
+
+
+def _auto_translate_text(text, source_lang=None, target_lang=None):
+    if not text or not str(text).strip():
+        return ''
+    text_clean = str(text).strip()
+    try:
+        if not target_lang:
+            if _is_arabic(text_clean):
+                source_lang = 'ar'
+                target_lang = 'fr'
+            else:
+                source_lang = 'fr'
+                target_lang = 'ar'
+        encoded_text = urllib.parse.quote(text_clean)
+        src = source_lang or 'auto'
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={src}&tl={target_lang}&dt=t&q={encoded_text}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            translated = ''.join([part[0] for part in data[0] if part and part[0]])
+            return translated.strip()
+    except Exception as e:
+        _logger.warning("Erreur lors de la traduction automatique: %s", e)
+        return ''
+
 
 
 def _get_current_year_record(env):
@@ -501,7 +538,11 @@ class SchoolHomework(models.Model):
             return False
 
     title = fields.Char(string='Titre', required=True)
+    title_fr = fields.Char(string='Titre (Français)')
+    title_ar = fields.Char(string='العنوان (بالعربية)')
     description = fields.Text(string='Description')
+    description_fr = fields.Text(string='Description (Français)')
+    description_ar = fields.Text(string='الوصف (بالعربية)')
     subject = fields.Char(string='Matière (Texte)')
     subject_id = fields.Many2one('school.subject', string='Matière')
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
@@ -514,6 +555,91 @@ class SchoolHomework(models.Model):
     state = fields.Selection([('draft', 'En cours'), ('done', 'Fait')], default='draft')
     attachment = fields.Binary(string='Pièce Jointe')
     attachment_name = fields.Char(string='Nom du fichier')
+
+    @api.onchange('title_fr')
+    def _onchange_title_fr(self):
+        if self.title_fr:
+            if not self.title_ar:
+                self.title_ar = _auto_translate_text(self.title_fr, source_lang='fr', target_lang='ar')
+            self.title = self.title_fr
+
+    @api.onchange('title_ar')
+    def _onchange_title_ar(self):
+        if self.title_ar:
+            if not self.title_fr:
+                self.title_fr = _auto_translate_text(self.title_ar, source_lang='ar', target_lang='fr')
+            if not self.title:
+                self.title = self.title_ar
+
+    @api.onchange('title')
+    def _onchange_title(self):
+        if self.title and not self.title_fr and not self.title_ar:
+            if _is_arabic(self.title):
+                self.title_ar = self.title
+                self.title_fr = _auto_translate_text(self.title, source_lang='ar', target_lang='fr')
+            else:
+                self.title_fr = self.title
+                self.title_ar = _auto_translate_text(self.title, source_lang='fr', target_lang='ar')
+
+    @api.onchange('description_fr')
+    def _onchange_description_fr(self):
+        if self.description_fr:
+            if not self.description_ar:
+                self.description_ar = _auto_translate_text(self.description_fr, source_lang='fr', target_lang='ar')
+            self.description = self.description_fr
+
+    @api.onchange('description_ar')
+    def _onchange_description_ar(self):
+        if self.description_ar:
+            if not self.description_fr:
+                self.description_fr = _auto_translate_text(self.description_ar, source_lang='ar', target_lang='fr')
+            if not self.description:
+                self.description = self.description_ar
+
+    @api.onchange('description')
+    def _onchange_description(self):
+        if self.description and not self.description_fr and not self.description_ar:
+            if _is_arabic(self.description):
+                self.description_ar = self.description
+                self.description_fr = _auto_translate_text(self.description, source_lang='ar', target_lang='fr')
+            else:
+                self.description_fr = self.description
+                self.description_ar = _auto_translate_text(self.description, source_lang='fr', target_lang='ar')
+
+    def action_translate_auto(self):
+        for rec in self:
+            vals = {}
+            if rec.title_ar and not rec.title_fr:
+                vals['title_fr'] = _auto_translate_text(rec.title_ar, 'ar', 'fr')
+            elif rec.title_fr and not rec.title_ar:
+                vals['title_ar'] = _auto_translate_text(rec.title_fr, 'fr', 'ar')
+            elif rec.title and not rec.title_fr and not rec.title_ar:
+                if _is_arabic(rec.title):
+                    vals['title_ar'] = rec.title
+                    vals['title_fr'] = _auto_translate_text(rec.title, 'ar', 'fr')
+                else:
+                    vals['title_fr'] = rec.title
+                    vals['title_ar'] = _auto_translate_text(rec.title, 'fr', 'ar')
+
+            if rec.description_ar and not rec.description_fr:
+                vals['description_fr'] = _auto_translate_text(rec.description_ar, 'ar', 'fr')
+            elif rec.description_fr and not rec.description_ar:
+                vals['description_ar'] = _auto_translate_text(rec.description_fr, 'fr', 'ar')
+            elif rec.description and not rec.description_fr and not rec.description_ar:
+                if _is_arabic(rec.description):
+                    vals['description_ar'] = rec.description
+                    vals['description_fr'] = _auto_translate_text(rec.description, 'ar', 'fr')
+                else:
+                    vals['description_fr'] = rec.description
+                    vals['description_ar'] = _auto_translate_text(rec.description, 'fr', 'ar')
+
+            if not rec.title and (rec.title_fr or vals.get('title_fr') or rec.title_ar or vals.get('title_ar')):
+                vals['title'] = vals.get('title_fr') or rec.title_fr or vals.get('title_ar') or rec.title_ar
+            if not rec.description and (rec.description_fr or vals.get('description_fr') or rec.description_ar or vals.get('description_ar')):
+                vals['description'] = vals.get('description_fr') or rec.description_fr or vals.get('description_ar') or rec.description_ar
+
+            if vals:
+                rec.write(vals)
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
@@ -545,6 +671,40 @@ class SchoolHomework(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            t_ar = vals.get('title_ar')
+            t_fr = vals.get('title_fr')
+            t = vals.get('title')
+            if t_ar and not t_fr:
+                vals['title_fr'] = _auto_translate_text(t_ar, 'ar', 'fr')
+            elif t_fr and not t_ar:
+                vals['title_ar'] = _auto_translate_text(t_fr, 'fr', 'ar')
+            elif t and not t_fr and not t_ar:
+                if _is_arabic(t):
+                    vals['title_ar'] = t
+                    vals['title_fr'] = _auto_translate_text(t, 'ar', 'fr')
+                else:
+                    vals['title_fr'] = t
+                    vals['title_ar'] = _auto_translate_text(t, 'fr', 'ar')
+            if not vals.get('title'):
+                vals['title'] = vals.get('title_fr') or vals.get('title_ar') or ''
+
+            d_ar = vals.get('description_ar')
+            d_fr = vals.get('description_fr')
+            d = vals.get('description')
+            if d_ar and not d_fr:
+                vals['description_fr'] = _auto_translate_text(d_ar, 'ar', 'fr')
+            elif d_fr and not d_ar:
+                vals['description_ar'] = _auto_translate_text(d_fr, 'fr', 'ar')
+            elif d and not d_fr and not d_ar:
+                if _is_arabic(d):
+                    vals['description_ar'] = d
+                    vals['description_fr'] = _auto_translate_text(d, 'ar', 'fr')
+                else:
+                    vals['description_fr'] = d
+                    vals['description_ar'] = _auto_translate_text(d, 'fr', 'ar')
+            if not vals.get('description'):
+                vals['description'] = vals.get('description_fr') or vals.get('description_ar') or ''
+
             if not vals.get('teacher_id'):
                 t = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
                 if not t and self.env.user.email:
@@ -573,6 +733,39 @@ class SchoolHomework(models.Model):
                     if st_ids:
                         vals['student_id'] = st_ids[0]
         return super(SchoolHomework, self).create(vals_list)
+
+    def write(self, vals):
+        t_ar = vals.get('title_ar')
+        t_fr = vals.get('title_fr')
+        t = vals.get('title')
+        if t_ar and 'title_fr' not in vals:
+            vals['title_fr'] = _auto_translate_text(t_ar, 'ar', 'fr')
+        elif t_fr and 'title_ar' not in vals:
+            vals['title_ar'] = _auto_translate_text(t_fr, 'fr', 'ar')
+        elif t and 'title_fr' not in vals and 'title_ar' not in vals:
+            if _is_arabic(t):
+                vals['title_ar'] = t
+                vals['title_fr'] = _auto_translate_text(t, 'ar', 'fr')
+            else:
+                vals['title_fr'] = t
+                vals['title_ar'] = _auto_translate_text(t, 'fr', 'ar')
+
+        d_ar = vals.get('description_ar')
+        d_fr = vals.get('description_fr')
+        d = vals.get('description')
+        if d_ar and 'description_fr' not in vals:
+            vals['description_fr'] = _auto_translate_text(d_ar, 'ar', 'fr')
+        elif d_fr and 'description_ar' not in vals:
+            vals['description_ar'] = _auto_translate_text(d_fr, 'fr', 'ar')
+        elif d and 'description_fr' not in vals and 'description_ar' not in vals:
+            if _is_arabic(d):
+                vals['description_ar'] = d
+                vals['description_fr'] = _auto_translate_text(d, 'ar', 'fr')
+            else:
+                vals['description_fr'] = d
+                vals['description_ar'] = _auto_translate_text(d, 'fr', 'ar')
+
+        return super(SchoolHomework, self).write(vals)
 
 
 class SchoolGrade(models.Model):
