@@ -24,7 +24,6 @@
         <record id="group_school_manager" model="res.groups">
             <field name="name">Scolarité Mobile / Direction - Super Admin (Accès Total)</field>
             <field name="implied_ids" eval="[(4, ref('group_school_staff'))]"/>
-            <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
             <field name="comment">Accès total et absolu à l'ensemble du système, configuration, finances et personnels.</field>
         </record>
 
