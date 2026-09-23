@@ -1,39 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
-        <!-- Catégorie de Module : Gestion Scolaire -->
-        <record id="module_category_school_management" model="ir.module.category">
-            <field name="name">Gestion Scolaire</field>
-            <field name="description">Gestion des accès pour l'établissement scolaire (Professeurs, Administration, Direction)</field>
-            <field name="sequence">25</field>
-        </record>
-
         <!-- Groupe : Parent / Élève (Portail Mobile) -->
         <record id="group_school_parent" model="res.groups">
-            <field name="name">Parent / Élève</field>
-            <field name="category_id" ref="module_category_school_management"/>
+            <field name="name">Scolarité Mobile / Parent / Élève</field>
         </record>
 
         <!-- Groupe 1 : Enseignant / Professeur (Interne Odoo) -->
         <record id="group_school_teacher" model="res.groups">
-            <field name="name">Professeur / Enseignant</field>
-            <field name="category_id" ref="module_category_school_management"/>
+            <field name="name">Scolarité Mobile / Enseignant</field>
             <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
             <field name="comment">Accès restreint à ses propres classes et matières : devoirs, notes, présences, emploi du temps.</field>
         </record>
 
         <!-- Groupe 2 : Administration / Scolarité (Accès restreint) -->
         <record id="group_school_staff" model="res.groups">
-            <field name="name">Administration / Scolarité</field>
-            <field name="category_id" ref="module_category_school_management"/>
+            <field name="name">Scolarité Mobile / Administration (Accès restreint)</field>
             <field name="implied_ids" eval="[(4, ref('group_school_teacher'))]"/>
             <field name="comment">Accès opérationnel transversal sur toutes les classes et scolarité, sans accès configuration critique.</field>
         </record>
 
         <!-- Groupe 3 : Direction / Super Admin Scolaire (Accès Total) -->
         <record id="group_school_manager" model="res.groups">
-            <field name="name">Direction / Super Admin Scolaire</field>
-            <field name="category_id" ref="module_category_school_management"/>
+            <field name="name">Scolarité Mobile / Direction - Super Admin (Accès Total)</field>
             <field name="implied_ids" eval="[(4, ref('group_school_staff'))]"/>
             <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
             <field name="comment">Accès total et absolu à l'ensemble du système, configuration, finances et personnels.</field>
