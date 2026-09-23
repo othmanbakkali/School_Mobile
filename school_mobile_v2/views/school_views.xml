@@ -337,6 +337,13 @@
               groups="group_school_manager"
               sequence="20"/>
 
+    <menuitem id="menu_mobile_v2_employee" 
+              name="Employés (RH)" 
+              parent="menu_mobile_v2_config" 
+              action="hr.open_view_employee_list_my" 
+              groups="group_school_manager"
+              sequence="25"/>
+
     <menuitem id="menu_mobile_v2_subject" 
               name="Matières" 
               parent="menu_mobile_v2_config" 
@@ -791,6 +798,7 @@
                         <h1><field name="name" placeholder="Nom du Professeur"/></h1>
                     </div>
                     <group>
+                        <field name="employee_id" options="{'no_create': True}"/>
                         <field name="user_id" options="{'no_create': True}"/>
                         <field name="subject_ids" widget="many2many_tags"/>
                         <field name="level_ids" widget="many2many_tags"/>
@@ -813,6 +821,7 @@
                         <h1><field name="name" placeholder="Nom du Personnel"/></h1>
                     </div>
                     <group>
+                        <field name="employee_id" options="{'no_create': True}"/>
                         <field name="user_id" options="{'no_create': True}"/>
                         <field name="role"/>
                         <field name="phone"/>
@@ -1629,6 +1638,7 @@
         <field name="arch" type="xml">
             <list string="Professeurs / Enseignants">
                 <field name="name"/>
+                <field name="employee_id"/>
                 <field name="subject_ids" widget="many2many_tags"/>
                 <field name="level_ids" widget="many2many_tags"/>
                 <field name="phone"/>
@@ -1655,6 +1665,7 @@
                             <field name="subject" placeholder="Autre matière ou précision..."/>
                         </group>
                         <group string="Coordonnées &amp; Accès Odoo">
+                            <field name="employee_id" options="{'no_create': True}"/>
                             <field name="user_id" options="{'no_create': True}"/>
                             <field name="phone" widget="phone"/>
                             <field name="email" widget="email"/>

@@ -5,7 +5,7 @@
     'summary': 'Portail parents - Élèves, Absences, Devoirs, Notes, Cantine',
     'category': 'Education',
     'author': 'Smart Digital School',
-    'depends': ['base', 'mail'],
+    'depends': ['base', 'mail', 'hr'],
     'data': [
         'security/school_security.xml',
         'security/ir.model.access.csv',

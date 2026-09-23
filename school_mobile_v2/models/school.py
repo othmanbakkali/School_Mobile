@@ -696,6 +696,8 @@ class SchoolTeacher(models.Model):
     name = fields.Char(string='Nom complet', required=True)
     user_id = fields.Many2one('res.users', string='Compte Utilisateur Odoo', ondelete='set null', index=True,
                               help="Compte utilisateur Odoo utilisé par ce professeur pour se connecter.")
+    employee_id = fields.Many2one('hr.employee', string='Fiche Employé Odoo', ondelete='set null', index=True,
+                                  help="Fiche correspondante dans le module Employés d'Odoo.")
     subject = fields.Char(string='Matière (Texte)')
     subject_ids = fields.Many2many(
         'school.subject',
@@ -715,6 +717,60 @@ class SchoolTeacher(models.Model):
     email = fields.Char(string='Email')
     photo = fields.Binary(string='Photo')
 
+    def _sync_to_employee(self):
+        try:
+            Employee = self.env['hr.employee'].sudo()
+            dept_teaching = self.env['hr.department'].sudo().search([('name', 'ilike', 'Enseign')], limit=1)
+            if not dept_teaching:
+                dept_teaching = self.env['hr.department'].sudo().create({'name': 'Corps Enseignant'})
+
+            for teacher in self:
+                job_name = f"Enseignant ({teacher.subject})" if teacher.subject else "Enseignant"
+                vals = {
+                    'name': teacher.name,
+                    'work_email': teacher.email or False,
+                    'work_phone': teacher.phone or False,
+                    'mobile_phone': teacher.phone or False,
+                    'user_id': teacher.user_id.id if teacher.user_id else False,
+                    'job_title': job_name,
+                    'department_id': dept_teaching.id,
+                }
+                if teacher.photo:
+                    vals['image_1920'] = teacher.photo
+
+                if teacher.employee_id:
+                    teacher.employee_id.sudo().write(vals)
+                else:
+                    existing_emp = False
+                    if teacher.user_id:
+                        existing_emp = Employee.search([('user_id', '=', teacher.user_id.id)], limit=1)
+                    if not existing_emp and teacher.email:
+                        existing_emp = Employee.search([('work_email', '=', teacher.email)], limit=1)
+                    if not existing_emp and teacher.name:
+                        existing_emp = Employee.search([('name', '=', teacher.name)], limit=1)
+
+                    if existing_emp:
+                        existing_emp.sudo().write(vals)
+                        teacher.employee_id = existing_emp.id
+                    else:
+                        new_emp = Employee.create(vals)
+                        teacher.employee_id = new_emp.id
+        except Exception:
+            pass
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records._sync_to_employee()
+        return records
+
+    def write(self, vals):
+        res = super().write(vals)
+        fields_to_sync = {'name', 'email', 'phone', 'photo', 'user_id', 'subject'}
+        if any(f in vals for f in fields_to_sync):
+            self._sync_to_employee()
+        return res
+
 
 class SchoolStaff(models.Model):
     _name = 'school.staff'
@@ -723,9 +779,61 @@ class SchoolStaff(models.Model):
     name = fields.Char(string='Nom complet', required=True)
     user_id = fields.Many2one('res.users', string='Compte Utilisateur Odoo', ondelete='set null', index=True,
                               help="Compte utilisateur Odoo utilisé par ce membre administratif pour se connecter.")
+    employee_id = fields.Many2one('hr.employee', string='Fiche Employé Odoo', ondelete='set null', index=True,
+                                  help="Fiche correspondante dans le module Employés d'Odoo.")
     role = fields.Char(string='Poste / Rôle')
     phone = fields.Char(string='Téléphone')
     email = fields.Char(string='Email')
+
+    def _sync_to_employee(self):
+        try:
+            Employee = self.env['hr.employee'].sudo()
+            dept_admin = self.env['hr.department'].sudo().search([('name', 'ilike', 'Admin')], limit=1)
+            if not dept_admin:
+                dept_admin = self.env['hr.department'].sudo().create({'name': 'Administration'})
+
+            for staff in self:
+                vals = {
+                    'name': staff.name,
+                    'work_email': staff.email or False,
+                    'work_phone': staff.phone or False,
+                    'mobile_phone': staff.phone or False,
+                    'user_id': staff.user_id.id if staff.user_id else False,
+                    'job_title': staff.role or "Personnel Administratif",
+                    'department_id': dept_admin.id,
+                }
+                if staff.employee_id:
+                    staff.employee_id.sudo().write(vals)
+                else:
+                    existing_emp = False
+                    if staff.user_id:
+                        existing_emp = Employee.search([('user_id', '=', staff.user_id.id)], limit=1)
+                    if not existing_emp and staff.email:
+                        existing_emp = Employee.search([('work_email', '=', staff.email)], limit=1)
+                    if not existing_emp and staff.name:
+                        existing_emp = Employee.search([('name', '=', staff.name)], limit=1)
+
+                    if existing_emp:
+                        existing_emp.sudo().write(vals)
+                        staff.employee_id = existing_emp.id
+                    else:
+                        new_emp = Employee.create(vals)
+                        staff.employee_id = new_emp.id
+        except Exception:
+            pass
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records._sync_to_employee()
+        return records
+
+    def write(self, vals):
+        res = super().write(vals)
+        fields_to_sync = {'name', 'email', 'phone', 'user_id', 'role'}
+        if any(f in vals for f in fields_to_sync):
+            self._sync_to_employee()
+        return res
 
 
 class SchoolSchedule(models.Model):
@@ -1346,3 +1454,11 @@ class ResUsers(models.Model):
 
     teacher_ids = fields.One2many('school.teacher', 'user_id', string='Fiches Enseignant')
     staff_ids = fields.One2many('school.staff', 'user_id', string='Fiches Personnel')
+
+
+class HrEmployee(models.Model):
+    _inherit = 'hr.employee'
+
+    teacher_ids = fields.One2many('school.teacher', 'employee_id', string='Fiches Enseignant')
+    staff_ids = fields.One2many('school.staff', 'employee_id', string='Fiches Personnel')
+
