@@ -155,7 +155,7 @@
         <record id="rule_school_cahier_transmission_teacher" model="ir.rule">
             <field name="name">Professeur : Cahier de transmission de ses classes</field>
             <field name="model_id" ref="model_school_cahier_transmission"/>
-            <field name="domain_force">['|', ('author_id', '=', user.id), ('level_id.teacher_ids.user_id', '=', user.id)]</field>
+            <field name="domain_force">['|', ('create_uid', '=', user.id), ('level_id.teacher_ids.user_id', '=', user.id)]</field>
             <field name="groups" eval="[(4, ref('group_school_teacher'))]"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="True"/>
@@ -179,7 +179,7 @@
         <record id="rule_school_pedagogical_comment_teacher" model="ir.rule">
             <field name="name">Professeur : Commentaires de ses classes</field>
             <field name="model_id" ref="model_school_pedagogical_comment"/>
-            <field name="domain_force">['|', ('teacher_id.user_id', '=', user.id), ('student_id.level_id.teacher_ids.user_id', '=', user.id)]</field>
+            <field name="domain_force">['|', ('create_uid', '=', user.id), ('student_id.level_id.teacher_ids.user_id', '=', user.id)]</field>
             <field name="groups" eval="[(4, ref('group_school_teacher'))]"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="True"/>
