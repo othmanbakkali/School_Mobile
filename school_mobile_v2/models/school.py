@@ -28,6 +28,13 @@ class SchoolLevel(models.Model):
     student_ids = fields.One2many('school.student', 'level_id', string='Tous les élèves')
     current_student_ids = fields.Many2many('school.student', compute='_compute_current_students', string='Élèves Année Courante')
     subject_ids = fields.Many2many('school.subject', 'school_subject_level_rel', 'level_id', 'subject_id', string='Matières du niveau')
+    teacher_ids = fields.Many2many(
+        'school.teacher',
+        'school_level_school_teacher_rel',
+        'school_level_id',
+        'school_teacher_id',
+        string='Professeurs assignés'
+    )
 
     def _compute_current_students(self):
         curr_year = _get_current_year_record(self.env)
@@ -345,7 +352,13 @@ class SchoolSubject(models.Model):
     description = fields.Text(string='Description / Programme')
     sub_subject_ids = fields.One2many('school.sub.subject', 'subject_id', string='Sous-matières / Détails')
     sub_subject_count = fields.Integer(string='Nb Sous-matières', compute='_compute_sub_subject_count')
-    teacher_ids = fields.Many2many('school.teacher', string='Enseignants')
+    teacher_ids = fields.Many2many(
+        'school.teacher',
+        'school_subject_school_teacher_rel',
+        'school_subject_id',
+        'school_teacher_id',
+        string='Enseignants'
+    )
     level_ids = fields.Many2many('school.level', string='Niveaux / Classes')
 
     def _compute_sub_subject_count(self):
@@ -478,11 +491,18 @@ class SchoolHomework(models.Model):
         y = _get_current_year_record(self.env)
         return y.id if y else False
 
+    def _default_teacher_id(self):
+        teacher = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
+        if not teacher and self.env.user.email:
+            teacher = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
+        return teacher.id if teacher else False
+
     title = fields.Char(string='Titre', required=True)
     description = fields.Text(string='Description')
     subject = fields.Char(string='Matière (Texte)')
     subject_id = fields.Many2one('school.subject', string='Matière')
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
+    teacher_id = fields.Many2one('school.teacher', string='Enseignant / Professeur', default=_default_teacher_id)
     date_due = fields.Date(string="Date d'échéance")
     level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True, help="Sélectionnez une classe pour charger automatiquement tous ses élèves de l'année scolaire en cours")
     student_ids = fields.Many2many('school.student', 'school_homework_student_rel', 'homework_id', 'student_id', string='Élèves concernés', domain="[('level_id', '=', level_id)]")
@@ -522,6 +542,12 @@ class SchoolHomework(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            if not vals.get('teacher_id'):
+                t = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
+                if not t and self.env.user.email:
+                    t = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
+                if t:
+                    vals['teacher_id'] = t.id
             if vals.get('subject_id') and not vals.get('subject'):
                 subj = self.env['school.subject'].browse(vals['subject_id'])
                 if subj.exists():
@@ -558,9 +584,16 @@ class SchoolGrade(models.Model):
         l = _get_default_level_record(self.env)
         return l.id if l else False
 
+    def _default_teacher_id(self):
+        teacher = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
+        if not teacher and self.env.user.email:
+            teacher = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
+        return teacher.id if teacher else False
+
     subject = fields.Char(string='Matière (Texte)')
     subject_id = fields.Many2one('school.subject', string='Matière (Sélection)', required=True)
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
+    teacher_id = fields.Many2one('school.teacher', string='Enseignant / Professeur', default=_default_teacher_id)
     level_id = fields.Many2one('school.level', string='Niveau / Classe', default=_default_level_id)
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
     semester_id = fields.Many2one('school.semester', string='Semestre (Sélection)')
@@ -580,6 +613,12 @@ class SchoolGrade(models.Model):
         curr_year = _get_current_year_record(self.env)
         def_level = _get_default_level_record(self.env)
         for vals in vals_list:
+            if not vals.get('teacher_id'):
+                t = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
+                if not t and self.env.user.email:
+                    t = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
+                if t:
+                    vals['teacher_id'] = t.id
             if vals.get('student_id'):
                 st = self.env['school.student'].browse(vals['student_id'])
                 if st.exists():
@@ -649,9 +688,23 @@ class SchoolTeacher(models.Model):
     _description = 'Professeur'
 
     name = fields.Char(string='Nom complet', required=True)
+    user_id = fields.Many2one('res.users', string='Compte Utilisateur Odoo', ondelete='set null', index=True,
+                              help="Compte utilisateur Odoo utilisé par ce professeur pour se connecter.")
     subject = fields.Char(string='Matière (Texte)')
-    subject_ids = fields.Many2many('school.subject', string='Matières Enseignées')
-    level_ids = fields.Many2many('school.level', string='Classes / Niveaux')
+    subject_ids = fields.Many2many(
+        'school.subject',
+        'school_subject_school_teacher_rel',
+        'school_teacher_id',
+        'school_subject_id',
+        string='Matières Enseignées'
+    )
+    level_ids = fields.Many2many(
+        'school.level',
+        'school_level_school_teacher_rel',
+        'school_teacher_id',
+        'school_level_id',
+        string='Classes / Niveaux'
+    )
     phone = fields.Char(string='Téléphone')
     email = fields.Char(string='Email')
     photo = fields.Binary(string='Photo')
@@ -662,6 +715,8 @@ class SchoolStaff(models.Model):
     _description = 'Personnel Administratif'
 
     name = fields.Char(string='Nom complet', required=True)
+    user_id = fields.Many2one('res.users', string='Compte Utilisateur Odoo', ondelete='set null', index=True,
+                              help="Compte utilisateur Odoo utilisé par ce membre administratif pour se connecter.")
     role = fields.Char(string='Poste / Rôle')
     phone = fields.Char(string='Téléphone')
     email = fields.Char(string='Email')
@@ -1278,3 +1333,10 @@ class SchoolPaymentGenerateWizard(models.TransientModel):
             'context': {'search_default_group_by_month': 1},
             'target': 'current',
         }
+
+
+class ResUsers(models.Model):
+    _inherit = 'res.users'
+
+    teacher_ids = fields.One2many('school.teacher', 'user_id', string='Fiches Enseignant')
+    staff_ids = fields.One2many('school.staff', 'user_id', string='Fiches Personnel')

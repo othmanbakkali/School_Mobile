@@ -65,5 +65,6 @@
               name="Onglets App Mobile"
               parent="menu_mobile_v2_config"
               action="action_school_mobile_tab"
+              groups="group_school_manager"
               sequence="5"/>
 </odoo>

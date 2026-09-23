@@ -170,164 +170,192 @@
     <menuitem id="menu_mobile_v2_root" 
               name="Scolarité Mobile" 
               web_icon="base,static/description/icon.png"
+              groups="group_school_teacher"
               sequence="1"/>
 
-    <!-- Sous-menus -->
+    <!-- Sous-menus accessibles aux Professeurs (filtrés sur leurs classes/matières), Staff et Direction -->
     <menuitem id="menu_mobile_v2_student" 
               name="Élèves" 
               parent="menu_mobile_v2_root" 
               action="action_student_mobile" 
+              groups="group_school_teacher"
               sequence="10"/>
 
     <menuitem id="menu_mobile_v2_student_transition" 
               name="🎓 Inscription / Passage Année" 
               parent="menu_mobile_v2_root" 
               action="action_school_student_transition_wizard" 
+              groups="group_school_staff"
               sequence="12"/>
 
     <menuitem id="menu_mobile_v2_grade" 
               name="Notes" 
               parent="menu_mobile_v2_root" 
               action="action_grade_v2" 
+              groups="group_school_teacher"
               sequence="15"/>
 
     <menuitem id="menu_mobile_v2_massar_import" 
               name="📥 Importer Notes MASSAR (Excel)" 
               parent="menu_mobile_v2_root" 
               action="action_school_massar_import_wizard" 
+              groups="group_school_staff"
               sequence="16"/>
 
     <menuitem id="menu_mobile_v2_level" 
               name="Niveaux / Classes" 
               parent="menu_mobile_v2_root" 
               action="action_level_v2" 
+              groups="group_school_teacher"
               sequence="20"/>
 
     <menuitem id="menu_mobile_v2_parent" 
               name="Parents" 
               parent="menu_mobile_v2_root" 
               action="action_parent_v2" 
+              groups="group_school_staff"
               sequence="30"/>
 
     <menuitem id="menu_mobile_v2_attendance" 
               name="Absences / Retards" 
               parent="menu_mobile_v2_root" 
               action="action_attendance_v2" 
+              groups="group_school_teacher"
               sequence="40"/>
 
     <menuitem id="menu_mobile_v2_canteen" 
               name="Cantine" 
               parent="menu_mobile_v2_root" 
               action="action_canteen_v2" 
+              groups="group_school_staff"
               sequence="50"/>
 
     <menuitem id="menu_mobile_v2_schedule" 
               name="Emploi du Temps" 
               parent="menu_mobile_v2_root" 
               action="action_schedule_v2" 
+              groups="group_school_teacher"
               sequence="60"/>
 
     <menuitem id="menu_mobile_v2_homework" 
               name="Devoirs" 
               parent="menu_mobile_v2_root" 
               action="action_homework_v2" 
+              groups="group_school_teacher"
               sequence="65"/>
 
     <menuitem id="menu_mobile_v2_announcement" 
               name="Messages" 
               parent="menu_mobile_v2_root" 
               action="action_announcement_v2" 
+              groups="group_school_teacher"
               sequence="70"/>
 
     <menuitem id="menu_mobile_v2_payment" 
               name="Paiements" 
               parent="menu_mobile_v2_root" 
               action="action_school_payment" 
+              groups="group_school_staff"
               sequence="80"/>
 
     <menuitem id="menu_mobile_v2_payment_generate" 
               name="⚡ Générer Mensualités" 
               parent="menu_mobile_v2_root" 
               action="action_school_payment_generate_wizard" 
+              groups="group_school_staff"
               sequence="82"/>
 
     <menuitem id="menu_mobile_v2_lost_item" 
               name="Objets Perdus" 
               parent="menu_mobile_v2_root" 
               action="action_school_lost_item" 
+              groups="group_school_staff"
               sequence="90"/>
 
     <menuitem id="menu_mobile_v2_cahier_transmission" 
               name="Cahier de Transmission" 
               parent="menu_mobile_v2_root" 
               action="action_school_cahier_transmission" 
+              groups="group_school_teacher"
               sequence="92"/>
 
     <menuitem id="menu_mobile_v2_resources" 
               name="Ressources" 
               parent="menu_mobile_v2_root" 
               action="action_school_resources" 
+              groups="group_school_teacher"
               sequence="94"/>
 
     <menuitem id="menu_mobile_v2_pedagogical_comment" 
               name="Commentaires Pédagogiques" 
               parent="menu_mobile_v2_root" 
               action="action_school_pedagogical_comment" 
+              groups="group_school_teacher"
               sequence="96"/>
 
     <menuitem id="menu_mobile_v2_transport" 
               name="Transport" 
               parent="menu_mobile_v2_root" 
               action="action_school_transport" 
+              groups="group_school_staff"
               sequence="97"/>
 
     <menuitem id="menu_mobile_v2_shop" 
               name="Boutique" 
               parent="menu_mobile_v2_root" 
               action="action_school_shop_product" 
+              groups="group_school_staff"
               sequence="98"/>
 
     <menuitem id="menu_mobile_v2_wallet_transaction" 
               name="Transactions Wallet" 
               parent="menu_mobile_v2_root" 
               action="action_school_wallet_transaction" 
+              groups="group_school_manager"
               sequence="99"/>
 
 
+    <!-- Configuration et Paramètres : Super Admin / Direction uniquement -->
     <menuitem id="menu_mobile_v2_config" 
               name="Configuration" 
               parent="menu_mobile_v2_root" 
               action="action_school_config" 
+              groups="group_school_manager"
               sequence="100"/>
 
     <menuitem id="menu_mobile_v2_teacher" 
               name="Professeurs" 
               parent="menu_mobile_v2_config" 
               action="action_school_teacher" 
+              groups="group_school_manager"
               sequence="10"/>
 
     <menuitem id="menu_mobile_v2_staff" 
               name="Personnel" 
               parent="menu_mobile_v2_config" 
               action="action_school_staff" 
+              groups="group_school_manager"
               sequence="20"/>
 
     <menuitem id="menu_mobile_v2_subject" 
               name="Matières" 
               parent="menu_mobile_v2_config" 
               action="action_school_subject" 
+              groups="group_school_manager"
               sequence="30"/>
 
     <menuitem id="menu_mobile_v2_sub_subject" 
               name="Sous-matières &amp; Détails" 
               parent="menu_mobile_v2_config" 
               action="action_school_sub_subject" 
+              groups="group_school_manager"
               sequence="35"/>
 
     <menuitem id="menu_mobile_v2_year" 
               name="Années Scolaires" 
               parent="menu_mobile_v2_config" 
               action="action_school_year" 
+              groups="group_school_manager"
               sequence="40"/>
 
     <!-- VUES SOUS-MATIÈRES -->
@@ -479,6 +507,7 @@
                 <field name="level_id" placeholder="Classe"/>
                 <field name="student_id" options="{'no_create': True}"/>
                 <field name="year_id" readonly="1"/>
+                <field name="teacher_id" options="{'no_create': True}" optional="show"/>
                 <field name="subject_id"/>
                 <field name="sub_subject_id"/>
                 <field name="semester_id"/>
@@ -502,6 +531,7 @@
                             <field name="level_id" placeholder="Sélectionnez la classe"/>
                             <field name="student_id" options="{'no_create': True}"/>
                             <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
+                            <field name="teacher_id" options="{'no_create': True}"/>
                             <field name="subject_id"/>
                             <field name="sub_subject_id" invisible="not subject_id"/>
                             <field name="semester_id"/>
@@ -761,7 +791,9 @@
                         <h1><field name="name" placeholder="Nom du Professeur"/></h1>
                     </div>
                     <group>
+                        <field name="user_id" options="{'no_create': True}"/>
                         <field name="subject_ids" widget="many2many_tags"/>
+                        <field name="level_ids" widget="many2many_tags"/>
                         <field name="phone"/>
                         <field name="email"/>
                     </group>
@@ -781,6 +813,7 @@
                         <h1><field name="name" placeholder="Nom du Personnel"/></h1>
                     </div>
                     <group>
+                        <field name="user_id" options="{'no_create': True}"/>
                         <field name="role"/>
                         <field name="phone"/>
                         <field name="email"/>
@@ -874,6 +907,7 @@
                         <group string="Matière &amp; Planning">
                             <field name="subject_id" options="{'no_create_edit': True}" placeholder="Sélectionnez la matière"/>
                             <field name="sub_subject_id" options="{'no_create_edit': True}" placeholder="Sélectionnez la sous-matière / détail" invisible="not subject_id"/>
+                            <field name="teacher_id" options="{'no_create': True}"/>
                             <field name="date_due"/>
                             <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
@@ -902,6 +936,7 @@
                 <field name="title"/>
                 <field name="subject_id"/>
                 <field name="sub_subject_id"/>
+                <field name="teacher_id" optional="show"/>
                 <field name="level_id"/>
                 <field name="student_ids" widget="many2many_tags"/>
                 <field name="state" widget="badge" decoration-success="state == 'done'" decoration-info="state == 'draft'"/>
@@ -1619,7 +1654,8 @@
                             <field name="level_ids" widget="many2many_tags"/>
                             <field name="subject" placeholder="Autre matière ou précision..."/>
                         </group>
-                        <group string="Coordonnées">
+                        <group string="Coordonnées &amp; Accès Odoo">
+                            <field name="user_id" options="{'no_create': True}"/>
                             <field name="phone" widget="phone"/>
                             <field name="email" widget="email"/>
                         </group>
