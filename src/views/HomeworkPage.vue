@@ -34,8 +34,8 @@
               <span>{{ formatDate(item.date_due) }}</span>
             </div>
           </div>
-          <h3>{{ item.title }}</h3>
-          <p>{{ item.description }}</p>
+          <h3>{{ getLocalizedTitle(item) }}</h3>
+          <p>{{ getLocalizedDescription(item) }}</p>
           
           <div class="hw-bottom">
             <div class="status-indicator">
@@ -75,11 +75,25 @@ import { useRouter } from 'vue-router';
 import { useI18n } from '@/services/translationService';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const router = useRouter();
 const homeworks = ref<any[]>([]);
 const loading = ref(true);
+
+const getLocalizedTitle = (item: any) => {
+  if (locale.value === 'ar') {
+    return item.title_ar || item.title || '';
+  }
+  return item.title_fr || item.title || '';
+};
+
+const getLocalizedDescription = (item: any) => {
+  if (locale.value === 'ar') {
+    return item.description_ar || item.description || '';
+  }
+  return item.description_fr || item.description || '';
+};
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '—';

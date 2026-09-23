@@ -474,7 +474,7 @@ app.post('/api/school/homework', async (req, res) => {
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'search_read', 
             [domain], 
-            { fields: ['id', 'title', 'description', 'date_due', 'state', 'subject_id', 'sub_subject_id', 'subject', 'attachment', 'attachment_name'] }
+            { fields: ['id', 'title', 'title_fr', 'title_ar', 'description', 'description_fr', 'description_ar', 'date_due', 'state', 'subject_id', 'sub_subject_id', 'subject', 'attachment', 'attachment_name'] }
         ]);
         const formatted = result.map(h => ({
             ...h,
