@@ -31,6 +31,14 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/AdminChatPage.vue')
   },
   {
+    path: '/faq',
+    component: () => import('@/views/FaqPage.vue')
+  },
+  {
+    path: '/FAQ',
+    redirect: '/faq'
+  },
+  {
     path: '/tabs/',
     component: TabsPage,
     children: [
