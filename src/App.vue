@@ -67,6 +67,7 @@
     <!-- Main Content -->
     <ion-router-outlet id="main" />
     <PWAInstall />
+    <UpdatePrompt />
   </ion-app>
 </template>
 
@@ -94,22 +95,25 @@ import {
   archiveOutline, 
   busOutline,
   calendarOutline,
+  calendarClearOutline,
   alertCircleOutline,
   restaurantOutline,
   ribbonOutline,
   gameControllerOutline,
-  trophyOutline
+  trophyOutline,
+  shieldCheckmarkOutline,
+  callOutline
 } from 'ionicons/icons';
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import PWAInstall from '@/components/PWAInstall.vue';
+import UpdatePrompt from '@/components/UpdatePrompt.vue';
 import { useI18n } from '@/services/translationService';
 
 const router = useRouter();
 const route = useRoute();
-
 const { t, setLocale, locale } = useI18n();
 
 const studentData = ref<any>(null);
@@ -119,6 +123,7 @@ const currentRoute = computed(() => route.path);
 const iconMap: Record<string, any> = {
   globeOutline,
   calendarOutline,
+  calendarClearOutline,
   documentTextOutline,
   ribbonOutline,
   alertCircleOutline,
@@ -135,6 +140,8 @@ const iconMap: Record<string, any> = {
   archiveOutline,
   mailOutline,
   imagesOutline,
+  shieldCheckmarkOutline,
+  callOutline,
   personOutline
 };
 
@@ -145,6 +152,9 @@ const codeToI18nKey: Record<string, string> = {
   notes: 'menu.notes',
   absences: 'menu.absences',
   transmission: 'menu.transmission',
+  appointments: 'menu.appointments',
+  reglement: 'menu.reglement',
+  vacances: 'menu.vacances',
   suivi: 'menu.suivi',
   ressources: 'menu.ressources',
   canteen: 'menu.canteen',
@@ -157,6 +167,7 @@ const codeToI18nKey: Record<string, string> = {
   lostItems: 'menu.lostItems',
   chat: 'menu.chat',
   album: 'menu.album',
+  contact: 'menu.contact',
   account: 'menu.account'
 };
 
@@ -166,7 +177,10 @@ const defaultMenuItems = [
   { code: 'homework', label: t('menu.homework'), icon: documentTextOutline, path: '/tabs/homework' },
   { code: 'notes', label: t('menu.notes'), icon: ribbonOutline, path: '/tabs/notes' },
   { code: 'absences', label: t('menu.absences'), icon: alertCircleOutline, path: '/tabs/absences' },
+  { code: 'appointments', label: t('menu.appointments'), icon: calendarClearOutline, path: '/tabs/appointments' },
   { code: 'transmission', label: t('menu.transmission'), icon: heartOutline, path: '/tabs/transmission' },
+  { code: 'reglement', label: t('menu.reglement'), icon: shieldCheckmarkOutline, path: '/tabs/reglement' },
+  { code: 'vacances', label: t('menu.vacances'), icon: calendarOutline, path: '/tabs/vacances' },
   { code: 'suivi', label: t('menu.suivi'), icon: schoolOutline, path: '/tabs/suivi-pedagogique' },
   { code: 'ressources', label: t('menu.ressources'), icon: bookmarkOutline, path: '/tabs/ressources' },
   { code: 'canteen', label: t('menu.canteen'), icon: restaurantOutline, path: '/tabs/vie-scolaire' },
@@ -179,6 +193,7 @@ const defaultMenuItems = [
   { code: 'lostItems', label: t('menu.lostItems'), icon: archiveOutline, path: '/tabs/lost-items' },
   { code: 'chat', label: t('menu.chat'), icon: mailOutline, path: '/chat' },
   { code: 'album', label: t('menu.album'), icon: imagesOutline, path: '/tabs/album' },
+  { code: 'contact', label: t('menu.contact'), icon: callOutline, path: '/tabs/contact' },
   { code: 'account', label: t('menu.account'), icon: personOutline, path: '/tabs/account' }
 ];
 
@@ -282,6 +297,39 @@ const handleStudentChanged = (e: any) => {
 onMounted(() => {
   onMenuOpen();
   window.addEventListener('student-changed', handleStudentChanged);
+
+  // Écouter les clics sur les notifications système pour naviguer directement dans l'application
+  const handleNotificationRedirect = (targetUrl: string) => {
+    if (!targetUrl) return;
+    const cleanUrl = targetUrl.startsWith('/') ? targetUrl : '/' + targetUrl;
+    console.log('🔔 [App] Clic notification intercepté, navigation vers:', cleanUrl);
+    if (router.currentRoute.value.fullPath !== cleanUrl) {
+      router.push(cleanUrl).catch(() => {
+        router.replace(cleanUrl);
+      });
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+          handleNotificationRedirect(event.data.url);
+        }
+      });
+    }
+
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('school-notifications');
+        bc.onmessage = (event) => {
+          if (event.data && event.data.type === 'NOTIFICATION_CLICK') {
+            handleNotificationRedirect(event.data.url);
+          }
+        };
+      }
+    } catch (e) {}
+  }
 });
 </script>
 

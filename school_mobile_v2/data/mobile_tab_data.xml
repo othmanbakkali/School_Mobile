@@ -54,6 +54,15 @@
             <field name="is_active">True</field>
         </record>
 
+        <record id="tab_reglement" model="school.mobile.tab">
+            <field name="name">Règlement Intérieur &amp; Lois</field>
+            <field name="technical_code">reglement</field>
+            <field name="icon">shieldCheckmarkOutline</field>
+            <field name="path">/tabs/reglement</field>
+            <field name="sequence">65</field>
+            <field name="is_active">True</field>
+        </record>
+
         <record id="tab_suivi" model="school.mobile.tab">
             <field name="name">Suivi Pédagogique</field>
             <field name="technical_code">suivi</field>
@@ -159,6 +168,24 @@
             <field name="icon">imagesOutline</field>
             <field name="path">/tabs/album</field>
             <field name="sequence">180</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_contact" model="school.mobile.tab">
+            <field name="name">Contact &amp; Accès</field>
+            <field name="technical_code">contact</field>
+            <field name="icon">callOutline</field>
+            <field name="path">/tabs/contact</field>
+            <field name="sequence">185</field>
+            <field name="is_active">True</field>
+        </record>
+
+        <record id="tab_appointments" model="school.mobile.tab">
+            <field name="name">Rendez-vous Direction</field>
+            <field name="technical_code">appointments</field>
+            <field name="icon">calendarClearOutline</field>
+            <field name="path">/tabs/appointments</field>
+            <field name="sequence">165</field>
             <field name="is_active">True</field>
         </record>
 

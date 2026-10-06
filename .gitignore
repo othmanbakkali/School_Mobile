@@ -26,11 +26,14 @@ npm-debug.log*
 !/.vscode/extensions.json
 /coverage
 /dist
-/node_modules
+node_modules/
+**/node_modules/
 /platforms
 /plugins
 /www
 .env
+.env.*
 server/.env
-.env.production
-.env.local
+*.tar.gz
+__pycache__/
+*.pyc

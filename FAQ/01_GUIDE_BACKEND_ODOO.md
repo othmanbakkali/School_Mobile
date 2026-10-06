@@ -86,25 +86,18 @@ Le module intègre un assistant intelligent capable d'analyser directement les f
 
 ---
 
-## 6. Création de Devoirs avec Traduction Automatique (Arabe ↔ Français)
+## 6. Création de Devoirs (Préservation stricte Arabe 🇲🇦 / Français 🇫🇷)
 
-Le formulaire de devoir intègre un moteur d'intelligence de traduction instantanée.
+Le module de devoirs préserve rigoureusement la langue de travail saisie par l'enseignant, sans altération ni traduction automatique approximative.
 
-### Comment créer un devoir bilingue :
+### Comment créer un devoir :
 1. Allez dans **Portail Scolaire** > **Devoirs** > **Nouveau**.
 2. Renseignez la matière, la classe (`Niveau / Classe`) et la date d'échéance.
-3. Allez dans l'onglet **Contenu Bilingue (Arabe ↔ Français)** :
-   - **Cas A : Vous saisissez en Arabe**
-     - Tapez le titre dans **العنوان بالعربية** (ex: `واجب في النشاط العلمي`).
-     - Tapez les consignes dans **التعليمات والتفاصيل بالعربية**.
-     - 👉 Dès que vous changez de champ, la **Version Française** (`Titre` et `Description`) se remplit **automatiquement en français**.
-   - **Cas B : Vous saisissez en Français**
-     - Tapez le titre et la description dans la colonne française.
-     - 👉 La colonne arabe se génère instantanément.
-4. Vous pouvez ajuster ou corriger les textes à tout moment.
-5. Vous pouvez également cliquer sur le bouton d'action **`🔄 Traduire (Arabe ↔ Français)`** dans l'en-tête pour forcer la mise à jour.
-6. Ajoutez une pièce jointe (PDF, image, document d'exercice) dans l'onglet **Document / Fichier** si nécessaire.
-7. Cliquez sur **Sauvegarder**.
+3. Renseignez directement le **Titre** et la **Description / Consignes** :
+   - **Devoir en Arabe 🇲🇦 :** saisissez directement en arabe. Le devoir est conservé en arabe et s'affiche en lecture naturelle droite-à-gauche (RTL) côté Odoo et côté application mobile.
+   - **Devoir en Français 🇫🇷 :** saisissez directement en français. Le devoir est conservé en français côté Odoo et côté application mobile.
+4. Ajoutez une pièce jointe (PDF, image, document d'exercice) si nécessaire.
+5. Cliquez sur **Sauvegarder**.
 
 ---
 
@@ -144,3 +137,49 @@ Pour basculer les élèves vers une nouvelle année ou inscrire des promotions :
    - Ouvrez la ligne de l'élève ou recherchez par son nom.
    - Cliquez sur **Marquer comme Payé** et indiquez la méthode (Espèces, Virement, Chèque).
    - Les parents voient immédiatement la confirmation de paiement sur leur application.
+
+---
+
+## 10. Publication du Règlement Intérieur et des Lois (Annonces Officielles)
+
+Le nouvel onglet **Règlement Intérieur & Lois** (placé dans le menu **Portail Scolaire**, directement à côté du *Cahier de transmission*) permet à l'administration et à la direction de publier des règles, circulaires ministérielles et articles de discipline :
+
+1. Allez dans **Portail Scolaire** > **📜 Règlement Intérieur & Lois**.
+2. Cliquez sur **Nouveau** :
+   - **Titre / Intitulé** : Saisissez le titre en français ou en arabe (ex: *ميثاق الحياة المدرسية* ou *Horaires officiels et retards*).
+   - **Catégorie / Chapitre** : Choisissez parmi *Règles Générales*, *Discipline*, *Horaires & Assiduité*, *Tenue & Hygiène*, *Travail Scolaire*, *Sécurité*, *Textes de Loi & Circulaires Ministérielles*.
+   - **📌 Épinglé / Important** : Cochez cette case pour maintenir la règle en haut de liste sur l'application mobile avec un badge doré.
+   - **Ordre / Séquence** : Indiquez l'ordre d'affichage (ex: 10, 20, 30).
+   - **Destinataires** : Choisissez *Tous les niveaux* ou sélectionnez des classes spécifiques.
+   - **Texte & Consignes** : Rédigez le texte complet (gestion RTL automatique pour l'arabe).
+   - **📎 Document / Circulaire PDF** : Vous pouvez joindre la circulaire ministérielle ou le document scanné officiel.
+3. Cliquez sur **Sauvegarder**. La publication est instantanément visible par tous les parents et élèves sur l'application mobile dans l'onglet **Règlement & Lois**.
+
+---
+
+## 11. Paramétrage des Contacts, Responsable Pédagogique & Réseaux Sociaux
+
+Tous les éléments de contact affichés sur l'onglet **Contact & Accès** de l'application mobile sont entièrement administrables depuis Odoo :
+
+1. Allez dans **Portail Scolaire** > **📞 Contacts & Réseaux Sociaux** (ou **Portail Scolaire** > **Configuration**).
+2. Ouvrez la fiche de configuration de l'établissement :
+   - **🎓 Responsable Pédagogique** :
+     - *Nom complet du responsable pédagogique*.
+     - *Numéro de téléphone direct* (cliquable en un geste pour appel et WhatsApp sur l'app).
+     - *Email du responsable pédagogique*.
+   - **📞 Téléphonie & WhatsApp Officiel** :
+     - *Téléphone fixe standard / Accueil*.
+     - *Numéro WhatsApp direct* (lance directement une discussion WhatsApp).
+     - *Numéro d'urgence / Permanence*.
+     - *Horaires d'accueil* (ex: *Lundi - Vendredi : 08h00 - 18h00 | Samedi : 08h30 - 12h30*).
+     - *Email général*.
+   - **📍 Adresse & Géolocalisation (Google Maps)** :
+     - *Adresse complète*.
+     - *Lien Google Maps / GPS* (ouvre l'itinéraire Google Maps en un clic sur le smartphone).
+     - *Site web officiel*.
+   - **🌐 Réseaux Sociaux** :
+     - *Lien de la page Facebook officielle*.
+     - *Lien du compte Instagram officiel*.
+3. Cliquez sur **Sauvegarder**.
+   - Toute modification enregistrée dans Odoo est répercutée **immédiatement en temps réel** sur l'application mobile pour l'ensemble des parents et élèves.
+

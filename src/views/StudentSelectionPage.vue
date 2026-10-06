@@ -95,10 +95,19 @@ const fetchData = async () => {
     });
     students.value = Array.isArray(data) ? data : [];
     
+    const getRedirectDestination = () => {
+      const pending = localStorage.getItem('redirect_after_login');
+      if (pending && pending.startsWith('/') && pending !== '/login' && pending !== '/selection') {
+        localStorage.removeItem('redirect_after_login');
+        return pending;
+      }
+      return '/tabs/dashboard';
+    };
+
     // Si un seul enfant, on le sélectionne direct et on va aux tabs
     if (students.value.length === 1) {
       odoo.setSelectedStudentId(students.value[0].id);
-      router.replace('/tabs/dashboard');
+      router.replace(getRedirectDestination());
     }
   } catch (e: any) {
     console.error('Failed to fetch students', e);
@@ -118,7 +127,13 @@ const selectStudent = (id: number) => {
     document.activeElement.blur();
   }
   odoo.setSelectedStudentId(id);
-  router.replace('/tabs/dashboard');
+  const pending = localStorage.getItem('redirect_after_login');
+  if (pending && pending.startsWith('/') && pending !== '/login' && pending !== '/selection') {
+    localStorage.removeItem('redirect_after_login');
+    router.replace(pending);
+  } else {
+    router.replace('/tabs/dashboard');
+  }
 };
 
 const handleLogout = () => {

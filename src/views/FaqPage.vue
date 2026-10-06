@@ -429,30 +429,30 @@ const faqData: FaqItem[] = [
   {
     id: 'homework-translation',
     category: 'backend',
-    question: "Comment fonctionne la traduction automatique bilingue (Arabe ↔ Français) des devoirs ?",
+    question: "Comment s'affichent les devoirs selon la langue saisie (Arabe ou Français) ?",
     answerHtml: `
-      <p>Pour faciliter la communication avec toutes les familles, le module de devoirs intègre un moteur de <strong>traduction bidirectionnelle instantanée</strong> :</p>
+      <p>Afin de préserver l'exactitude pédagogique et éviter les traductions automatiques approximatives, les devoirs s'affichent fidèlement dans la <strong>langue d'origine</strong> saisie par l'enseignant ou l'administration :</p>
       
       <ol class="step-list">
         <li>Allez dans <strong>Portail Scolaire</strong> &gt; <strong>Devoirs</strong> &gt; <strong>Nouveau</strong>.</li>
         <li>Sélectionnez la classe (<code>Niveau / Classe</code>), la matière et la date d'échéance.</li>
-        <li>Ouvrez l'onglet <strong>Contenu Bilingue (Arabe ↔ Français)</strong> :
+        <li>Rédigez directement le titre et les consignes :
           <ul>
-            <li><strong>Cas 1 : Vous écrivez en Arabe</strong>
-              <br>Saisissez le titre dans <em>العنوان بالعربية</em> et les instructions dans <em>التعليمات بالعربية</em>.
-              <br>👉 Dès la sortie du champ, Odoo génère et traduit automatiquement le <strong>Titre</strong> et la <strong>Description</strong> en français !
+            <li><strong>Devoir rédigé en Arabe 🇲🇦 :</strong>
+              <br>Saisissez le devoir en arabe (ex: matière Arabe, Éducation Islamique).
+              <br>👉 Il s'affiche en <strong>arabe avec lecture de droite à gauche (RTL)</strong> dans le backend Odoo et sur l'application mobile.
             </li>
-            <li><strong>Cas 2 : Vous écrivez en Français</strong>
-              <br>Saisissez le titre et la description en français.
-              <br>👉 Odoo génère et traduit immédiatement la version arabe correspondante dans les champs arabes.
+            <li><strong>Devoir rédigé en Français 🇫🇷 :</strong>
+              <br>Saisissez le devoir en français (ex: matière Français, Mathématiques).
+              <br>👉 Il s'affiche en <strong>français</strong> dans le backend Odoo et sur l'application mobile.
             </li>
           </ul>
         </li>
-        <li>Cliquez sur <strong>Sauvegarder</strong>.</li>
+        <li>Cliquez sur <strong>Sauvegarder</strong>. Aucune traduction automatique erronée ne vient altérer le devoir.</li>
       </ol>
-      <p>Sur l'application mobile, chaque parent ou élève voit le devoir s'afficher dans la langue de son choix (FR ou AR) en fonction du sélecteur en haut du menu.</p>
+      <p>L'élève et les parents lisent exactement le texte rédigé par le professeur pour son cours.</p>
     `,
-    example: "Si vous tapez en titre arabe : <code>واجب منزلي في مادة النشاط العلمي</code>, le champ français se remplit automatiquement avec <code>Devoir à domicile en sciences</code>."
+    example: "Un devoir en arabe comme <code>إنجاز تمارين الصفحة 25 من كتاب في رحاب اللغة العربية</code> reste intact en arabe sur mobile et backend, sans traduction robotique."
   },
   {
     id: 'attendance-backend',

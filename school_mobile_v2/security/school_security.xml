@@ -56,11 +56,11 @@
             <field name="perm_unlink" eval="False"/>
         </record>
 
-        <!-- 2. Matières : Le prof ne voit que ses matières -->
+        <!-- 2. Matières : Consultation de toutes les matières pour les professeurs -->
         <record id="rule_school_subject_teacher" model="ir.rule">
-            <field name="name">Professeur : Uniquement ses matières assignées</field>
+            <field name="name">Professeur : Consultation des matières</field>
             <field name="model_id" ref="model_school_subject"/>
-            <field name="domain_force">[('teacher_ids.user_id', '=', user.id)]</field>
+            <field name="domain_force">[(1, '=', 1)]</field>
             <field name="groups" eval="[(4, ref('group_school_teacher'))]"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="False"/>
@@ -176,11 +176,11 @@
             <field name="perm_unlink" eval="True"/>
         </record>
 
-        <!-- 12. Ressources de cours : Ses classes ou ses publications -->
+        <!-- 12. Ressources Pédagogiques : Accès à toutes les ressources pour les professeurs -->
         <record id="rule_school_resources_teacher" model="ir.rule">
-            <field name="name">Professeur : Ressources de ses classes</field>
+            <field name="name">Professeur : Accès à toutes les ressources</field>
             <field name="model_id" ref="model_school_resources"/>
-            <field name="domain_force">['|', ('create_uid', '=', user.id), ('level_id.teacher_ids.user_id', '=', user.id)]</field>
+            <field name="domain_force">[(1, '=', 1)]</field>
             <field name="groups" eval="[(4, ref('group_school_teacher'))]"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="True"/>
@@ -292,6 +292,20 @@
         <record id="rule_school_pedagogical_comment_staff" model="ir.rule">
             <field name="name">Administration : Tous les commentaires pédagogiques</field>
             <field name="model_id" ref="model_school_pedagogical_comment"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('group_school_staff'))]"/>
+        </record>
+
+        <record id="rule_school_regulation_teacher" model="ir.rule">
+            <field name="name">Professeur : Règlements et Lois</field>
+            <field name="model_id" ref="model_school_regulation"/>
+            <field name="domain_force">[('active', '=', True)]</field>
+            <field name="groups" eval="[(4, ref('group_school_teacher'))]"/>
+        </record>
+
+        <record id="rule_school_regulation_staff" model="ir.rule">
+            <field name="name">Administration : Tous les règlements et lois</field>
+            <field name="model_id" ref="model_school_regulation"/>
             <field name="domain_force">[(1, '=', 1)]</field>
             <field name="groups" eval="[(4, ref('group_school_staff'))]"/>
         </record>

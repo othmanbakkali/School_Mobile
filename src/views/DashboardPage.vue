@@ -42,6 +42,26 @@
           <p>Voici ce qui se passe à l'école aujourd'hui.</p>
         </div>
 
+        <!-- Phone Notification Activation Banner -->
+        <div v-if="showNotifPermissionBanner" class="phone-notif-card">
+          <div class="notif-card-header">
+            <div class="bell-glow-icon">
+              <ion-icon :icon="notificationsOutline"></ion-icon>
+            </div>
+            <div class="notif-card-text">
+              <h4>Activer les notifications du téléphone</h4>
+              <p>Recevez les devoirs, notes et annonces importantes en direct sur votre téléphone.</p>
+            </div>
+          </div>
+          <div class="notif-card-actions">
+            <button class="notif-btn-dismiss" @click="dismissNotifBanner">Plus tard</button>
+            <button class="notif-btn-enable" @click="handleEnableNotifications">
+              <ion-icon :icon="notificationsOutline"></ion-icon>
+              Activer
+            </button>
+          </div>
+        </div>
+
         <!-- Multi-Child Selector -->
         <div v-if="allStudents.length > 1" class="child-selector">
           <div 
@@ -76,18 +96,11 @@
               </div>
             </div>
             
-            <div class="stats-grid">
-              <div class="stat-item">
-                <span class="stat-label">Moyenne</span>
-                <span class="stat-value">{{ studentData.average_grade?.toFixed(2) || '0.00' }}<small>/20</small></span>
+            <div v-if="isWalletEnabled" class="stats-grid">
+              <div class="stat-item" @click="router.push('/tabs/wallet')" style="cursor: pointer;">
+                <span class="stat-label">Wallet</span>
+                <span class="stat-value">{{ studentData.wallet_balance || '0.00' }}<small> DHS</small></span>
               </div>
-              <template v-if="isWalletEnabled">
-                <div class="divider"></div>
-                <div class="stat-item" @click="router.push('/tabs/wallet')" style="cursor: pointer;">
-                  <span class="stat-label">Wallet</span>
-                  <span class="stat-value">{{ studentData.wallet_balance || '0.00' }}<small> DHS</small></span>
-                </div>
-              </template>
             </div>
           </div>
 
@@ -120,23 +133,52 @@
             </ion-row>
           </ion-grid>
 
-          <!-- Derniers Résultats -->
+          <!-- 5 Derniers Messages du Cahier de Transmission -->
           <div class="section-header" style="margin-top: 25px;">
-            <h2>Derniers Résultats</h2>
-            <ion-button fill="clear" size="small" @click="router.push('/tabs/notes')">Voir tout</ion-button>
+            <div class="section-title-wrap">
+              <h2>Cahier de Transmission</h2>
+              <span class="count-tag" v-if="recentTransmissions.length > 0">{{ recentTransmissions.length }} récent{{ recentTransmissions.length > 1 ? 's' : '' }}</span>
+            </div>
+            <ion-button fill="clear" size="small" class="see-all-trans-btn" @click="router.push('/tabs/transmission')">
+              Voir tout
+              <ion-icon :icon="chevronForwardOutline" slot="end"></ion-icon>
+            </ion-button>
           </div>
 
-          <div class="results-list">
-            <div v-for="grade in recentGrades" :key="grade.id" class="premium-card grade-item">
-              <div class="subject-icon" style="background: rgba(99, 102, 241, 0.1)">
-                <ion-icon :icon="calculatorOutline" style="color: #6366f1"></ion-icon>
+          <div v-if="recentTransmissions.length === 0" class="empty-state-card premium-card">
+            <ion-icon :icon="journalOutline" class="empty-icon"></ion-icon>
+            <p>Aucun message dans le cahier de transmission pour le moment.</p>
+          </div>
+
+          <div v-else class="trans-preview-list">
+            <div 
+              v-for="msg in recentTransmissions" 
+              :key="msg.id" 
+              class="premium-card trans-preview-card"
+              @click="router.push('/tabs/transmission')"
+            >
+              <div class="trans-card-top">
+                <span class="trans-type-badge" :class="msg.type || 'info'">
+                  {{ getTransmissionTypeIcon(msg.type) }} {{ getTransmissionTypeLabel(msg.type) }}
+                </span>
+                <span class="trans-date-pill">
+                  <ion-icon :icon="timeOutline"></ion-icon>
+                  {{ formatSmartDate(msg.date || msg.create_date) }}
+                </span>
               </div>
-              <div class="grade-info">
-                <h4>{{ grade.subject_id?.[1] || 'Évaluation' }}</h4>
-                <p>Oral: {{ grade.oral_mark }} | Final: {{ grade.final_mark }}</p>
-              </div>
-              <div class="grade-pill" :style="{ background: (grade.final_mark >= 10 ? '#10b981' : '#ef4444') }">
-                {{ grade.final_mark }}/20
+
+              <h4 class="trans-preview-title">{{ msg.title || 'Message de l\'établissement' }}</h4>
+              <p class="trans-preview-snippet">{{ msg.content }}</p>
+
+              <div class="trans-card-bottom">
+                <span class="trans-author-tag">
+                  <ion-icon :icon="personOutline"></ion-icon>
+                  {{ msg.author || 'Direction' }}
+                </span>
+                <span v-if="msg.requires_signature" class="trans-sig-indicator" :class="{ 'is-signed': msg.signed }">
+                  <ion-icon :icon="msg.signed ? checkmarkCircleOutline : alertCircleOutline"></ion-icon>
+                  {{ msg.signed ? 'Signé' : 'Signature requise' }}
+                </span>
               </div>
             </div>
           </div>
@@ -182,7 +224,7 @@
             <div class="news-header">
               <div class="news-info">
                 <h3>{{ ann.title }}</h3>
-                <p>{{ formatDatetime(ann.date) }}</p>
+                <p>{{ formatDatetime(ann.create_date || ann.date) }}</p>
               </div>
               <ion-icon :icon="megaphoneOutline" class="news-icon"></ion-icon>
             </div>
@@ -265,30 +307,52 @@
         </ion-header>
 
         <ion-content class="ion-padding notif-modal-content">
-          <div class="notif-top-bar" v-if="allNotifications.length > 0">
+          <!-- Statut des notifications téléphone -->
+          <div class="modal-push-status">
+            <div class="status-left">
+              <span class="status-indicator-dot" :class="{ granted: isPermissionGranted }"></span>
+              <span class="status-text">
+                {{ isPermissionGranted ? 'Notifications téléphone actives' : 'Notifications téléphone désactivées' }}
+              </span>
+            </div>
+            <ion-button v-if="!isPermissionGranted" size="small" fill="outline" color="primary" @click="handleEnableNotifications">
+              Activer
+            </ion-button>
+            <ion-button v-else size="small" fill="clear" color="medium" @click="testPhoneNotification">
+              Tester
+            </ion-button>
+          </div>
+
+          <div class="notif-top-bar" v-if="displayedNotifications.length > 0">
             <div class="notif-summary-pill">
               <span class="unread-chip" v-if="unreadCount > 0">{{ unreadCount }} non lue{{ unreadCount > 1 ? 's' : '' }}</span>
               <span class="all-read-chip" v-else>Toutes lues ✓</span>
             </div>
-            <ion-button v-if="unreadCount > 0" size="small" fill="clear" color="primary" class="mark-all-btn" @click="markAllAsRead">
-              <ion-icon :icon="checkmarkDoneOutline" slot="start"></ion-icon>
-              Tout marquer comme lu
-            </ion-button>
+            <div class="notif-top-actions">
+              <ion-button v-if="unreadCount > 0" size="small" fill="clear" color="primary" class="mark-all-btn" @click="markAllAsRead">
+                <ion-icon :icon="checkmarkDoneOutline" slot="start"></ion-icon>
+                Tout marquer lu
+              </ion-button>
+              <ion-button size="small" fill="clear" color="danger" class="clear-all-btn" @click="clearAllNotifications">
+                <ion-icon :icon="trashOutline" slot="start"></ion-icon>
+                Effacer tout
+              </ion-button>
+            </div>
           </div>
 
           <!-- État vide si aucune notification -->
-          <div v-if="allNotifications.length === 0" class="empty-notif-box">
+          <div v-if="displayedNotifications.length === 0" class="empty-notif-box">
             <div class="empty-notif-icon-circle">
               <ion-icon :icon="notificationsOffOutline"></ion-icon>
             </div>
             <h3>Aucune notification</h3>
-            <p>Aucune nouvelle activité, nouvel exercice ou message pour le moment.</p>
+            <p>Toutes les notifications ont été effacées ou il n'y a aucune nouvelle activité pour le moment.</p>
           </div>
 
           <!-- Liste des notifications -->
           <div v-else class="notif-cards-container">
             <div 
-              v-for="item in allNotifications" 
+              v-for="item in displayedNotifications" 
               :key="item.id" 
               class="notif-entry-card" 
               :class="{ 'is-unread': !isNotifRead(item.id) }"
@@ -301,7 +365,11 @@
               <div class="notif-entry-details">
                 <div class="notif-entry-header">
                   <span class="notif-type-badge" :class="item.type">{{ getNotifTypeLabel(item.type) }}</span>
-                  <span class="notif-entry-time">{{ formatTimeAgo(item.date) }}</span>
+                  <div class="notif-date-status-box">
+                    <span class="notif-entry-time">{{ formatTimeAgo(item.date) }}</span>
+                    <span v-if="!isNotifRead(item.id)" class="notif-badge-unread">Non lu</span>
+                    <span v-else class="notif-badge-read">Lu</span>
+                  </div>
                 </div>
                 <h4 class="notif-entry-title">{{ item.title }}</h4>
                 <p class="notif-entry-desc">{{ item.description }}</p>
@@ -309,6 +377,15 @@
 
               <div class="notif-entry-action">
                 <div class="unread-indicator" v-if="!isNotifRead(item.id)" title="Non lu"></div>
+                <button 
+                  type="button" 
+                  class="notif-item-delete-btn" 
+                  @click.stop="deleteNotification(item.id, $event)" 
+                  title="Effacer cette notification" 
+                  aria-label="Effacer notification"
+                >
+                  <ion-icon :icon="trashOutline"></ion-icon>
+                </button>
                 <ion-icon :icon="chevronForwardOutline" class="chevron-icon"></ion-icon>
               </div>
             </div>
@@ -334,12 +411,15 @@ import {
   bookOutline, restaurantOutline, logOutOutline, 
   calculatorOutline, megaphoneOutline, documentAttachOutline, walletOutline, 
   searchOutline, busOutline, swapHorizontalOutline, settingsOutline, closeOutline,
-  journalOutline, calendarClearOutline, timeOutline, chatbubblesOutline,
-  cartOutline, trophyOutline, gameControllerOutline, folderOpenOutline
+  journalOutline, calendarClearOutline, calendarOutline, timeOutline, chatbubblesOutline,
+  cartOutline, trophyOutline, gameControllerOutline, folderOpenOutline,
+  personOutline, checkmarkCircleOutline, alertCircleOutline, trashOutline,
+  shieldCheckmarkOutline, callOutline
 } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
+import { notificationService } from '@/services/notificationService';
 import { onMounted, ref, computed, onUnmounted } from 'vue';
 
 const router = useRouter();
@@ -347,21 +427,142 @@ const selectedSegment = ref('overview');
 const studentData = ref<any>(null);
 const allStudents = ref<any[]>([]);
 const recentGrades = ref<any[]>([]);
+const recentTransmissions = ref<any[]>([]);
 const announcements = ref<any[]>([]);
 const allNotifications = ref<any[]>([]);
 const readNotifIds = ref<string[]>([]);
+const clearedNotifIds = ref<string[]>([]);
 const showNotifModal = ref(false);
+const isPermissionGranted = ref(notificationService.getPermission() === 'granted');
+const showNotifPermissionBanner = ref(
+  notificationService.getPermission() === 'default' && 
+  !localStorage.getItem('phone_notif_banner_dismissed')
+);
+
+const parseDateSafe = (d: any): number => {
+  if (!d) return 0;
+  if (d instanceof Date) return d.getTime();
+  if (typeof d === 'number') return d;
+  const s = String(d).trim();
+  const match = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (match) {
+    const y = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10) - 1;
+    const day = parseInt(match[3], 10);
+    const h = parseInt(match[4] || '0', 10);
+    const min = parseInt(match[5] || '0', 10);
+    const sec = parseInt(match[6] || '0', 10);
+    return new Date(y, m, day, h, min, sec).getTime();
+  }
+  const t = new Date(s.replace(' ', 'T')).getTime();
+  return isNaN(t) ? (new Date(d).getTime() || 0) : t;
+};
+
+const formatSmartDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const timestamp = parseDateSafe(dateStr);
+  if (!timestamp) return '';
+  const d = new Date(timestamp);
+  const now = new Date();
+  
+  const isToday = d.getDate() === now.getDate() && 
+                  d.getMonth() === now.getMonth() && 
+                  d.getFullYear() === now.getFullYear();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = d.getDate() === yesterday.getDate() && 
+                      d.getMonth() === yesterday.getMonth() && 
+                      d.getFullYear() === yesterday.getFullYear();
+
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const timeStr = `${hours}:${minutes}`;
+
+  if (isToday) return `Aujourd'hui à ${timeStr}`;
+  if (isYesterday) return `Hier à ${timeStr}`;
+
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ` à ${timeStr}`;
+};
+
+const getTransmissionTypeIcon = (type: string) => {
+  const icons: any = { 
+    info: 'ℹ️', 
+    warning: '⚠️', 
+    urgent: '🚨', 
+    homework: '📚', 
+    event: '📅' 
+  };
+  return icons[type] || '📓';
+};
+
+const getTransmissionTypeLabel = (type: string) => {
+  const labels: any = { 
+    info: 'Information', 
+    warning: 'Avertissement', 
+    urgent: 'Urgent', 
+    homework: 'Devoir', 
+    event: 'Événement' 
+  };
+  return labels[type] || 'Message';
+};
+
+// Liste des notifications visibles triées de la plus récente vers la plus ancienne
+const displayedNotifications = computed(() => {
+  return allNotifications.value
+    .filter((n: any) => !clearedNotifIds.value.includes(n.id))
+    .sort((a: any, b: any) => {
+      const timeA = parseDateSafe(a.date);
+      const timeB = parseDateSafe(b.date);
+      if (timeB !== timeA) return timeB - timeA;
+      const numA = parseInt(String(a.id).replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(String(b.id).replace(/\D/g, ''), 10) || 0;
+      return numB - numA;
+    });
+});
 
 const unreadCount = computed(() => {
-  return allNotifications.value.filter(n => !readNotifIds.value.includes(n.id)).length;
+  return displayedNotifications.value.filter(n => !readNotifIds.value.includes(n.id)).length;
 });
+
+const handleEnableNotifications = async () => {
+  const granted = await notificationService.requestPermission();
+  isPermissionGranted.value = granted;
+  if (granted) {
+    showNotifPermissionBanner.value = false;
+    showNotification("✅ Notifications activées sur votre téléphone !");
+  } else {
+    showNotification("ℹ️ Notifications bloquées. Veuillez les autoriser dans les paramètres du navigateur.");
+  }
+};
+
+const dismissNotifBanner = () => {
+  showNotifPermissionBanner.value = false;
+  localStorage.setItem('phone_notif_banner_dismissed', 'true');
+};
+
+const testPhoneNotification = async () => {
+  const success = await notificationService.showPhoneNotification("🔔 Test Safe Mode", {
+    body: "Les notifications de l'école fonctionnent parfaitement sur votre téléphone !",
+    url: '/tabs/dashboard',
+    tag: 'test-direct-' + Date.now()
+  });
+  if (success) {
+    showNotification("Notification envoyée sur votre téléphone !");
+  } else {
+    await notificationService.sendServerTestNotification().catch(() => null);
+    showNotification("Test demandé au serveur...");
+  }
+};
 
 let syncInterval: any = null;
 
 // Catalog of all available shortcuts
 const ALL_SHORTCUTS = [
   { id: 'homework', title: 'Devoirs', subtitle: 'À vérifier', path: '/tabs/homework', icon: bookOutline, colorClass: 'homework-tile' },
+  { id: 'appointments', title: 'Rendez-vous', subtitle: 'Avec la Direction', path: '/tabs/appointments', icon: calendarClearOutline, colorClass: 'appointments-tile' },
   { id: 'transmission', title: 'Transmission', subtitle: 'Cahier de liaison', path: '/tabs/transmission', icon: journalOutline, colorClass: 'transmission-tile' },
+  { id: 'vacances', title: 'Vacances', subtitle: 'Calendrier scolaire', path: '/tabs/vacances', icon: calendarOutline, colorClass: 'vacances-tile' },
   { id: 'canteen', title: 'Cantine', subtitle: 'Menu du Jour', path: '/tabs/vie-scolaire', icon: restaurantOutline, colorClass: 'canteen-tile' },
   { id: 'payments', title: 'Paiements', subtitle: 'Suivi mensuel', path: '/tabs/payments', icon: walletOutline, colorClass: 'payment-tile' },
   { id: 'absences', title: 'Absences', subtitle: 'Retards & Motifs', path: '/tabs/absences', icon: calendarClearOutline, colorClass: 'absences-tile' },
@@ -375,9 +576,11 @@ const ALL_SHORTCUTS = [
   { id: 'success-hub', title: 'Success Hub', subtitle: 'Badges & Mérites', path: '/tabs/success-hub', icon: trophyOutline, colorClass: 'success-tile' },
   { id: 'serious-games', title: 'Jeux Éducatifs', subtitle: 'Quiz & Défis', path: '/tabs/serious-games', icon: gameControllerOutline, colorClass: 'games-tile' },
   { id: 'ressources', title: 'Ressources', subtitle: 'Documents & Cours', path: '/tabs/ressources', icon: folderOpenOutline, colorClass: 'ressources-tile' },
+  { id: 'reglement', title: 'Règlement & Lois', subtitle: 'Textes & Charte', path: '/tabs/reglement', icon: shieldCheckmarkOutline, colorClass: 'reglement-tile' },
+  { id: 'contact', title: 'Contact & Accès', subtitle: 'Numéros & Réseaux', path: '/tabs/contact', icon: callOutline, colorClass: 'contact-tile' },
 ];
 
-const DEFAULT_SHORTCUT_IDS = ['homework', 'transmission', 'canteen', 'payments', 'notes', 'transport'];
+const DEFAULT_SHORTCUT_IDS = ['homework', 'appointments', 'transmission', 'canteen', 'payments', 'notes', 'transport'];
 const userShortcutIds = ref<string[]>([]);
 const showShortcutModal = ref(false);
 const serverTabs = ref<any[]>([]);
@@ -512,6 +715,20 @@ const loadReadNotifIds = (studentId: number) => {
   }
 };
 
+const loadClearedNotifIds = (studentId: number) => {
+  try {
+    const key = `cleared_notifs_${studentId}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      clearedNotifIds.value = JSON.parse(saved);
+    } else {
+      clearedNotifIds.value = [];
+    }
+  } catch (e) {
+    clearedNotifIds.value = [];
+  }
+};
+
 const isNotifRead = (id: string) => {
   return readNotifIds.value.includes(id);
 };
@@ -526,7 +743,7 @@ const markNotifAsRead = (notifId: string) => {
 };
 
 const markAllAsRead = () => {
-  for (const n of allNotifications.value) {
+  for (const n of displayedNotifications.value) {
     if (!readNotifIds.value.includes(n.id)) {
       readNotifIds.value.push(n.id);
     }
@@ -534,6 +751,33 @@ const markAllAsRead = () => {
   if (studentData.value?.id) {
     localStorage.setItem(`read_notifs_${studentData.value.id}`, JSON.stringify(readNotifIds.value));
   }
+  showNotification('Toutes les notifications sont marquées comme lues');
+};
+
+const deleteNotification = (notifId: string, event?: Event) => {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  if (!clearedNotifIds.value.includes(notifId)) {
+    clearedNotifIds.value.push(notifId);
+    if (studentData.value?.id) {
+      localStorage.setItem(`cleared_notifs_${studentData.value.id}`, JSON.stringify(clearedNotifIds.value));
+    }
+  }
+  showNotification('Notification effacée');
+};
+
+const clearAllNotifications = () => {
+  for (const n of displayedNotifications.value) {
+    if (!clearedNotifIds.value.includes(n.id)) {
+      clearedNotifIds.value.push(n.id);
+    }
+  }
+  if (studentData.value?.id) {
+    localStorage.setItem(`cleared_notifs_${studentData.value.id}`, JSON.stringify(clearedNotifIds.value));
+  }
+  showNotification('Toutes les notifications ont été effacées');
 };
 
 const handleNotificationClick = (notif: any) => {
@@ -570,10 +814,12 @@ const getNotifTypeLabel = (type: string) => {
 
 const formatTimeAgo = (dateStr: string) => {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
+  const timestamp = parseDateSafe(dateStr);
+  if (!timestamp) return '';
+  const d = new Date(timestamp);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
-  if (isNaN(d.getTime())) return '';
+  if (diffMs < 0) return "À l'instant";
   const diffMins = Math.floor(diffMs / 60000);
   if (diffMins < 1) return "À l'instant";
   if (diffMins < 60) return `Il y a ${diffMins} min`;
@@ -613,26 +859,83 @@ const fetchData = async (isSync = false) => {
       
       if (!selectedId) odoo.setSelectedStudentId(student.id);
 
-      loadReadNotifIds(student.id);
+      // Enregistrer tous les IDs d'élèves pour les notifications Push ciblées
+      const studentIds = students.map((s: any) => s.id);
+      localStorage.setItem('all_student_ids', JSON.stringify(studentIds));
+      if (isPermissionGranted.value) {
+        notificationService.subscribeToPush(student.parent_id?.[0], studentIds);
+      }
 
-      // Fetch Grades
-      recentGrades.value = await apiRequest('/api/school/grades', { 
-          student_id: student.id
-        });
+      loadReadNotifIds(student.id);
+      loadClearedNotifIds(student.id);
+
+      // Fetch 5 derniers messages reçus dans le cahier de transmission (ordre décroissant par date du nouveau vers ancien)
+      try {
+        const transEntries = await apiRequest('/api/school/cahier-transmission', { student_id: student.id });
+        if (Array.isArray(transEntries)) {
+          const isVacanceMessage = (item: any): boolean => {
+            if (!item) return false;
+            const text = `${item.title || ''} ${item.content || item.body || ''} ${item.description || ''} ${item.subject || ''}`.toLowerCase();
+            const holidayRegex = /(عطلة|عطل|أعياد|عيد|إجازة|اجازة|فترة بينية|فترات بينية|تقويم|جدول العطل|vacance|vacances|férié|ferie|fête|fete|congé|conge|holiday|holidays|aid|aïd|calendrier)/i;
+            return holidayRegex.test(text);
+          };
+
+          const nonHolidayEntries = transEntries.filter(item => !isVacanceMessage(item));
+          const sorted = [...nonHolidayEntries].sort((a, b) => {
+            const timeA = parseDateSafe(a.date || a.create_date);
+            const timeB = parseDateSafe(b.date || b.create_date);
+            return timeB - timeA;
+          });
+          recentTransmissions.value = sorted.slice(0, 5);
+        }
+      } catch (transErr) {
+        console.warn('Erreur chargement messages cahier transmission:', transErr);
+      }
 
       // Fetch unified Notifications (devoirs, activités, messages)
       const notifs = await odoo.getNotifications(student.id, student.level_id?.[0]);
       if (Array.isArray(notifs)) {
+        // Trier chronologiquement de la plus récente vers la plus ancienne
+        notifs.sort((a: any, b: any) => {
+          const timeA = parseDateSafe(a.date);
+          const timeB = parseDateSafe(b.date);
+          if (timeB !== timeA) return timeB - timeA;
+          const numA = parseInt(String(a.id).replace(/\D/g, ''), 10) || 0;
+          const numB = parseInt(String(b.id).replace(/\D/g, ''), 10) || 0;
+          return numB - numA;
+        });
+
         const prevUnread = unreadCount.value;
         allNotifications.value = notifs;
-        const newUnread = notifs.filter((n: any) => !readNotifIds.value.includes(n.id)).length;
+        const newUnread = notifs.filter((n: any) => !clearedNotifIds.value.includes(n.id) && !readNotifIds.value.includes(n.id)).length;
         if (isSync && newUnread > prevUnread) {
-          showNotification("Nouvelle notification de l'école reçue !");
+          const latest = notifs.find((n: any) => !clearedNotifIds.value.includes(n.id) && !readNotifIds.value.includes(n.id)) || notifs[0];
+          const notifTitle = latest?.title || "Notification de l'école";
+          const notifBody = latest?.description || latest?.message || "Nouvelle information scolaire disponible.";
+
+          // Déclencher la notification native sur le téléphone (vibreur, son, écran de veille)
+          notificationService.showPhoneNotification(`🔔 ${notifTitle}`, {
+            body: notifBody,
+            url: latest?.link || '/tabs/dashboard',
+            tag: `school-notif-${latest?.id || Date.now()}`
+          });
+
+          showNotification(`${notifTitle}`);
         }
       }
 
       // Fetch Announcements
-      announcements.value = await odoo.getAnnouncements(student.level_id?.[0]);
+      const rawAnnouncements = await odoo.getAnnouncements(student.level_id?.[0]);
+      if (Array.isArray(rawAnnouncements)) {
+        announcements.value = [...rawAnnouncements].sort((a, b) => {
+          const timeA = parseDateSafe(a.create_date || a.date);
+          const timeB = parseDateSafe(b.create_date || b.date);
+          if (timeB !== timeA) return timeB - timeA;
+          const idA = typeof a.id === 'number' ? a.id : 0;
+          const idB = typeof b.id === 'number' ? b.id : 0;
+          return idB - idA;
+        });
+      }
     }
   } catch (e: any) {
     console.error('Failed to fetch data', e);
@@ -660,6 +963,13 @@ onMounted(() => {
   loadSavedShortcuts();
   fetchData();
   window.addEventListener('student-changed', handleStudentChanged);
+
+  // Synchroniser le statut des notifications téléphone
+  isPermissionGranted.value = notificationService.getPermission() === 'granted';
+  if (isPermissionGranted.value) {
+    notificationService.subscribeToPush();
+  }
+
   // Auto-sync notifications and updates every 30 seconds
   syncInterval = setInterval(() => {
     fetchData(true);
@@ -734,6 +1044,10 @@ onUnmounted(() => {
   margin-bottom: 25px;
   position: relative;
   z-index: 2;
+}
+
+.student-header:last-child {
+  margin-bottom: 0;
 }
 
 .name-tag h3 {
@@ -936,7 +1250,9 @@ onUnmounted(() => {
 }
 
 .homework-tile .icon-box { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+.appointments-tile .icon-box { background: rgba(14, 165, 233, 0.12); color: #0284c7; }
 .transmission-tile .icon-box { background: rgba(92, 45, 84, 0.1); color: #5c2d54; }
+.vacances-tile .icon-box { background: rgba(2, 132, 199, 0.1); color: #0284c7; }
 .canteen-tile .icon-box { background: rgba(245, 158, 11, 0.1); color: #d97706; }
 .payment-tile .icon-box { background: rgba(16, 185, 129, 0.1); color: #059669; }
 .absences-tile .icon-box { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
@@ -950,6 +1266,8 @@ onUnmounted(() => {
 .success-tile .icon-box { background: rgba(234, 179, 8, 0.1); color: #eab308; }
 .games-tile .icon-box { background: rgba(16, 185, 129, 0.1); color: #10b981; }
 .ressources-tile .icon-box { background: rgba(100, 116, 139, 0.1); color: #64748b; }
+.reglement-tile .icon-box { background: rgba(30, 64, 175, 0.12); color: #1e40af; }
+.contact-tile .icon-box { background: rgba(16, 185, 129, 0.12); color: #059669; }
 
 .action-tile h3 {
   margin: 2px 0 0 0;
@@ -1018,42 +1336,141 @@ onUnmounted(() => {
   gap: 12px;
 }
 
-.grade-item {
+/* Transmission preview on Dashboard */
+.section-title-wrap {
   display: flex;
   align-items: center;
-  padding: 14px 18px;
-  gap: 16px;
-  border-radius: 20px;
-  background: white;
-  border: 1px solid rgba(0,0,0,0.02);
+  gap: 10px;
 }
 
-.grade-item:active {
+.count-tag {
+  background: rgba(92, 45, 84, 0.1);
+  color: #5c2d54;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.see-all-trans-btn {
+  --color: #5c2d54;
+  font-weight: 750;
+  font-size: 0.85rem;
+}
+
+.trans-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.trans-preview-card {
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-bottom: 0;
+}
+
+.trans-preview-card:active {
   transform: scale(0.98);
 }
 
-.subject-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+.trans-card-top {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  font-size: 1.4rem;
+  margin-bottom: 10px;
 }
 
-.grade-info { flex: 1; }
-.grade-info h4 { margin: 0; font-size: 1.05rem; font-weight: 750; color: #1e293b; }
-.grade-info p { margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b; font-weight: 600; }
-
-.grade-pill {
-  color: white;
-  padding: 8px 14px;
-  border-radius: 12px;
+.trans-type-badge {
+  font-size: 0.75rem;
   font-weight: 800;
-  font-size: 0.95rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  padding: 4px 10px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trans-type-badge.info { background: rgba(59, 130, 246, 0.1); color: #2563eb; }
+.trans-type-badge.warning { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+.trans-type-badge.urgent { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
+.trans-type-badge.homework { background: rgba(139, 92, 246, 0.12); color: #7c3aed; }
+.trans-type-badge.event { background: rgba(16, 185, 129, 0.12); color: #059669; }
+
+.trans-date-pill {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trans-date-pill ion-icon {
+  font-size: 0.85rem;
+}
+
+.trans-preview-title {
+  font-size: 1.05rem;
+  font-weight: 850;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.2px;
+}
+
+.trans-preview-snippet {
+  font-size: 0.88rem;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.trans-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.trans-author-tag {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.trans-author-tag ion-icon {
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.trans-sig-indicator {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.trans-sig-indicator.is-signed {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
 }
 
 .news-card {
@@ -1316,10 +1733,24 @@ onUnmounted(() => {
   border-radius: 20px;
 }
 
+.notif-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .mark-all-btn {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
   --color: #3b82f6;
+  margin: 0;
+}
+
+.clear-all-btn {
+  font-size: 0.78rem;
+  font-weight: 700;
+  --color: #ef4444;
+  margin: 0;
 }
 
 .empty-notif-box {
@@ -1492,6 +1923,33 @@ onUnmounted(() => {
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
 }
 
+.notif-item-delete-btn {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #94a3b8;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.notif-item-delete-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.notif-item-delete-btn:active {
+  transform: scale(0.9);
+}
+
 .dash-massar-tag {
   display: inline-block;
   margin-left: 6px;
@@ -1506,5 +1964,148 @@ onUnmounted(() => {
 .chevron-icon {
   color: #cbd5e1;
   font-size: 1rem;
+}
+
+/* Phone Notification Activation Banner */
+.phone-notif-card {
+  margin: 15px 0 20px 0;
+  background: linear-gradient(135deg, rgba(92, 45, 84, 0.08) 0%, rgba(92, 45, 84, 0.02) 100%);
+  border: 1px solid rgba(92, 45, 84, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(92, 45, 84, 0.05);
+}
+
+.notif-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bell-glow-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #5c2d54;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(92, 45, 84, 0.3);
+}
+
+.notif-card-text h4 {
+  margin: 0 0 4px 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.notif-card-text p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.notif-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.notif-btn-dismiss {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.notif-btn-enable {
+  background: #5c2d54;
+  color: white;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 10px rgba(92, 45, 84, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.notif-btn-enable:active {
+  transform: scale(0.97);
+}
+
+.modal-push-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border: 1px solid #e2e8f0;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.status-indicator-dot.granted {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+}
+
+.status-text {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.notif-date-status-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notif-badge-unread {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #ef4444;
+  background: #fee2e2;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.notif-badge-read {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #10b981;
+  background: #ecfdf5;
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 </style>

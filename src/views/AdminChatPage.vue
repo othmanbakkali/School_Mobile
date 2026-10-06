@@ -544,19 +544,30 @@ onUnmounted(() => {
 .sent .message-bubble {
   background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   border-bottom-right-radius: 4px;
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .received .message-bubble {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
   border-bottom-left-radius: 4px;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .message-text {
   font-size: 0.95rem;
   line-height: 1.4;
   word-wrap: break-word;
+}
+
+.sent .message-text {
+  color: #ffffff !important;
+}
+
+.received .message-text {
+  color: #0f172a !important;
+  font-weight: 500;
 }
 
 .message-footer {
@@ -573,11 +584,11 @@ onUnmounted(() => {
 }
 
 .sent .time {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.7) !important;
 }
 
 .received .time {
-  color: #64748b;
+  color: #64748b !important;
 }
 
 .read-icon {
@@ -776,6 +787,12 @@ onUnmounted(() => {
   color: #ffffff;
 }
 
+.received .attached-file-box {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
 .file-icon-box {
   width: 36px;
   height: 36px;
@@ -809,9 +826,25 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
+.sent .file-name {
+  color: #ffffff !important;
+}
+
+.received .file-name {
+  color: #0f172a !important;
+}
+
 .file-size {
   font-size: 0.68rem;
   opacity: 0.8;
+}
+
+.sent .file-size {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.received .file-size {
+  color: #64748b !important;
 }
 
 .file-download-icon {

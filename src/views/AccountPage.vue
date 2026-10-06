@@ -85,6 +85,32 @@
           </ion-button>
         </div>
 
+        <!-- Security & Password Section -->
+        <div class="section-label">🔒 {{ t('account.security') }}</div>
+        <div class="premium-card form-card ion-padding">
+          <p class="security-intro-text">{{ t('account.changePassDesc') }}</p>
+          
+          <div class="form-group">
+            <label>{{ t('account.currentPass') }}</label>
+            <input type="password" v-model="currentPassword" class="form-input" placeholder="Mot de passe actuel" />
+          </div>
+          
+          <div class="form-group">
+            <label>{{ t('account.newPass') }}</label>
+            <input type="password" v-model="newPassword" class="form-input" placeholder="Nouveau mot de passe (min 6 car.)" />
+          </div>
+
+          <div class="form-group">
+            <label>{{ t('account.confirmNewPass') }}</label>
+            <input type="password" v-model="confirmPassword" class="form-input" placeholder="Confirmer le nouveau mot de passe" />
+          </div>
+
+          <ion-button expand="block" class="save-btn pass-change-btn" :disabled="savingPassword" @click="handlePasswordChange">
+            <span v-if="!savingPassword">{{ t('account.updatePassBtn') }}</span>
+            <ion-spinner name="crescent" color="light" v-else></ion-spinner>
+          </ion-button>
+        </div>
+
         <!-- Children List -->
         <div class="section-label">👶 {{ t('account.children') }}</div>
         <div class="children-list">
@@ -146,24 +172,68 @@ const fetchAccountInfo = async () => {
     return;
   }
   try {
-    const students = await apiRequest('/api/school/student', { email: config.email });
-    children.value = students;
-    
-    if (students && students.length > 0) {
-      const parentInfo = students[0].parent_id;
-      if (parentInfo) {
-        // Fetch parent details
-        parentData.value = {
-          id: parentInfo[0],
-          name: parentInfo[1],
-          email: config.email,
-          phone: odoo.userConfig?.phone || ''
-        };
-        editName.value = parentData.value.name;
-        editEmail.value = parentData.value.email;
-        editPhone.value = parentData.value.phone;
-      }
+    const isAdmin = localStorage.getItem('is_admin') === 'true';
+    let savedParentUser: any = null;
+    try {
+      const pSaved = localStorage.getItem('parent_user');
+      if (pSaved) savedParentUser = JSON.parse(pSaved);
+    } catch (e) {}
+
+    // 1. Récupérer les élèves associés
+    const students = await apiRequest('/api/school/student', { 
+      email: config.email,
+      parent_id: !isAdmin ? config.uid : null 
+    });
+    children.value = students || [];
+
+    // 2. Déterminer l'ID du parent ou de l'utilisateur
+    let parentId = savedParentUser?.id || config.uid;
+    if (!parentId && students && students.length > 0 && students[0].parent_id) {
+      parentId = students[0].parent_id[0];
     }
+
+    // 3. Récupérer les données complètes directement depuis Odoo
+    let fetchedParent: any = null;
+    try {
+      const parentInfoRes = await apiRequest('/api/school/parent/info', {
+        parent_id: !isAdmin ? parentId : null,
+        email: config.email,
+        user_id: isAdmin ? config.uid : null
+      });
+      if (parentInfoRes && parentInfoRes.success && parentInfoRes.parent) {
+        fetchedParent = parentInfoRes.parent;
+      }
+    } catch (infoErr) {
+      console.warn('Erreur lecture parent/info:', infoErr);
+    }
+
+    if (fetchedParent) {
+      parentData.value = {
+        id: fetchedParent.id,
+        name: fetchedParent.name,
+        email: fetchedParent.email || config.email || '',
+        phone: fetchedParent.phone || savedParentUser?.phone || ''
+      };
+    } else if (students && students.length > 0 && students[0].parent_id) {
+      const parentInfo = students[0].parent_id;
+      parentData.value = {
+        id: parentInfo[0],
+        name: parentInfo[1],
+        email: config.email || '',
+        phone: savedParentUser?.phone || config.phone || ''
+      };
+    } else {
+      parentData.value = {
+        id: parentId || 1,
+        name: savedParentUser?.name || config.username || 'Parent',
+        email: savedParentUser?.email || config.email || '',
+        phone: savedParentUser?.phone || config.phone || ''
+      };
+    }
+
+    editName.value = parentData.value.name || '';
+    editEmail.value = parentData.value.email || '';
+    editPhone.value = parentData.value.phone || '';
   } catch (error) {
     console.error('Failed to load parent account info', error);
   } finally {
@@ -172,41 +242,59 @@ const fetchAccountInfo = async () => {
 };
 
 const handleSave = async () => {
-  if (!parentData.value?.id) return;
+  if (!parentData.value?.id) {
+    const toast = await toastController.create({
+      message: "Identifiant du profil introuvable",
+      duration: 3000,
+      color: 'warning',
+      position: 'bottom'
+    });
+    await toast.present();
+    return;
+  }
+
   saving.value = true;
   try {
     const res = await apiRequest('/api/school/parent/update', {
       parent_id: parentData.value.id,
-      name: editName.value,
-      email: editEmail.value,
-      phone: editPhone.value
+      name: editName.value.trim(),
+      email: editEmail.value.trim(),
+      phone: editPhone.value.trim()
     });
     
     if (res && res.success) {
-      // Update local storage configuration
+      // Mettre à jour la configuration locale
       const config = odoo.userConfig;
       if (config) {
-        config.email = editEmail.value;
-        config.phone = editPhone.value;
+        config.email = editEmail.value.trim();
+        config.phone = editPhone.value.trim();
         odoo.setUserConfig(config);
       }
+      odoo.updateParentUser({
+        id: parentData.value.id,
+        name: editName.value.trim(),
+        email: editEmail.value.trim(),
+        phone: editPhone.value.trim()
+      });
       
-      parentData.value.name = editName.value;
-      parentData.value.email = editEmail.value;
-      parentData.value.phone = editPhone.value;
+      parentData.value.name = editName.value.trim();
+      parentData.value.email = editEmail.value.trim();
+      parentData.value.phone = editPhone.value.trim();
       
       const toast = await toastController.create({
-        message: t('common.saved'),
+        message: t('common.saved') || "Modifications enregistrées avec succès !",
         duration: 3000,
         color: 'success',
         position: 'bottom'
       });
       await toast.present();
+    } else {
+      throw new Error(res?.message || res?.error || "Erreur de mise à jour");
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Save profile error', error);
     const toast = await toastController.create({
-      message: t('common.translateError') || "Erreur de sauvegarde",
+      message: error?.message || t('common.translateError') || "Erreur de sauvegarde",
       duration: 3000,
       color: 'danger',
       position: 'bottom'
@@ -214,6 +302,86 @@ const handleSave = async () => {
     await toast.present();
   } finally {
     saving.value = false;
+  }
+};
+
+const currentPassword = ref('');
+const newPassword = ref('');
+const confirmPassword = ref('');
+const savingPassword = ref(false);
+
+const handlePasswordChange = async () => {
+  if (!parentData.value?.id) return;
+
+  if (!currentPassword.value) {
+    const toast = await toastController.create({
+      message: "Veuillez renseigner votre mot de passe actuel.",
+      duration: 3000,
+      color: 'warning',
+      position: 'bottom'
+    });
+    await toast.present();
+    return;
+  }
+  
+  if (newPassword.value.trim().length < 6) {
+    const toast = await toastController.create({
+      message: t('account.passTooShort'),
+      duration: 3000,
+      color: 'warning',
+      position: 'bottom'
+    });
+    await toast.present();
+    return;
+  }
+
+  if (newPassword.value.trim() === '20262027' || newPassword.value.trim() === '2026-2027') {
+    const toast = await toastController.create({
+      message: t('account.passNotOld'),
+      duration: 3000,
+      color: 'warning',
+      position: 'bottom'
+    });
+    await toast.present();
+    return;
+  }
+
+  if (newPassword.value !== confirmPassword.value) {
+    const toast = await toastController.create({
+      message: t('account.passMismatch'),
+      duration: 3000,
+      color: 'warning',
+      position: 'bottom'
+    });
+    await toast.present();
+    return;
+  }
+
+  savingPassword.value = true;
+  try {
+    await odoo.changePassword(parentData.value.id, currentPassword.value.trim(), newPassword.value.trim());
+    
+    currentPassword.value = '';
+    newPassword.value = '';
+    confirmPassword.value = '';
+
+    const toast = await toastController.create({
+      message: t('account.passUpdatedSuccess'),
+      duration: 3000,
+      color: 'success',
+      position: 'bottom'
+    });
+    await toast.present();
+  } catch (error: any) {
+    const toast = await toastController.create({
+      message: error.message || "Erreur lors du changement de mot de passe",
+      duration: 3500,
+      color: 'danger',
+      position: 'bottom'
+    });
+    await toast.present();
+  } finally {
+    savingPassword.value = false;
   }
 };
 
@@ -332,6 +500,19 @@ onMounted(() => {
   margin-top: 25px;
   margin-bottom: 0;
   box-shadow: 0 8px 20px rgba(92, 45, 84, 0.2);
+}
+
+.pass-change-btn {
+  --background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
+}
+
+.security-intro-text {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0 0 18px 0;
+  font-weight: 550;
+  line-height: 1.45;
 }
 
 .children-list {

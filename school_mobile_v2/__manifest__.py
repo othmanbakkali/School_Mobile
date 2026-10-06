@@ -9,7 +9,10 @@
     'data': [
         'security/school_security.xml',
         'security/ir.model.access.csv',
+        'data/payment_sequence_data.xml',
+        'data/homework_cron_data.xml',
         'data/mobile_tab_data.xml',
+        'reports/school_payment_receipt_report.xml',
         'views/school_views.xml',
         'views/mobile_tab_views.xml',
     ],

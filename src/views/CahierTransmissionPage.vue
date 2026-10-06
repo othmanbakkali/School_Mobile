@@ -101,7 +101,8 @@ import {
   calendarOutline, 
   checkmarkCircleOutline, 
   alertCircleOutline,
-  documentAttachOutline 
+  documentAttachOutline,
+  chevronForwardOutline 
 } from 'ionicons/icons';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
@@ -140,9 +141,37 @@ const getTypeLabel = (type: string) => {
   return labels[type] || (locale.value === 'ar' ? 'رسالة' : 'Message');
 };
 
+const parseDateSafe = (d: any): number => {
+  if (!d) return 0;
+  if (d instanceof Date) return d.getTime();
+  if (typeof d === 'number') return d;
+  const s = String(d).trim();
+  const match = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (match) {
+    const y = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10) - 1;
+    const day = parseInt(match[3], 10);
+    const h = parseInt(match[4] || '0', 10);
+    const min = parseInt(match[5] || '0', 10);
+    const sec = parseInt(match[6] || '0', 10);
+    return new Date(y, m, day, h, min, sec).getTime();
+  }
+  const t = new Date(s.replace(' ', 'T')).getTime();
+  return isNaN(t) ? (new Date(d).getTime() || 0) : t;
+};
+
 const formatDate = (d: string) => {
   if (!d) return '';
-  return new Date(d).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  const ts = parseDateSafe(d);
+  if (!ts) return '';
+  const lang = locale.value === 'ar' ? 'ar-MA' : 'fr-FR';
+  return new Date(ts).toLocaleDateString(lang, { 
+    weekday: 'short', 
+    day: 'numeric', 
+    month: 'long', 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
 };
 
 const signEntry = async (entry: any) => {
@@ -182,39 +211,63 @@ const fetchData = async () => {
     const student = students.find((s: any) => s.id === selectedId) || students[0];
     
     if (student) {
-      // 1. Fetch main transmission entries
+      // 1. Fetch main transmission entries from school.cahier.transmission
       const transmissionEntries = await apiRequest('/api/school/cahier-transmission', { student_id: student.id });
       
       // 2. Fetch announcements in parallel
-      let announcementsData = [];
+      let announcementsData: any[] = [];
       try {
         announcementsData = await odoo.getAnnouncements(student.level_id?.[0]);
       } catch (annError) {
         console.error('Failed to fetch announcements for transmission notebook', annError);
       }
       
-      // 3. Format announcements
-      const formattedAnnouncements = announcementsData.map((ann: any) => ({
-        id: `ann-${ann.id}`,
-        type: 'actualite',
-        title: ann.title,
-        content: ann.content,
-        author: 'Direction de l\'établissement',
-        date: ann.date,
-        attachment: ann.attachment,
-        attachment_name: ann.attachment_name,
-        isAnnouncement: true
-      }));
+      // 3. Format announcements: exclure les vacances du calendrier scolaire planifiées pour plus tard (ex: 2027)
+      // et retenir la date réelle de publication (create_date ou date)
+      const formattedAnnouncements = (announcementsData || [])
+        .filter((ann: any) => {
+          const eventTime = parseDateSafe(ann.date);
+          const createTime = parseDateSafe(ann.create_date);
+          // Si l'annonce est un événement futur lointain (calendrier des vacances), ne pas l'insérer dans le fil des messages
+          if (eventTime && createTime && (eventTime - createTime > 2 * 86400000)) {
+            return false;
+          }
+          return true;
+        })
+        .map((ann: any) => ({
+          id: `ann-${ann.id}`,
+          type: 'actualite',
+          title: ann.title,
+          content: ann.content,
+          author: 'Direction de l\'établissement',
+          date: ann.create_date || ann.date,
+          attachment: ann.attachment,
+          attachment_name: ann.attachment_name,
+          isAnnouncement: true
+        }));
 
-      // 4. Merge and sort descending by date
-      const merged = [...transmissionEntries, ...formattedAnnouncements];
-      merged.sort((a, b) => {
-        const dateA = new Date(a.date || a.create_date || 0).getTime();
-        const dateB = new Date(b.date || b.create_date || 0).getTime();
-        return dateB - dateA;
+      // 4. Filtrer les messages concernant le calendrier et les vacances (réservés à l'onglet Vacances)
+      const isVacanceOrCalendarMessage = (item: any): boolean => {
+        if (!item) return false;
+        const text = `${item.title || ''} ${item.content || item.body || ''} ${item.description || ''} ${item.subject || ''}`.toLowerCase();
+        const holidayAndCalRegex = /(عطلة|عطل|أعياد|عيد|إجازة|اجازة|فترة بينية|فترات بينية|تقويم|جدول العطل|vacance|vacances|férié|ferie|fête|fete|congé|conge|holiday|holidays|aid|aïd|calendrier)/i;
+        return holidayAndCalRegex.test(text);
+      };
+
+      const merged = [...(transmissionEntries || []), ...formattedAnnouncements];
+      const communicationEntries = merged.filter(item => !isVacanceOrCalendarMessage(item));
+
+      // 5. Trier STRICTEMENT par ordre décroissant de date de publication (du plus récent vers le plus ancien)
+      communicationEntries.sort((a, b) => {
+        const dateA = parseDateSafe(a.create_date || a.date);
+        const dateB = parseDateSafe(b.create_date || b.date);
+        if (dateB !== dateA) return dateB - dateA;
+        const idA = typeof a.id === 'number' ? a.id : parseInt(String(a.id).replace(/\D/g, '')) || 0;
+        const idB = typeof b.id === 'number' ? b.id : parseInt(String(b.id).replace(/\D/g, '')) || 0;
+        return idB - idA;
       });
 
-      entries.value = merged;
+      entries.value = communicationEntries;
     }
   } catch (e) {
     console.error(e);

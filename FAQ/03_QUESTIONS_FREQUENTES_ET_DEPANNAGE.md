@@ -44,12 +44,11 @@ Retrouvez ici les réponses aux questions les plus courantes et les solutions pr
 
 ---
 
-### ❓ Q5 : Si un enseignant saisit un devoir en arabe et que la traduction en français ne lui plaît pas, peut-il la corriger ?
-**Oui, absolument !**
-La traduction automatique est une proposition instantanée pour faire gagner du temps. L'enseignant reste libre à 100% :
-- Il peut cliquer dans le champ français ou arabe et modifier n'importe quel mot ou phrase.
-- Le texte corrigé manuellement sera conservé et enregistré tel quel.
-- Le bouton **`🔄 Traduire`** permet de relancer la traduction si besoin.
+### ❓ Q5 : Comment sont gérées les langues des devoirs (Arabe et Français) ?
+**La traduction automatique a été annulée afin de préserver fidèlement le travail pédagogique :**
+- Si le devoir est rédigé en arabe, il s'affiche en **arabe** avec alignement naturel à droite (RTL) aussi bien dans le backend Odoo que sur l'application mobile.
+- Si le devoir est rédigé en français, il s'affiche en **français** dans le backend Odoo et sur l'application mobile.
+- Aucune traduction automatique robotique ne vient dénaturer les énoncés ou les consignes.
 
 ---
 

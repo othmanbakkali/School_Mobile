@@ -3,7 +3,8 @@
     <ion-header class="ion-no-border">
       <ion-toolbar mode="md">
         <ion-buttons slot="start">
-          <ion-menu-button color="dark"></ion-menu-button>
+          <ion-back-button v-if="isAdmin" default-href="/admin/inbox"></ion-back-button>
+          <ion-menu-button v-else color="dark"></ion-menu-button>
         </ion-buttons>
         <ion-title>Ressources</ion-title>
       </ion-toolbar>
@@ -11,8 +12,8 @@
 
     <ion-content class="ion-padding gray-bg">
       <div class="fade-in">
-        <!-- Student Header Badge -->
-        <StudentHeaderBadge />
+        <!-- Student Header Badge (uniquement si un élève est actif) -->
+        <StudentHeaderBadge v-if="odoo.selectedStudentId" />
 
         <div class="page-hero">
           <div class="hero-icon">📚</div>
@@ -53,7 +54,7 @@
             </div>
             <div class="res-info">
               <h3>{{ res.name }}</h3>
-              <p>{{ res.subject || 'Général' }} · {{ res.teacher || '' }}</p>
+              <p>{{ getSubjectDisplay(res) }} · {{ getTeacherDisplay(res) }}</p>
               <div class="res-meta">
                 <span class="res-size">{{ res.size || '' }}</span>
                 <span class="res-date">{{ formatDate(res.date || res.create_date) }}</span>
@@ -72,7 +73,7 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonButtons, IonMenuButton, IonIcon, IonSpinner, IonButton, onIonViewWillEnter
+  IonButtons, IonBackButton, IonMenuButton, IonIcon, IonSpinner, IonButton, onIonViewWillEnter
 } from '@ionic/vue';
 import { searchOutline, documentOutline, downloadOutline } from 'ionicons/icons';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
@@ -82,6 +83,7 @@ import { useRouter } from 'vue-router';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const router = useRouter();
+const isAdmin = computed(() => localStorage.getItem('is_admin') === 'true');
 const loading = ref(true);
 const searchQuery = ref('');
 const activeCategory = ref('all');
@@ -96,6 +98,18 @@ const categories = [
 
 const resources = ref<any[]>([]);
 
+const getSubjectDisplay = (res: any) => {
+  if (res.subject) return res.subject;
+  if (Array.isArray(res.subject_id) && res.subject_id.length > 1) return res.subject_id[1];
+  return 'Général';
+};
+
+const getTeacherDisplay = (res: any) => {
+  if (res.teacher) return res.teacher;
+  if (Array.isArray(res.teacher_id) && res.teacher_id.length > 1) return res.teacher_id[1];
+  return '';
+};
+
 const filteredResources = computed(() => {
   let res = resources.value;
   if (activeCategory.value !== 'all') {
@@ -103,7 +117,11 @@ const filteredResources = computed(() => {
   }
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
-    res = res.filter(r => (r.name || '').toLowerCase().includes(q) || (r.subject || '').toLowerCase().includes(q));
+    res = res.filter(r =>
+      (r.name || '').toLowerCase().includes(q) ||
+      getSubjectDisplay(r).toLowerCase().includes(q) ||
+      getTeacherDisplay(r).toLowerCase().includes(q)
+    );
   }
   return res;
 });
@@ -143,14 +161,21 @@ const fetchData = async () => {
   const config = odoo.userConfig;
   if (!config) { router.replace('/login'); return; }
   try {
-    const students = await apiRequest('/api/school/student', { email: config.email });
     const selectedId = odoo.selectedStudentId;
-    const student = students.find((s: any) => s.id === selectedId) || students[0];
+    let student = null;
+    if (selectedId && !isAdmin.value) {
+      const students = await apiRequest('/api/school/student', { email: config.email }).catch(() => []);
+      student = students.find((s: any) => s.id === selectedId) || null;
+    }
+
     if (student) {
       resources.value = await apiRequest('/api/school/resources', {
         student_id: student.id,
         level_id: student.level_id?.[0]
       });
+    } else {
+      // Pour les enseignants, direction ou consultation globale de l'établissement
+      resources.value = await apiRequest('/api/school/resources', {});
     }
   } catch (e) {
     // Demo data

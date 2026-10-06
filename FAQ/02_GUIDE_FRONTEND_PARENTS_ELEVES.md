@@ -65,13 +65,14 @@ Dès la connexion, le tableau de bord affiche un résumé visuel et dynamique :
 
 ---
 
-## 6. Suivi des Devoirs à la Maison (Bilingue)
+## 6. Suivi des Devoirs à la Maison
 
 1. Appuyez sur **Devoirs** (ou **الواجبات المنزلية**).
 2. Les devoirs sont classés par date d'échéance avec un badge de couleur pour chaque matière.
-3. **Affichage bilingue intelligent** :
-   - Si votre application est en **Français**, le devoir s'affiche en français.
-   - Si votre application est en **Arabe**, le devoir s'affiche en arabe grâce à la traduction automatique Odoo.
+3. **Affichage dans la langue d'enseignement** :
+   - Les devoirs rédigés en **Arabe 🇲🇦** (Arabe, Éducation islamique, etc.) s'affichent fidèlement en arabe avec mise en page de droite à gauche (RTL).
+   - Les devoirs rédigés en **Français 🇫🇷** (Français, etc.) s'affichent fidèlement en français.
+   - Aucune traduction automatique robotique ne vient altérer le contenu pédagogique.
 4. **Pièces jointes & Documents** :
    - Si le professeur a joint une fiche d'exercices ou un PDF, un bouton **Pièce Jointe** 📎 apparaît. Appuyez dessus pour ouvrir ou télécharger le document.
 5. **Validation du devoir** :

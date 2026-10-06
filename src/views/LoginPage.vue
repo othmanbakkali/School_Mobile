@@ -68,6 +68,106 @@
           <p>© 2026 Smart Digital School by <a href="https://www.sdbo.ma" target="_blank" rel="noopener" class="sdbo-link">www.sdbo.ma</a></p>
         </div>
       </div>
+
+      <!-- Modal de Première Connexion : Changement Obligatoire du Mot de Passe -->
+      <ion-modal v-if="showFirstLoginModal" :is-open="showFirstLoginModal" :backdrop-dismiss="false" class="first-login-modal">
+        <div class="first-login-modal-wrapper">
+          <div class="modal-card glass-modal">
+            <div class="shield-badge">
+              <ion-icon :icon="shieldCheckmarkOutline"></ion-icon>
+            </div>
+
+            <h2 class="modal-title">Première Connexion</h2>
+            <p class="modal-intro">
+              Bienvenue <strong v-if="pendingParentName">{{ pendingParentName }}</strong> ! 
+              Pour garantir la sécurité et la confidentialité du dossier scolaire de vos enfants, veuillez définir un <strong>nouveau mot de passe personnel</strong> pour remplacer le mot de passe initial.
+            </p>
+
+            <div class="initial-pass-info">
+              <ion-icon :icon="keyOutline"></ion-icon>
+              <span>Mot de passe provisoire (<strong>20262027</strong>) validé.</span>
+            </div>
+
+            <div class="modal-inputs">
+              <!-- Nouveau Mot de passe -->
+              <div class="modal-input-field">
+                <label>Nouveau mot de passe personnel</label>
+                <div class="field-box">
+                  <ion-icon :icon="lockClosedOutline" class="field-icon"></ion-icon>
+                  <ion-input 
+                    v-model="newPassword" 
+                    :type="showNewPass ? 'text' : 'password'"
+                    placeholder="Au moins 6 caractères"
+                  ></ion-input>
+                  <button type="button" class="eye-toggle-btn" @click="showNewPass = !showNewPass">
+                    <ion-icon :icon="showNewPass ? eyeOffOutline : eyeOutline"></ion-icon>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Confirmation Mot de passe -->
+              <div class="modal-input-field">
+                <label>Confirmer le nouveau mot de passe</label>
+                <div class="field-box">
+                  <ion-icon :icon="checkmarkDoneOutline" class="field-icon"></ion-icon>
+                  <ion-input 
+                    v-model="confirmPassword" 
+                    :type="showConfirmPass ? 'text' : 'password'"
+                    placeholder="Retapez votre mot de passe"
+                  ></ion-input>
+                  <button type="button" class="eye-toggle-btn" @click="showConfirmPass = !showConfirmPass">
+                    <ion-icon :icon="showConfirmPass ? eyeOffOutline : eyeOutline"></ion-icon>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Règles de sécurité interactives -->
+              <div class="security-rules">
+                <div class="rule-line" :class="{ 'rule-valid': isLengthValid }">
+                  <ion-icon :icon="isLengthValid ? checkmarkCircle : ellipseOutline"></ion-icon>
+                  <span>Au moins 6 caractères</span>
+                </div>
+                <div class="rule-line" :class="{ 'rule-valid': isDifferentFromDefault }">
+                  <ion-icon :icon="isDifferentFromDefault ? checkmarkCircle : ellipseOutline"></ion-icon>
+                  <span>Différent du mot de passe initial (20262027)</span>
+                </div>
+                <div class="rule-line" :class="{ 'rule-valid': isMatchingValid }">
+                  <ion-icon :icon="isMatchingValid ? checkmarkCircle : ellipseOutline"></ion-icon>
+                  <span>Les deux mots de passe sont identiques</span>
+                </div>
+              </div>
+
+              <div v-if="newPassError" class="modal-alert-error">
+                <ion-icon :icon="alertCircleOutline"></ion-icon>
+                <span>{{ newPassError }}</span>
+              </div>
+
+              <ion-button 
+                expand="block" 
+                shape="round" 
+                class="save-first-pass-btn primary-gradient"
+                :disabled="!canSubmitPass || isSubmittingPass"
+                @click="submitFirstLoginPassword"
+              >
+                <ion-spinner name="crescent" color="light" v-if="isSubmittingPass"></ion-spinner>
+                <span v-else>Valider et Accéder à mon Espace</span>
+                <ion-icon slot="end" :icon="arrowForwardOutline" v-if="!isSubmittingPass"></ion-icon>
+              </ion-button>
+
+              <ion-button 
+                fill="clear" 
+                color="medium" 
+                size="small" 
+                class="cancel-btn"
+                @click="cancelFirstLogin"
+              >
+                Annuler / Déconnexion
+              </ion-button>
+            </div>
+          </div>
+        </div>
+      </ion-modal>
+
     </ion-content>
   </ion-page>
 </template>
@@ -75,13 +175,15 @@
 <script setup lang="ts">
 import { 
   IonPage, IonContent, IonInput, IonButton, IonIcon,
-  IonSegment, IonSegmentButton, IonLabel
+  IonSegment, IonSegmentButton, IonLabel, IonModal, IonSpinner
 } from '@ionic/vue';
 import { 
   schoolOutline, globeOutline, personOutline, lockClosedOutline, 
-  arrowForwardOutline, serverOutline, callOutline, informationCircleOutline 
+  arrowForwardOutline, serverOutline, callOutline, informationCircleOutline,
+  shieldCheckmarkOutline, keyOutline, checkmarkDoneOutline, eyeOutline, 
+  eyeOffOutline, checkmarkCircle, ellipseOutline, alertCircleOutline 
 } from 'ionicons/icons';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { odoo } from '@/services/odoo';
 import { loadingController, toastController } from '@ionic/vue';
@@ -99,6 +201,32 @@ const password = ref('');
 const loginMode = ref('parent');
 const logoError = ref(false);
 
+// Modal Première Connexion
+const showFirstLoginModal = ref(false);
+const pendingParentId = ref<number | string>('');
+const pendingParentName = ref('');
+const pendingCurrentPassword = ref('');
+const pendingEmail = ref('');
+const newPassword = ref('');
+const confirmPassword = ref('');
+const showNewPass = ref(false);
+const showConfirmPass = ref(false);
+const newPassError = ref('');
+const isSubmittingPass = ref(false);
+
+// Validation rules
+const isLengthValid = computed(() => newPassword.value.trim().length >= 6);
+const isDifferentFromDefault = computed(() => {
+  const p = newPassword.value.trim();
+  return p.length > 0 && p !== '20262027' && p !== '2026-2027';
+});
+const isMatchingValid = computed(() => {
+  const p1 = newPassword.value.trim();
+  const p2 = confirmPassword.value.trim();
+  return p1.length > 0 && p1 === p2;
+});
+const canSubmitPass = computed(() => isLengthValid.value && isDifferentFromDefault.value && isMatchingValid.value);
+
 const handleLogin = async () => {
   if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
     document.activeElement.blur();
@@ -112,15 +240,34 @@ const handleLogin = async () => {
   try {
     if (loginMode.value === 'admin') {
       await odoo.adminLogin(url.value, db.value, username.value, password.value);
-      router.push('/admin/inbox');
+      const pending = localStorage.getItem('redirect_after_login');
+      if (pending && (pending.startsWith('/admin') || pending.startsWith('/chat'))) {
+        localStorage.removeItem('redirect_after_login');
+        router.push(pending);
+      } else {
+        router.push('/admin/inbox');
+      }
     } else {
-      await odoo.login(url.value, db.value, username.value, password.value);
-      router.push('/selection');
+      const loginRes = await odoo.login(url.value, db.value, username.value, password.value);
+      
+      // Si c'est la première connexion : obligation de changer le mot de passe
+      if (loginRes && loginRes.must_change_password) {
+        pendingParentId.value = loginRes.uid;
+        pendingParentName.value = loginRes.name || '';
+        pendingEmail.value = loginRes.email || '';
+        pendingCurrentPassword.value = password.value;
+        newPassword.value = '';
+        confirmPassword.value = '';
+        newPassError.value = '';
+        showFirstLoginModal.value = true;
+      } else {
+        router.push('/selection');
+      }
     }
   } catch (error: any) {
     const toast = await toastController.create({
       message: 'Erreur: ' + error.message,
-      duration: 3000,
+      duration: 3500,
       color: 'danger',
     });
     await toast.present();
@@ -128,27 +275,83 @@ const handleLogin = async () => {
     loading.dismiss();
   }
 };
+
+const submitFirstLoginPassword = async () => {
+  if (!isLengthValid.value) {
+    newPassError.value = "Le mot de passe doit comporter au moins 6 caractères.";
+    return;
+  }
+  if (!isDifferentFromDefault.value) {
+    newPassError.value = "Le nouveau mot de passe ne peut pas être le mot de passe initial (20262027).";
+    return;
+  }
+  if (!isMatchingValid.value) {
+    newPassError.value = "Les deux mots de passe ne correspondent pas.";
+    return;
+  }
+
+  isSubmittingPass.value = true;
+  newPassError.value = '';
+
+  try {
+    await odoo.changePassword(
+      pendingParentId.value,
+      pendingCurrentPassword.value,
+      newPassword.value.trim(),
+      {
+        url: url.value,
+        db: db.value,
+        user: username.value,
+        email: pendingEmail.value,
+        name: pendingParentName.value
+      }
+    );
+
+    const toast = await toastController.create({
+      message: 'Votre mot de passe personnel a été enregistré avec succès !',
+      duration: 3500,
+      color: 'success',
+      position: 'top'
+    });
+    await toast.present();
+
+    showFirstLoginModal.value = false;
+    router.push('/selection');
+  } catch (err: any) {
+    newPassError.value = err.message || "Erreur lors du changement de mot de passe.";
+  } finally {
+    isSubmittingPass.value = false;
+  }
+};
+
+const cancelFirstLogin = () => {
+  showFirstLoginModal.value = false;
+  password.value = '';
+  newPassword.value = '';
+  confirmPassword.value = '';
+  odoo.logout();
+};
 </script>
 
 <style scoped>
 .login-page {
   --background: #f8fafc;
-  display: flex;
-  overflow: hidden;
 }
 
 .background-blobs {
   position: absolute;
   width: 100%;
   height: 100%;
-  z-index: -1;
+  z-index: 0;
   filter: blur(80px);
   opacity: 0.5;
+  pointer-events: none;
 }
 
 .blob {
   position: absolute;
   border-radius: 50%;
+  pointer-events: none;
 }
 
 .blob-1 {
@@ -168,6 +371,8 @@ const handleLogin = async () => {
 }
 
 .login-wrapper {
+  position: relative;
+  z-index: 10;
   padding: 40px 25px;
   display: flex;
   flex-direction: column;
@@ -355,5 +560,231 @@ const handleLogin = async () => {
 .sub-footer {
   font-size: 0.75rem;
   opacity: 0.8;
+}
+
+/* Modal Première Connexion */
+.first-login-modal {
+  --background: rgba(15, 23, 42, 0.7);
+  --backdrop-opacity: 0.7;
+}
+
+.first-login-modal-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 440px;
+  background: white;
+  border-radius: 28px;
+  padding: 28px 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  animation: modalScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes modalScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.shield-badge {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  margin-bottom: 16px;
+  box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 850;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.modal-intro {
+  font-size: 0.88rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0 0 18px 0;
+}
+
+.modal-intro strong {
+  color: #1e293b;
+}
+
+.initial-pass-info {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  color: #065f46;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.initial-pass-info ion-icon {
+  font-size: 1.25rem;
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.modal-inputs {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+}
+
+.modal-input-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.field-box {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 2px 12px;
+  transition: all 0.2s ease;
+}
+
+.field-box:focus-within {
+  border-color: #6366f1;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.field-icon {
+  font-size: 1.15rem;
+  color: #94a3b8;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.field-box ion-input {
+  --padding-start: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.eye-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 6px;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.eye-toggle-btn:hover {
+  color: #4f46e5;
+}
+
+.security-rules {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px dashed #cbd5e1;
+}
+
+.rule-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.rule-line ion-icon {
+  font-size: 0.95rem;
+  color: #cbd5e1;
+  transition: all 0.2s ease;
+}
+
+.rule-line.rule-valid {
+  color: #059669;
+}
+
+.rule-line.rule-valid ion-icon {
+  color: #10b981;
+}
+
+.modal-alert-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 12px;
+  padding: 8px 12px;
+  color: #b91c1c;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.modal-alert-error ion-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.save-first-pass-btn {
+  height: 52px;
+  font-weight: 800;
+  font-size: 0.98rem;
+  margin-top: 8px;
+  --box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+}
+
+.cancel-btn {
+  font-size: 0.82rem;
+  font-weight: 600;
+  --color: #64748b;
+  margin-top: 2px;
 }
 </style>

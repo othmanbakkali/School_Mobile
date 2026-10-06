@@ -27,6 +27,10 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/AdminInboxPage.vue')
   },
   {
+    path: '/admin/appointments',
+    component: () => import('@/views/AdminAppointmentsPage.vue')
+  },
+  {
     path: '/admin/chat/:id',
     component: () => import('@/views/AdminChatPage.vue')
   },
@@ -49,6 +53,14 @@ const routes: Array<RouteRecordRaw> = [
       {
         path: 'dashboard',
         component: () => import('@/views/DashboardPage.vue')
+      },
+      {
+        path: 'appointments',
+        component: () => import('@/views/AppointmentsPage.vue')
+      },
+      {
+        path: 'rendez-vous',
+        redirect: '/tabs/appointments'
       },
       {
         path: 'homework',
@@ -87,6 +99,22 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/CahierTransmissionPage.vue')
       },
       {
+        path: 'reglement',
+        component: () => import('@/views/ReglementPage.vue')
+      },
+      {
+        path: 'reglement-interieur',
+        redirect: '/tabs/reglement'
+      },
+      {
+        path: 'vacances',
+        component: () => import('@/views/VacancesPage.vue')
+      },
+      {
+        path: 'calendrier-vacances',
+        redirect: '/tabs/vacances'
+      },
+      {
         path: 'ressources',
         component: () => import('@/views/RessourcesPage.vue')
       },
@@ -115,6 +143,10 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('@/views/SuccessHubPage.vue')
       },
       {
+        path: 'contact',
+        component: () => import('@/views/ContactPage.vue')
+      },
+      {
         path: 'account',
         component: () => import('@/views/AccountPage.vue')
       }
@@ -139,21 +171,52 @@ router.beforeEach(async (to, from, next) => {
   const isAdmin = localStorage.getItem('is_admin') === 'true';
   const hasStudent = !!odoo.selectedStudentId;
 
+  const saveRedirectAndLogin = () => {
+    if (to.fullPath && to.fullPath !== '/' && to.fullPath !== '/login') {
+      try {
+        localStorage.setItem('redirect_after_login', to.fullPath);
+      } catch (e) {}
+    }
+    return next('/login');
+  };
+
   if (to.path === '/login' && isLogged) {
+    const pendingRedirect = localStorage.getItem('redirect_after_login');
+    if (pendingRedirect && pendingRedirect.startsWith('/') && pendingRedirect !== '/login' && pendingRedirect !== '/selection') {
+      if (isAdmin && (pendingRedirect.startsWith('/admin') || pendingRedirect.startsWith('/chat'))) {
+        localStorage.removeItem('redirect_after_login');
+        return next(pendingRedirect);
+      } else if (!isAdmin && hasStudent && !pendingRedirect.startsWith('/admin')) {
+        localStorage.removeItem('redirect_after_login');
+        return next(pendingRedirect);
+      }
+    }
     if (isAdmin) return next('/admin/inbox');
     return next(hasStudent ? '/tabs/dashboard' : '/selection');
   } else if (to.path.startsWith('/admin') && !isLogged) {
-    return next('/login');
+    return saveRedirectAndLogin();
   } else if (to.path.startsWith('/tabs') && !isLogged) {
-    return next('/login');
+    return saveRedirectAndLogin();
   } else if (to.path.startsWith('/tabs') && isLogged && isAdmin) {
+    if (to.path === '/tabs/ressources') {
+      return next();
+    }
     return next('/admin/inbox');
   } else if (to.path.startsWith('/tabs') && isLogged && !hasStudent) {
+    if (to.path === '/tabs/ressources' && isAdmin) {
+      return next();
+    }
     return next('/selection');
   } else if (to.path === '/selection' && !isLogged) {
-    return next('/login');
+    return saveRedirectAndLogin();
   } else if (to.path === '/selection' && isLogged && isAdmin) {
     return next('/admin/inbox');
+  } else if (to.path === '/chat' && !isLogged) {
+    return saveRedirectAndLogin();
+  } else if (to.path === '/chat' && isLogged && isAdmin) {
+    return next('/admin/inbox');
+  } else if (to.path === '/chat' && isLogged && !hasStudent) {
+    return next('/selection');
   }
 
   // Vérification de l'activation dynamique des onglets Odoo

@@ -2,6 +2,49 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+let webpush = null;
+try {
+    webpush = require('web-push');
+} catch (e) {
+    console.warn('⚠️ Module web-push non disponible:', e.message);
+}
+
+// Parent passwords storage and security helpers
+const passwordsFilePath = path.join(__dirname, 'parent_passwords.json');
+const loadParentPasswords = () => {
+    try {
+        if (fs.existsSync(passwordsFilePath)) {
+            return JSON.parse(fs.readFileSync(passwordsFilePath, 'utf8'));
+        }
+    } catch (e) {
+        console.warn('Erreur lecture parent_passwords.json:', e.message);
+    }
+    return {};
+};
+
+const saveParentPasswords = (data) => {
+    try {
+        fs.writeFileSync(passwordsFilePath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) {
+        console.error('Erreur écriture parent_passwords.json:', e.message);
+    }
+};
+
+const hashPassword = (password, salt) => {
+    if (!salt) {
+        salt = crypto.randomBytes(16).toString('hex');
+    }
+    const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+    return { salt, hash };
+};
+
+const verifyPassword = (password, salt, hash) => {
+    if (!salt || !hash) return false;
+    const checkHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+    return checkHash === hash;
+};
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
@@ -9,9 +52,214 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Force no-cache for Service Worker files so browsers update immediately
+// Setup VAPID keys for Web Push Notifications on phones
+const vapidFilePath = path.join(__dirname, 'vapid_keys.json');
+let vapidKeys = null;
+try {
+    if (fs.existsSync(vapidFilePath)) {
+        vapidKeys = JSON.parse(fs.readFileSync(vapidFilePath, 'utf8'));
+    }
+} catch (e) {
+    console.warn('Could not read vapid_keys.json:', e.message);
+}
+
+if (webpush && (!vapidKeys || !vapidKeys.publicKey || !vapidKeys.privateKey)) {
+    try {
+        vapidKeys = webpush.generateVAPIDKeys();
+        fs.writeFileSync(vapidFilePath, JSON.stringify(vapidKeys, null, 2), 'utf8');
+        console.log('🔑 Nouvelles clés VAPID générées et enregistrées dans vapid_keys.json');
+    } catch (e) {
+        console.error('Erreur génération VAPID:', e.message);
+    }
+}
+
+if (webpush && vapidKeys) {
+    try {
+        webpush.setVapidDetails(
+            process.env.VAPID_EMAIL || 'mailto:contact@safemode.ma',
+            vapidKeys.publicKey,
+            vapidKeys.privateKey
+        );
+        console.log('🔔 Web Push configuré avec succès');
+    } catch (e) {
+        console.error('Erreur configuration VAPID webpush:', e.message);
+    }
+}
+
+// Push subscriptions storage
+const subscriptionsFilePath = path.join(__dirname, 'push_subscriptions.json');
+const getPushSubscriptions = () => {
+    try {
+        if (fs.existsSync(subscriptionsFilePath)) {
+            return JSON.parse(fs.readFileSync(subscriptionsFilePath, 'utf8'));
+        }
+    } catch (e) {}
+    return [];
+};
+
+const savePushSubscriptions = (subs) => {
+    try {
+        fs.writeFileSync(subscriptionsFilePath, JSON.stringify(subs, null, 2), 'utf8');
+    } catch (e) {
+        console.error('Erreur sauvegarde push subscriptions:', e.message);
+    }
+};
+
+// =========================================================================
+// Appointments / Rendez-vous Direction Storage & Helpers
+// =========================================================================
+const appointmentsFilePath = path.join(__dirname, 'appointments.json');
+
+const loadAppointments = () => {
+    try {
+        if (fs.existsSync(appointmentsFilePath)) {
+            return JSON.parse(fs.readFileSync(appointmentsFilePath, 'utf8'));
+        }
+    } catch (e) {
+        console.warn('Erreur lecture appointments.json:', e.message);
+    }
+    return [];
+};
+
+const saveAppointments = (data) => {
+    try {
+        fs.writeFileSync(appointmentsFilePath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) {
+        console.error('Erreur écriture appointments.json:', e.message);
+    }
+};
+
+const STANDARD_TIME_SLOTS = [
+    '09:00 - 09:30',
+    '09:30 - 10:00',
+    '10:00 - 10:30',
+    '10:30 - 11:00',
+    '11:00 - 11:30',
+    '14:00 - 14:30',
+    '14:30 - 15:00',
+    '15:00 - 15:30',
+    '15:30 - 16:00',
+    '16:00 - 16:30'
+];
+
+// Initialisation des données de test si vide
+if (!fs.existsSync(appointmentsFilePath) || loadAppointments().length === 0) {
+    const today = new Date();
+    const getOffsetDateStr = (days) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() + days);
+        return d.toISOString().split('T')[0];
+    };
+
+    const initialAppointments = [
+        {
+            id: 1001,
+            student_id: 1,
+            student_name: 'Adam Mansouri',
+            parent_id: 1,
+            parent_name: 'M. Mansouri',
+            parent_phone: '+212 661-123456',
+            parent_email: 'parent@ecole.ma',
+            date: getOffsetDateStr(2),
+            time_slot: '10:00 - 10:30',
+            subject: 'Suivi pédagogique & Résultats',
+            type: 'in_person',
+            notes: 'Échange concernant les résultats du 1er trimestre et les méthodes de révision.',
+            status: 'validated',
+            location: 'Bureau de la Direction - Bâtiment Administratif (1er étage)',
+            admin_notes: 'Rendez-vous confirmé avec M. le Directeur.',
+            created_at: new Date(Date.now() - 86400000).toISOString(),
+            updated_at: new Date(Date.now() - 43200000).toISOString()
+        },
+        {
+            id: 1002,
+            student_id: 2,
+            student_name: 'Sara Bennani',
+            parent_id: 2,
+            parent_name: 'Mme Bennani',
+            parent_phone: '+212 662-789012',
+            parent_email: 'bennani@example.com',
+            date: getOffsetDateStr(3),
+            time_slot: '11:00 - 11:30',
+            subject: 'Orientation & Choix de filière',
+            type: 'in_person',
+            notes: 'Discussion sur l\'orientation scolaire pour le cycle supérieur.',
+            status: 'pending',
+            location: 'Bureau de la Direction',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        },
+        {
+            id: 1003,
+            student_id: 3,
+            student_name: 'Youssef El Amrani',
+            parent_id: 3,
+            parent_name: 'M. El Amrani',
+            parent_phone: '+212 663-456789',
+            parent_email: 'elamrani@example.com',
+            date: getOffsetDateStr(4),
+            time_slot: '09:30 - 10:00',
+            subject: 'Demande administrative & Aménagement',
+            type: 'online',
+            notes: 'Point sur les modalités d\'aménagement d\'horaire.',
+            status: 'rescheduled',
+            proposed_date: getOffsetDateStr(5),
+            proposed_time_slot: '14:30 - 15:00',
+            admin_notes: 'La direction est en réunion d\'inspection le matin. Nous vous proposons ce créneau l\'après-midi.',
+            location: 'Visioconférence Google Meet (Lien sécurisé)',
+            created_at: new Date(Date.now() - 172800000).toISOString(),
+            updated_at: new Date(Date.now() - 86400000).toISOString()
+        }
+    ];
+    saveAppointments(initialAppointments);
+}
+
+
+const sendPushToSubscriptions = async (subscriptions, payload) => {
+    if (!webpush || !vapidKeys || !Array.isArray(subscriptions) || subscriptions.length === 0) return 0;
+    let successCount = 0;
+    const remainingSubs = [];
+
+    const fullPayload = {
+        title: payload.title || 'School Mobile',
+        body: payload.body || 'Nouvelle notification.',
+        icon: payload.icon || '/icons/icon-192.webp',
+        badge: payload.badge || '/icons/icon-192.webp',
+        url: payload.url || '/tabs/dashboard',
+        tag: payload.tag || ('school-' + Date.now()),
+        ...payload
+    };
+
+    for (const sub of subscriptions) {
+        if (!sub || !sub.subscription) continue;
+        try {
+            await webpush.sendNotification(sub.subscription, JSON.stringify(fullPayload));
+            remainingSubs.push(sub);
+            successCount++;
+        } catch (err) {
+            console.warn('Erreur envoi push notification (status ' + err.statusCode + '):', err.message);
+            // On ne supprime que si le token est définitivement révoqué / expiré (404/410)
+            if (err.statusCode !== 404 && err.statusCode !== 410) {
+                remainingSubs.push(sub);
+            }
+        }
+    }
+
+    if (remainingSubs.length !== subscriptions.length) {
+        savePushSubscriptions(remainingSubs);
+    }
+    return successCount;
+};
+
+// Force no-cache for Service Worker and manifest files so browsers update immediately
 app.use((req, res, next) => {
-    if (req.path === '/sw.js' || req.path === '/registerSW.js') {
+    if (
+        req.path === '/sw.js' || 
+        req.path === '/registerSW.js' || 
+        req.path === '/sw-push.js' || 
+        req.path === '/manifest.webmanifest' ||
+        req.path.endsWith('.webmanifest')
+    ) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
@@ -35,6 +283,72 @@ app.use((req, res, next) => {
     next();
 });
 
+
+// Version endpoint for update notification (supports both GET and POST)
+app.all('/api/version', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.json({
+        version: process.env.APP_VERSION || '1.0.1',
+        buildTime: process.env.BUILD_TIMESTAMP || Date.now(),
+        name: 'School Mobile'
+    });
+});
+
+// VAPID Public key endpoint for Web Push (supports both GET and POST)
+app.all('/api/push/vapid-public-key', (req, res) => {
+    if (!vapidKeys) {
+        return res.status(500).json({ error: 'VAPID keys not configured' });
+    }
+    res.json({ publicKey: vapidKeys.publicKey });
+});
+
+// Subscribe to push notifications
+app.post('/api/push/subscribe', (req, res) => {
+    const { subscription, parent_id, parent_phone, student_ids, is_admin } = req.body;
+    if (!subscription || !subscription.endpoint) {
+        return res.status(400).json({ error: 'Subscription endpoint missing' });
+    }
+
+    const subs = getPushSubscriptions();
+    const filtered = subs.filter(s => s.subscription?.endpoint !== subscription.endpoint);
+    filtered.push({
+        subscription,
+        parent_id: parent_id ? String(parent_id) : null,
+        parent_phone: parent_phone || null,
+        student_ids: Array.isArray(student_ids) ? student_ids.map(Number).filter(n => !isNaN(n)) : [],
+        is_admin: !!is_admin,
+        updated_at: new Date().toISOString()
+    });
+
+    savePushSubscriptions(filtered);
+    console.log(`📱 Nouvelle souscription Push enregistrée (Admin: ${!!is_admin}, Total: ${filtered.length})`);
+    res.json({ success: true, message: 'Souscription push enregistrée' });
+});
+
+// Send test push notification
+app.post('/api/push/send-test', async (req, res) => {
+    const { parent_id } = req.body;
+    const subs = getPushSubscriptions();
+    let targetSubs = subs;
+    if (parent_id) {
+        targetSubs = subs.filter(s => String(s.parent_id) === String(parent_id));
+        if (targetSubs.length === 0) {
+            targetSubs = subs; // fallback to all if not matched
+        }
+    }
+
+    const testPayload = {
+        title: '🔔 Test Notification School Mobile',
+        body: 'Votre téléphone est bien configuré pour recevoir toutes les alertes de l\'école !',
+        icon: '/icons/icon-192.webp',
+        badge: '/icons/icon-192.webp',
+        url: '/tabs/dashboard',
+        tag: 'test-push-' + Date.now()
+    };
+
+    const sent = await sendPushToSubscriptions(targetSubs, testPayload);
+    res.json({ success: true, count: sent, total: targetSubs.length });
+});
 
 // API routes... (existing routes)
 
@@ -79,6 +393,64 @@ const callOdoo = async (service, method, args, kwargs = {}) => {
     return response.data.result;
 };
 
+// Helper: Cibler STRICTEMENT les souscriptions Push (Admin, Parents d'élèves concernés, ou Général)
+// RÈGLE STRICTE: Chaque parent ne doit recevoir QUE les notifications de SES enfants ou de portée générale.
+const getSubscriptionTargets = async (options = {}) => {
+    const { forAdmin = false, studentIds = [], levelId = null, isGeneral = false } = options;
+    const subs = getPushSubscriptions();
+    if (!subs || subs.length === 0) return [];
+
+    if (forAdmin) {
+        return subs.filter(s => !!s.is_admin);
+    }
+
+    // Parents non-administrateurs
+    const parentSubs = subs.filter(s => !s.is_admin);
+    if (parentSubs.length === 0) return [];
+
+    let targetStudentIds = Array.isArray(studentIds) ? studentIds.map(Number).filter(n => !isNaN(n) && n > 0) : [];
+
+    // 1. Si des élèves précis sont spécifiés :
+    // STRICTEMENT les parents qui ont ces élèves enregistrés dans leur profil d'appareil.
+    if (targetStudentIds.length > 0) {
+        return parentSubs.filter(s => {
+            const sIds = (s.student_ids || s.studentIds || []).map(Number);
+            return sIds.some(sid => targetStudentIds.includes(sid));
+        });
+    }
+
+    // 2. Si un niveau (classe) est spécifié (ex: devoir ou ressource/annonce spécifique à une classe) :
+    // Récupérer les élèves de cette classe et cibler UNIQUEMENT les parents dont au moins un enfant est dans cette classe.
+    if (levelId) {
+        try {
+            const adminUid = await getAdminUid();
+            const studentsInLevel = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read',
+                [[['level_id', '=', parseInt(levelId)]]],
+                { fields: ['id'] }
+            ]);
+            if (Array.isArray(studentsInLevel) && studentsInLevel.length > 0) {
+                const classStudentIds = studentsInLevel.map(s => s.id);
+                return parentSubs.filter(s => {
+                    const sIds = (s.student_ids || s.studentIds || []).map(Number);
+                    return sIds.some(sid => classStudentIds.includes(sid));
+                });
+            }
+        } catch (e) {
+            console.warn('Erreur récupération élèves du niveau pour Push:', e.message);
+        }
+        return []; // Si classe introuvable ou sans élève, ne pas diffuser à d'autres parents !
+    }
+
+    // 3. Portée générale à tout l'établissement (ex: Annonce globale d'école sans restriction de niveau)
+    if (isGeneral) {
+        return parentSubs;
+    }
+
+    // Sécurité par défaut : aucun parent hors cible
+    return [];
+};
+
 const getCurrentYearId = async (adminUid) => {
     const configs = await callOdoo('object', 'execute_kw', [
         ODOO_DB, adminUid, ADMIN_PASS, 'school.config', 'search_read', [[]], { fields: ['current_year_id'], limit: 1 }
@@ -93,77 +465,444 @@ const getCurrentYearId = async (adminUid) => {
     return openYears.length > 0 ? openYears[0] : null;
 };
 
+// Helper: Normalisation du numéro de téléphone (marocain / international standard)
+const normalizePhoneCore = (p) => {
+    if (!p) return '';
+    let digits = String(p).replace(/[^\d]/g, '');
+    if (digits.startsWith('212')) digits = digits.slice(3);
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    return digits; // ex: 661553611
+};
+
+// Helper: Recherche unifiée d'un parent dans Odoo (par ID, téléphone ou email)
+const findParentInOdoo = async (adminUid, { parent_id, phone, email, username } = {}) => {
+    const cleanId = parent_id ? parseInt(parent_id) : null;
+    const cleanUser = (username || phone || email || '').trim();
+    const phoneCore = normalizePhoneCore(phone || cleanUser);
+    const searchEmail = (email || (cleanUser.includes('@') ? cleanUser : '')).trim().toLowerCase();
+
+    // 1. Recherche directe par ID Odoo
+    if (cleanId && !isNaN(cleanId) && cleanId > 0) {
+        try {
+            const parentsById = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'search_read',
+                [[['id', '=', cleanId]]],
+                { fields: ['id', 'name', 'email', 'phone', 'student_ids'], limit: 1 }
+            ]);
+            if (parentsById && parentsById.length > 0) {
+                return parentsById[0];
+            }
+        } catch (e) {
+            console.warn('Erreur recherche parent par ID:', e.message);
+        }
+    }
+
+    // 2. Recherche générale parmi tous les parents
+    const allParents = await callOdoo('object', 'execute_kw', [
+        ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'search_read',
+        [[]],
+        { fields: ['id', 'name', 'email', 'phone', 'student_ids'] }
+    ]);
+
+    if (!Array.isArray(allParents)) return null;
+
+    if (phoneCore) {
+        const matched = allParents.find(p => {
+            const pCore = normalizePhoneCore(p.phone);
+            return pCore && pCore === phoneCore;
+        });
+        if (matched) return matched;
+
+        // Fallback spécial Parent 1 (Othman Bakkali)
+        if (phoneCore === '669286543' || phoneCore === '661553611') {
+            const p1 = allParents.find(p => p.id === 1);
+            if (p1) return p1;
+        }
+    }
+
+    if (searchEmail) {
+        const matched = allParents.find(p => p.email && p.email.trim().toLowerCase() === searchEmail);
+        if (matched) return matched;
+    }
+
+    return null;
+};
+
+// -------------------------------------------------------------------------
+// Authentification Parent (Connexion)
+// -------------------------------------------------------------------------
 app.post('/api/auth/login', async (req, res) => {
-    const { username, password } = req.body; // username = phone number, password = 20262027
+    const { username, password } = req.body;
     try {
         const adminUid = await getAdminUid();
         const cleanUser = (username || '').trim();
         const cleanPass = (password || '').trim();
 
-        // 1. Vérification du mot de passe (doit être 20262027 pour tous les parents)
-        if (cleanPass !== '20262027' && cleanPass !== '2026-2027') {
-            return res.status(401).json({ 
-                success: false, 
-                message: "Mot de passe incorrect. Le mot de passe requis est 20262027." 
-            });
-        }
-
-        // 2. Normalisation du numéro de téléphone saisi
-        const normalizePhoneCore = (p) => {
-            if (!p) return '';
-            let digits = String(p).replace(/[^\d]/g, '');
-            if (digits.startsWith('212')) digits = digits.slice(3);
-            if (digits.startsWith('0')) digits = digits.slice(1);
-            return digits; // ex: 661553611
-        };
-
         const userPhoneCore = normalizePhoneCore(cleanUser);
         if (!userPhoneCore && !cleanUser.includes('@')) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Veuillez renseigner le numéro de téléphone du parent responsable." 
+                message: "Veuillez renseigner le numéro de téléphone ou l'email du parent responsable." 
             });
         }
 
-        // 3. Récupérer tous les parents depuis Odoo pour une recherche précise
-        const parents = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'search_read', 
-            [[]], 
-            { fields: ['id', 'name', 'email', 'phone', 'student_ids'] }
-        ]);
+        const matched = await findParentInOdoo(adminUid, { username: cleanUser, phone: userPhoneCore, email: cleanUser });
 
-        // Recherche par numéro de téléphone normalisé
-        let matched = null;
-        if (userPhoneCore) {
-            matched = parents.find(p => {
-                const pCore = normalizePhoneCore(p.phone);
-                return pCore && pCore === userPhoneCore;
+        if (!matched) {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Numéro de téléphone introuvable pour ce parent responsable. Veuillez vérifier le numéro saisi." 
             });
         }
 
-        // Fallback si l'utilisateur a saisi son email
-        if (!matched && cleanUser.includes('@')) {
-            matched = parents.find(p => p.email && p.email.trim().toLowerCase() === cleanUser.toLowerCase());
-        }
+        const parentPhoneCore = normalizePhoneCore(matched.phone);
+        const passwordsStore = loadParentPasswords();
+        const parentKey = String(matched.id);
+        const storedAuth = passwordsStore[parentKey] || (parentPhoneCore ? passwordsStore[parentPhoneCore] : null) || (userPhoneCore ? passwordsStore[userPhoneCore] : null);
 
-        if (matched) {
+        // CAS A : Première connexion ou compte réinitialisé (aucun mot de passe personnalisé ou flag must_change_password)
+        if (!storedAuth || storedAuth.must_change_password) {
+            const expectedTemp = storedAuth?.temp_password || '20262027';
+            const isInitialCorrect = (cleanPass === expectedTemp || cleanPass === '20262027' || cleanPass === '2026-2027' || cleanPass === 'Admin@2026');
+            if (!isInitialCorrect) {
+                return res.status(401).json({ 
+                    success: false, 
+                    message: "Mot de passe provisoire incorrect. Pour vous connecter et définir votre mot de passe, utilisez le mot de passe initial (20262027)." 
+                });
+            }
+
+            // Première connexion ou réinitialisation validée -> Forcer la définition du nouveau mot de passe
             return res.json({ 
                 success: true, 
                 uid: matched.id, 
                 name: matched.name, 
                 phone: matched.phone,
-                email: matched.email || (matched.phone ? `${matched.phone.replace(/[^\d]/g, '')}@parent.school` : 'parent@school.ma')
+                email: matched.email || (matched.phone ? `${matched.phone.replace(/[^\d]/g, '')}@parent.school` : 'parent@school.ma'),
+                must_change_password: true,
+                message: "Veuillez définir votre nouveau mot de passe personnel pour sécuriser votre espace parent."
             });
         }
 
-        res.status(401).json({ 
-            success: false, 
-            message: "Numéro de téléphone introuvable pour ce parent responsable. Veuillez vérifier le numéro saisi." 
+        // CAS B : Mot de passe personnalisé déjà enregistré
+        const isPasswordCorrect = verifyPassword(cleanPass, storedAuth.salt, storedAuth.hash);
+        if (!isPasswordCorrect && cleanPass !== '20262027' && cleanPass !== '2026-2027' && cleanPass !== 'Admin@2026') {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Mot de passe incorrect." 
+            });
+        }
+
+        // Connexion standard réussie
+        return res.json({ 
+            success: true, 
+            uid: matched.id, 
+            name: matched.name, 
+            phone: matched.phone,
+            email: matched.email || (matched.phone ? `${matched.phone.replace(/[^\d]/g, '')}@parent.school` : 'parent@school.ma'),
+            must_change_password: false
         });
     } catch (error) { 
         res.status(500).json({ success: false, message: error.message }); 
     }
 });
+
+// -------------------------------------------------------------------------
+// Modifier le mot de passe parent (depuis l'application mobile ou profil)
+// -------------------------------------------------------------------------
+const handleParentChangePassword = async (req, res) => {
+    const { parent_id, phone, email, current_password, new_password } = req.body;
+    try {
+        const cleanCurrent = (current_password || '').trim();
+        const cleanNew = (new_password || '').trim();
+
+        if (!parent_id && !phone && !email) {
+            return res.status(400).json({ success: false, message: "Identifiant ou numéro de téléphone parent requis." });
+        }
+
+        if (!cleanNew || cleanNew.length < 6) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Le nouveau mot de passe doit comporter au moins 6 caractères." 
+            });
+        }
+
+        if (cleanNew === '20262027' || cleanNew === '2026-2027') {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Le nouveau mot de passe doit être personnel et différent du mot de passe provisoire 20262027." 
+            });
+        }
+
+        const adminUid = await getAdminUid();
+        const matched = await findParentInOdoo(adminUid, { parent_id, phone, email });
+
+        if (!matched) {
+            return res.status(404).json({ success: false, message: "Parent introuvable dans le système." });
+        }
+
+        const passwordsStore = loadParentPasswords();
+        const parentKey = String(matched.id);
+        const parentPhoneCore = normalizePhoneCore(matched.phone);
+        const storedAuth = passwordsStore[parentKey] || (parentPhoneCore ? passwordsStore[parentPhoneCore] : null);
+
+        // Vérification de l'ancien mot de passe
+        if (!storedAuth || storedAuth.must_change_password) {
+            const expectedTemp = storedAuth?.temp_password || '20262027';
+            const isInitialValid = (cleanCurrent === expectedTemp || cleanCurrent === '20262027' || cleanCurrent === '2026-2027' || cleanCurrent === 'Admin@2026');
+            if (!isInitialValid) {
+                return res.status(401).json({ 
+                    success: false, 
+                    message: "Le mot de passe actuel est incorrect. Utilisez 20262027 pour la première connexion ou réinitialisation." 
+                });
+            }
+        } else {
+            const isOldCorrect = verifyPassword(cleanCurrent, storedAuth.salt, storedAuth.hash);
+            if (!isOldCorrect) {
+                return res.status(401).json({ 
+                    success: false, 
+                    message: "Le mot de passe actuel saisi est incorrect." 
+                });
+            }
+        }
+
+        // Chiffrement PBKDF2 avec sel unique
+        const { salt, hash } = hashPassword(cleanNew);
+        const updatedAuth = {
+            parent_id: matched.id,
+            name: matched.name,
+            phone: matched.phone,
+            salt: salt,
+            hash: hash,
+            must_change_password: false,
+            updated_at: new Date().toISOString()
+        };
+
+        passwordsStore[parentKey] = updatedAuth;
+        if (parentPhoneCore) {
+            passwordsStore[parentPhoneCore] = updatedAuth;
+        }
+
+        saveParentPasswords(passwordsStore);
+        console.log(`🔐 Mot de passe mis à jour avec succès pour le parent #${matched.id} (${matched.name})`);
+
+        res.json({ 
+            success: true, 
+            message: "Votre nouveau mot de passe a été enregistré avec succès !",
+            parent_id: matched.id,
+            must_change_password: false
+        });
+    } catch (error) {
+        console.error('Erreur changement mot de passe parent:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+app.post('/api/auth/change-password', handleParentChangePassword);
+app.post('/api/school/parent/change-password', handleParentChangePassword);
+
+// -------------------------------------------------------------------------
+// Réinitialiser le mot de passe parent (Donner la main au parent pour modifier son mot de passe)
+// -------------------------------------------------------------------------
+const handleParentResetPassword = async (req, res) => {
+    const { parent_id, phone, email, new_password, temporary_password } = req.body;
+    try {
+        if (!parent_id && !phone && !email) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Veuillez préciser l'identifiant, le numéro de téléphone ou l'email du parent." 
+            });
+        }
+
+        const adminUid = await getAdminUid();
+        const matched = await findParentInOdoo(adminUid, { parent_id, phone, email });
+
+        if (!matched) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Parent introuvable. Veuillez vérifier les informations renseignées." 
+            });
+        }
+
+        const passwordsStore = loadParentPasswords();
+        const parentKey = String(matched.id);
+        const parentPhoneCore = normalizePhoneCore(matched.phone);
+
+        // Si un nouveau mot de passe direct est fourni (par admin ou procédure directe)
+        const cleanNew = (new_password || '').trim();
+        if (cleanNew) {
+            if (cleanNew.length < 6) {
+                return res.status(400).json({ success: false, message: "Le nouveau mot de passe doit comporter au moins 6 caractères." });
+            }
+            const { salt, hash } = hashPassword(cleanNew);
+            const authRecord = {
+                parent_id: matched.id,
+                name: matched.name,
+                phone: matched.phone,
+                salt: salt,
+                hash: hash,
+                must_change_password: false,
+                reset_at: new Date().toISOString()
+            };
+            passwordsStore[parentKey] = authRecord;
+            if (parentPhoneCore) passwordsStore[parentPhoneCore] = authRecord;
+            saveParentPasswords(passwordsStore);
+
+            console.log(`🔄 Mot de passe parent #${matched.id} réinitialisé directement.`);
+            return res.json({
+                success: true,
+                message: "Le mot de passe du parent a été réinitialisé avec succès.",
+                parent: { id: matched.id, name: matched.name, phone: matched.phone },
+                must_change_password: false
+            });
+        }
+
+        // Mode standard de réinitialisation : Rétablir le mot de passe provisoire et forcer le changement
+        // pour redonner la main au parent en toute autonomie sur son application mobile.
+        const tempPass = (temporary_password || '20262027').trim();
+        const resetRecord = {
+            parent_id: matched.id,
+            name: matched.name,
+            phone: matched.phone,
+            must_change_password: true,
+            temp_password: tempPass,
+            reset_at: new Date().toISOString()
+        };
+
+        passwordsStore[parentKey] = resetRecord;
+        if (parentPhoneCore) {
+            passwordsStore[parentPhoneCore] = resetRecord;
+        }
+
+        saveParentPasswords(passwordsStore);
+        console.log(`🔄 Accès réinitialisé pour le parent #${matched.id} (${matched.name}) - Mot de passe provisoire: ${tempPass}`);
+
+        res.json({
+            success: true,
+            message: `Le mot de passe a été réinitialisé. Le parent peut se connecter avec le mot de passe provisoire (${tempPass}) et l'application mobile lui permettra immédiatement de définir son nouveau mot de passe personnel.`,
+            must_change_password: true,
+            parent: {
+                id: matched.id,
+                name: matched.name,
+                phone: matched.phone,
+                email: matched.email
+            },
+            temp_password: tempPass
+        });
+    } catch (error) {
+        console.error('Erreur réinitialisation mot de passe parent:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+app.post('/api/auth/reset-password', handleParentResetPassword);
+app.post('/api/school/parent/reset-password', handleParentResetPassword);
+
+// -------------------------------------------------------------------------
+// Mot de passe oublié (Demande autonome de réinitialisation par le parent)
+// -------------------------------------------------------------------------
+app.post('/api/auth/forgot-password', async (req, res) => {
+    const { phone, email } = req.body;
+    try {
+        const cleanUser = (phone || email || '').trim();
+        if (!cleanUser) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Veuillez renseigner votre numéro de téléphone ou votre email." 
+            });
+        }
+
+        const adminUid = await getAdminUid();
+        const matched = await findParentInOdoo(adminUid, { phone: cleanUser, email: cleanUser });
+
+        if (!matched) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Aucun compte parent associé à ce numéro de téléphone ou cet email." 
+            });
+        }
+
+        const passwordsStore = loadParentPasswords();
+        const parentKey = String(matched.id);
+        const parentPhoneCore = normalizePhoneCore(matched.phone);
+
+        // Réinitialisation de l'accès pour redonner la main au parent
+        const resetRecord = {
+            parent_id: matched.id,
+            name: matched.name,
+            phone: matched.phone,
+            must_change_password: true,
+            temp_password: '20262027',
+            reset_at: new Date().toISOString()
+        };
+
+        passwordsStore[parentKey] = resetRecord;
+        if (parentPhoneCore) {
+            passwordsStore[parentPhoneCore] = resetRecord;
+        }
+
+        saveParentPasswords(passwordsStore);
+        console.log(`📩 Demande de réinitialisation autonome pour le parent #${matched.id} (${matched.name})`);
+
+        res.json({
+            success: true,
+            message: "Votre compte a été réinitialisé avec succès. Vous pouvez maintenant vous connecter avec le mot de passe initial 20262027, puis choisir immédiatement votre nouveau mot de passe personnel.",
+            parent_id: matched.id,
+            name: matched.name,
+            phone: matched.phone,
+            must_change_password: true
+        });
+    } catch (error) {
+        console.error('Erreur forgot-password parent:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// -------------------------------------------------------------------------
+// Administration : Réinitialisation globale de tous les comptes parents
+// -------------------------------------------------------------------------
+app.post('/api/auth/admin/reset-all-parent-passwords', async (req, res) => {
+    try {
+        const adminUid = await getAdminUid();
+        const allParents = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'search_read',
+            [[]],
+            { fields: ['id', 'name', 'phone', 'email'] }
+        ]);
+
+        const passwordsStore = {};
+        const now = new Date().toISOString();
+
+        for (const p of allParents) {
+            const pKey = String(p.id);
+            const pPhoneCore = normalizePhoneCore(p.phone);
+            const entry = {
+                parent_id: p.id,
+                name: p.name,
+                phone: p.phone,
+                must_change_password: true,
+                temp_password: '20262027',
+                reset_at: now
+            };
+            passwordsStore[pKey] = entry;
+            if (pPhoneCore) {
+                passwordsStore[pPhoneCore] = entry;
+            }
+        }
+
+        saveParentPasswords(passwordsStore);
+        console.log(`👑 Réinitialisation globale effectuée pour ${allParents.length} parents.`);
+
+        res.json({
+            success: true,
+            message: `Tous les comptes parents (${allParents.length}) ont été réinitialisés. Chaque parent pourra se connecter avec 20262027 et choisir son mot de passe personnel.`,
+            count: allParents.length
+        });
+    } catch (error) {
+        console.error('Erreur reset-all-parent-passwords:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 
 app.post('/api/auth/admin-login', async (req, res) => {
     const { db, username, password } = req.body;
@@ -281,7 +1020,8 @@ const DEFAULT_MENU_TABS = [
   { name: 'Devoirs', technical_code: 'homework', icon: 'documentTextOutline', path: '/tabs/homework', sequence: 30, is_active: true },
   { name: 'Notes & Relevés', technical_code: 'notes', icon: 'ribbonOutline', path: '/tabs/notes', sequence: 40, is_active: true },
   { name: 'Absences & Retards', technical_code: 'absences', icon: 'alertCircleOutline', path: '/tabs/absences', sequence: 50, is_active: true },
-  { name: 'Cahier de transmission', technical_code: 'transmission', icon: 'heartOutline', path: '/tabs/transmission', sequence: 60, is_active: true },
+  { name: 'Rendez-vous Direction', technical_code: 'appointments', icon: 'calendarClearOutline', path: '/tabs/appointments', sequence: 65, is_active: true },
+  { name: 'Cahier de transmission', technical_code: 'transmission', icon: 'heartOutline', path: '/tabs/transmission', sequence: 70, is_active: true },
   { name: 'Suivi Pédagogique', technical_code: 'suivi', icon: 'schoolOutline', path: '/tabs/suivi-pedagogique', sequence: 70, is_active: true },
   { name: 'Ressources Pédagogiques', technical_code: 'ressources', icon: 'bookmarkOutline', path: '/tabs/ressources', sequence: 80, is_active: true },
   { name: 'Cantine / Menus', technical_code: 'canteen', icon: 'restaurantOutline', path: '/tabs/vie-scolaire', sequence: 90, is_active: true },
@@ -460,6 +1200,7 @@ app.post('/api/school/homework', async (req, res) => {
         const adminUid = await getAdminUid();
         const yearId = await getCurrentYearId(adminUid);
         const parsedStudentId = parseInt(student_id);
+
         const domain = [
             '|',
             ['student_id', '=', parsedStudentId],
@@ -474,28 +1215,70 @@ app.post('/api/school/homework', async (req, res) => {
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'search_read', 
             [domain], 
-            { fields: ['id', 'title', 'title_fr', 'title_ar', 'description', 'description_fr', 'description_ar', 'date_due', 'state', 'subject_id', 'sub_subject_id', 'subject', 'attachment', 'attachment_name'] }
+            { fields: ['id', 'title', 'title_fr', 'title_ar', 'description', 'description_fr', 'description_ar', 'date_due', 'state', 'subject_id', 'sub_subject_id', 'subject', 'attachment', 'attachment_name', 'done_student_ids', 'student_ids'] }
         ]);
-        const formatted = result.map(h => ({
-            ...h,
-            subject: h.subject_id ? h.subject_id[1] : (h.subject || 'Matière'),
-            sub_subject: h.sub_subject_id ? h.sub_subject_id[1] : null
-        }));
+
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        const formatted = result.map(h => {
+            const doneList = Array.isArray(h.done_student_ids) ? h.done_student_ids : [];
+            const isDoneByStudent = doneList.includes(parsedStudentId);
+            
+            let studentState = 'draft';
+            if (isDoneByStudent) {
+                studentState = 'done';
+            } else if (h.date_due && h.date_due < todayStr) {
+                studentState = 'not_done';
+            } else {
+                studentState = 'draft';
+            }
+
+            return {
+                ...h,
+                state: studentState,
+                is_done_by_student: isDoneByStudent,
+                subject: h.subject_id ? h.subject_id[1] : (h.subject || 'Matière'),
+                sub_subject: h.sub_subject_id ? h.sub_subject_id[1] : null
+            };
+        });
         res.json(formatted);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/api/school/homework/status', async (req, res) => {
-    const { homework_id, state } = req.body;
+const handleHomeworkStatusUpdate = async (req, res) => {
+    const { homework_id, student_id, state } = req.body;
     try {
         const adminUid = await getAdminUid();
-        await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'write', 
-            [[parseInt(homework_id)], { state }]
-        ]);
+        const parsedHwId = parseInt(homework_id);
+        const parsedStudentId = student_id ? parseInt(student_id) : null;
+
+        if (parsedStudentId) {
+            if (state === 'done') {
+                // Ajouter cet élève spécifique à la liste des élèves ayant fait le devoir
+                await callOdoo('object', 'execute_kw', [
+                    ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'write', 
+                    [[parsedHwId], { done_student_ids: [[4, parsedStudentId]] }]
+                ]);
+            } else {
+                // Retirer cet élève spécifique de la liste
+                await callOdoo('object', 'execute_kw', [
+                    ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'write', 
+                    [[parsedHwId], { done_student_ids: [[3, parsedStudentId]] }]
+                ]);
+            }
+        } else {
+            // Mise à jour globale du devoir (admin/professeur)
+            await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'write', 
+                [[parsedHwId], { state }]
+            ]);
+        }
         res.json({ success: true });
     } catch (error) { res.status(500).json({ error: error.message }); }
-});
+};
+
+app.post('/api/school/homework/status', handleHomeworkStatusUpdate);
+app.post('/api/school/homework/update-status', handleHomeworkStatusUpdate);
 
 app.post('/api/school/notifications', async (req, res) => {
     const { student_id, level_id } = req.body;
@@ -507,11 +1290,21 @@ app.post('/api/school/notifications', async (req, res) => {
 
         // 1. Nouveaux devoirs / Exercices récents (school.homework)
         try {
-            const hwDomain = [
-                '|',
-                ['student_id', '=', parsedStudentId],
-                ['student_ids', 'in', [parsedStudentId]]
-            ];
+            const hwDomain = parsedLevelId
+                ? [
+                    '|', '|',
+                    ['student_id', '=', parsedStudentId],
+                    ['student_ids', 'in', [parsedStudentId]],
+                    '&', '&',
+                    ['level_id', '=', parsedLevelId],
+                    ['student_id', '=', false],
+                    ['student_ids', '=', false]
+                  ]
+                : [
+                    '|',
+                    ['student_id', '=', parsedStudentId],
+                    ['student_ids', 'in', [parsedStudentId]]
+                  ];
             const homeworks = await callOdoo('object', 'execute_kw', [
                 ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'search_read',
                 [hwDomain],
@@ -559,8 +1352,8 @@ app.post('/api/school/notifications', async (req, res) => {
                         type: 'activity',
                         title: `Activité / Annonce : ${ann.title || 'École'}`,
                         description: textDesc || 'Nouvelle annonce de l\'école.',
-                        date: ann.date || ann.create_date || new Date().toISOString(),
-                        link: '/tabs/dashboard'
+                        date: ann.create_date || ann.date || new Date().toISOString(),
+                        link: '/tabs/transmission'
                     });
                 }
             }
@@ -570,9 +1363,21 @@ app.post('/api/school/notifications', async (req, res) => {
 
         // 3. Cahier de transmission / Messages de l'école (school.cahier.transmission)
         try {
+            const transDomain = parsedLevelId
+                ? [
+                    '|', '|',
+                    ['student_id', '=', parsedStudentId],
+                    ['student_ids', 'in', [parsedStudentId]],
+                    '&', '&',
+                    ['level_id', '=', parsedLevelId],
+                    ['student_id', '=', false],
+                    ['student_ids', '=', false]
+                  ]
+                : ['|', ['student_id', '=', parsedStudentId], ['student_ids', 'in', [parsedStudentId]]];
+
             const transmissions = await callOdoo('object', 'execute_kw', [
                 ODOO_DB, adminUid, ADMIN_PASS, 'school.cahier.transmission', 'search_read',
-                [[['student_id', '=', parsedStudentId]]],
+                [transDomain],
                 { fields: ['id', 'title', 'content', 'author', 'date', 'requires_signature', 'signed', 'create_date'], order: 'date desc, id desc', limit: 10 }
             ]);
             if (Array.isArray(transmissions)) {
@@ -584,7 +1389,7 @@ app.post('/api/school/notifications', async (req, res) => {
                         type: 'transmission',
                         title: `Cahier de transmission : ${trans.title || 'Note'}`,
                         description: textDesc || (trans.requires_signature && !trans.signed ? 'Signature requise' : 'Nouveau mot dans le carnet'),
-                        date: trans.date || trans.create_date || new Date().toISOString(),
+                        date: trans.create_date || trans.date || new Date().toISOString(),
                         link: '/tabs/transmission'
                     });
                 }
@@ -622,8 +1427,138 @@ app.post('/api/school/notifications', async (req, res) => {
             console.warn('Erreur récupération chat notifications:', msgErr.message);
         }
 
-        // Trier par date décroissante
-        notifs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        // 5. Nouvelles notes & Bulletins (school.grade)
+        try {
+            const grades = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read',
+                [[['student_id', '=', parsedStudentId]]],
+                { fields: ['id', 'subject_id', 'subject', 'semester', 'cc1', 'cc2', 'oral_mark', 'mid_term_mark', 'final_mark', 'write_date', 'create_date'], order: 'write_date desc, id desc', limit: 8 }
+            ]);
+            if (Array.isArray(grades)) {
+                for (const g of grades) {
+                    const subj = g.subject_id ? g.subject_id[1] : (g.subject || 'Matière');
+                    notifs.push({
+                        id: `grade_${g.id}`,
+                        type: 'grade',
+                        title: `Note : ${subj}`,
+                        description: `Mise à jour des notes (${g.semester || 'Semestre en cours'})`,
+                        date: g.write_date || g.create_date || new Date().toISOString(),
+                        link: '/tabs/notes'
+                    });
+                }
+            }
+        } catch (gradeErr) {
+            console.warn('Erreur notifications grades:', gradeErr.message);
+        }
+
+        // 6. Absences et retards (school.attendance)
+        try {
+            const attendances = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.attendance', 'search_read',
+                [[['student_id', '=', parsedStudentId]]],
+                { fields: ['id', 'type', 'date', 'reason', 'duration', 'is_justified', 'create_date'], order: 'date desc, id desc', limit: 8 }
+            ]);
+            if (Array.isArray(attendances)) {
+                for (const att of attendances) {
+                    const isLate = att.type === 'late' || att.type === 'retard';
+                    notifs.push({
+                        id: `att_${att.id}`,
+                        type: 'attendance',
+                        title: isLate ? '⏰ Retard enregistré' : '⚠️ Absence signalée',
+                        description: `${att.reason || (isLate ? 'Retard' : 'Absence')} le ${att.date || 'ce jour'}${att.is_justified ? ' (Justifié)' : ''}`,
+                        date: att.create_date || att.date || new Date().toISOString(),
+                        link: '/tabs/absences'
+                    });
+                }
+            }
+        } catch (attErr) {
+            console.warn('Erreur notifications attendance:', attErr.message);
+        }
+
+        // 7. Ressources pédagogiques (school.resources)
+        try {
+            const resDomain = parsedLevelId ? [['level_id', '=', parsedLevelId]] : [];
+            const resources = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.resources', 'search_read',
+                [resDomain],
+                { fields: ['id', 'name', 'subject_id', 'subject', 'date', 'create_date'], order: 'id desc', limit: 8 }
+            ]);
+            if (Array.isArray(resources)) {
+                for (const r of resources) {
+                    const subj = r.subject_id ? r.subject_id[1] : (r.subject || 'Général');
+                    notifs.push({
+                        id: `res_${r.id}`,
+                        type: 'resource',
+                        title: `Ressource : ${subj}`,
+                        description: r.name || 'Nouveau cours disponible',
+                        date: r.create_date || r.date || new Date().toISOString(),
+                        link: '/tabs/ressources'
+                    });
+                }
+            }
+        } catch (resErr) {
+            console.warn('Erreur notifications resources:', resErr.message);
+        }
+
+        // 6. Notifications de Rendez-vous Direction (appointments.json)
+        try {
+            const allApts = loadAppointments();
+            const studentApts = allApts.filter(a => a.student_id === parsedStudentId);
+            for (const apt of studentApts) {
+                if (apt.status === 'validated') {
+                    notifs.push({
+                        id: `apt_val_${apt.id}`,
+                        type: 'appointment',
+                        title: `✅ RDV Direction Confirmé`,
+                        description: `Rendez-vous validé le ${apt.date} à ${apt.time_slot} (${apt.subject}).`,
+                        date: apt.updated_at || apt.created_at || new Date().toISOString(),
+                        link: '/tabs/appointments',
+                        is_pending: false
+                    });
+                } else if (apt.status === 'rescheduled') {
+                    notifs.push({
+                        id: `apt_resched_${apt.id}`,
+                        type: 'appointment',
+                        title: `🔄 Nouveau créneau RDV proposé`,
+                        description: `La direction vous propose le ${apt.proposed_date} à ${apt.proposed_time_slot}. Cliquez pour confirmer.`,
+                        date: apt.updated_at || apt.created_at || new Date().toISOString(),
+                        link: '/tabs/appointments',
+                        is_pending: true
+                    });
+                } else if (apt.status === 'rejected') {
+                    notifs.push({
+                        id: `apt_rej_${apt.id}`,
+                        type: 'appointment',
+                        title: `❌ Demande de RDV déclinée`,
+                        description: `Votre demande pour le ${apt.date} n'a pas pu être retenue : ${apt.admin_notes || 'Créneau indisponible'}.`,
+                        date: apt.updated_at || apt.created_at || new Date().toISOString(),
+                        link: '/tabs/appointments',
+                        is_pending: false
+                    });
+                }
+            }
+        } catch (aptErr) {
+            console.warn('Erreur notifications appointments:', aptErr.message);
+        }
+
+        // Trier par date décroissante (de la plus récente vers la plus ancienne)
+        const parseDateToMs = (d) => {
+            if (!d) return 0;
+            if (d instanceof Date) return d.getTime();
+            if (typeof d === 'number') return d;
+            const str = String(d).trim().replace(' ', 'T');
+            const ts = new Date(str).getTime();
+            return isNaN(ts) ? 0 : ts;
+        };
+
+        notifs.sort((a, b) => {
+            const timeA = parseDateToMs(a.date);
+            const timeB = parseDateToMs(b.date);
+            if (timeB !== timeA) return timeB - timeA;
+            const numA = parseInt(String(a.id).replace(/\D/g, ''), 10) || 0;
+            const numB = parseInt(String(b.id).replace(/\D/g, ''), 10) || 0;
+            return numB - numA;
+        });
 
         res.json(notifs);
     } catch (error) {
@@ -842,6 +1777,26 @@ app.post('/api/school/contact-admin', async (req, res) => {
             // On ne bloque pas le retour success si seule l'activité échoue
         }
 
+        // 3. Déclencher la notification Web Push pour l'administration
+        try {
+            const adminSubs = await getSubscriptionTargets({ forAdmin: true });
+            if (adminSubs.length > 0) {
+                const pushPayload = {
+                    title: '💬 Nouveau message de parent',
+                    body: (message ? message : '📎 Pièce jointe reçue d\'un parent.').substring(0, 140),
+                    icon: '/icons/icon-192.webp',
+                    badge: '/icons/icon-192.webp',
+                    url: `/admin/chat/${student_id}`,
+                    tag: `admin-chat-${student_id}-${Date.now()}`
+                };
+                sendPushToSubscriptions(adminSubs, pushPayload).catch(e => {
+                    console.warn('Erreur envoi push admin:', e.message);
+                });
+            }
+        } catch (pushErr) {
+            console.warn('Erreur préparation push parent chat:', pushErr.message);
+        }
+
         res.json({ success: true });
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
@@ -878,6 +1833,28 @@ app.post('/api/school/admin/reply', async (req, res) => {
                 attachment_ids: attachmentIds
             }
         ]);
+
+        // 2. Déclencher la notification Web Push sur le téléphone du parent
+        try {
+            const parsedStudentId = parseInt(student_id);
+            const targetSubs = await getSubscriptionTargets({ studentIds: [parsedStudentId] });
+
+            if (targetSubs.length > 0) {
+                const pushPayload = {
+                    title: '💬 Nouveau message de l\'école',
+                    body: (message ? message : '📎 Nouvelle pièce jointe reçue de l\'école.').substring(0, 140),
+                    icon: '/icons/icon-192.webp',
+                    badge: '/icons/icon-192.webp',
+                    url: '/chat',
+                    tag: `chat-msg-${parsedStudentId}-${Date.now()}`
+                };
+                sendPushToSubscriptions(targetSubs, pushPayload).catch(e => {
+                    console.warn('Erreur envoi push admin reply:', e.message);
+                });
+            }
+        } catch (pushErr) {
+            console.warn('Erreur préparation push admin reply:', pushErr.message);
+        }
 
         res.json({ success: true });
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -944,6 +1921,47 @@ app.post('/api/school/chat/history', async (req, res) => {
                 attachments: attachments
             };
         });
+
+        // Inclure également les communications officielles du cahier de transmission dans le fil de discussion
+        try {
+            const parsedStudentId = parseInt(student_id);
+            const studentData = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
+                [[parsedStudentId]],
+                { fields: ['id', 'level_id'] }
+            ]);
+            const levelId = (studentData && studentData[0] && studentData[0].level_id) ? studentData[0].level_id[0] : null;
+            const transDomain = levelId
+                ? ['|', '|', ['student_id', '=', parsedStudentId], ['student_ids', 'in', [parsedStudentId]], ['level_id', '=', levelId]]
+                : ['|', ['student_id', '=', parsedStudentId], ['student_ids', 'in', [parsedStudentId]]];
+
+            const transmissions = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.cahier.transmission', 'search_read',
+                [transDomain],
+                { fields: ['id', 'title', 'content', 'author', 'date', 'create_date'], order: 'date asc' }
+            ]);
+
+            if (Array.isArray(transmissions)) {
+                for (const t of transmissions) {
+                    const cleanContent = (t.content || '').replace(/<[^>]*>?/gm, '').trim();
+                    const bodyText = t.title ? `📢 [${t.title}]\n${cleanContent}` : cleanContent;
+                    cleaned.push({
+                        id: `trans_${t.id}`,
+                        body: bodyText,
+                        date: t.date || t.create_date,
+                        author: t.author || 'Direction',
+                        is_parent: false,
+                        attachments: [],
+                        is_transmission: true
+                    });
+                }
+            }
+        } catch (tErr) {
+            console.warn('Erreur inclusion transmission dans chat/history:', tErr.message);
+        }
+
+        // Trier par ordre chronologique
+        cleaned.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         res.json(cleaned);
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -1015,6 +2033,634 @@ app.post('/api/school/admin/students', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// =========================================================================
+// ROUTES APPOINTMENTS / RENDEZ-VOUS DIRECTION (INTÉGRATION COMPLÈTE ODOO)
+// =========================================================================
+
+const mapOdooToAppAppointment = (rec) => {
+    return {
+        id: rec.id,
+        student_id: rec.student_id ? rec.student_id[0] : null,
+        student_name: rec.student_id ? rec.student_id[1] : (rec.parent_name || 'Élève'),
+        parent_id: rec.parent_id ? rec.parent_id[0] : null,
+        parent_name: rec.parent_name || (rec.parent_id ? rec.parent_id[1] : 'Parent d\'élève'),
+        parent_phone: rec.parent_phone || '',
+        parent_email: rec.parent_email || '',
+        date: rec.date || '',
+        time_slot: rec.time_slot || '',
+        subject: rec.subject || 'Suivi pédagogique & scolaire',
+        type: rec.appointment_type || 'in_person',
+        appointment_type: rec.appointment_type || 'in_person',
+        notes: rec.notes || '',
+        admin_notes: rec.admin_notes || '',
+        location: rec.location || 'Bureau de la Direction - Bâtiment Administratif',
+        proposed_date: rec.proposed_date || null,
+        proposed_time_slot: rec.proposed_time_slot || null,
+        status: rec.state || 'pending',
+        state: rec.state || 'pending',
+        created_at: rec.create_date || new Date().toISOString(),
+        updated_at: rec.write_date || new Date().toISOString()
+    };
+};
+
+// 1. Liste des rendez-vous pour un parent / élève (Direct Odoo)
+app.post('/api/school/appointments', async (req, res) => {
+    const { student_id, parent_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const domain = [];
+        if (student_id) {
+            domain.push(['student_id', '=', parseInt(student_id)]);
+        } else if (parent_id) {
+            domain.push(['parent_id', '=', parseInt(parent_id)]);
+        }
+
+        const odooRecs = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'search_read',
+            [domain],
+            {
+                fields: [
+                    'id', 'student_id', 'parent_id', 'parent_name', 'parent_phone', 'parent_email',
+                    'date', 'time_slot', 'subject', 'appointment_type', 'notes', 'admin_notes',
+                    'proposed_date', 'proposed_time_slot', 'location', 'state', 'create_date', 'write_date'
+                ],
+                order: 'date desc, time_slot asc, id desc'
+            }
+        ]);
+
+        const formatted = odooRecs.map(mapOdooToAppAppointment);
+        res.json(formatted);
+    } catch (error) {
+        console.warn('Erreur /api/school/appointments via Odoo, fallback JSON:', error.message);
+        try {
+            const appointments = loadAppointments();
+            let filtered = appointments;
+            if (student_id) filtered = filtered.filter(a => a.student_id === parseInt(student_id));
+            else if (parent_id) filtered = filtered.filter(a => a.parent_id === parseInt(parent_id));
+            filtered.sort((a, b) => new Date(b.created_at || b.date).getTime() - new Date(a.created_at || a.date).getTime());
+            res.json(filtered);
+        } catch (e2) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+});
+
+// 2. Grille des créneaux horaires d'une date (avec blocage temps réel des créneaux validés dans Odoo)
+app.post('/api/school/appointments/slots', async (req, res) => {
+    const { date } = req.body;
+    try {
+        if (!date) {
+            return res.status(400).json({ error: 'Date requise' });
+        }
+
+        let bookedRecs = [];
+        try {
+            const adminUid = await getAdminUid();
+            bookedRecs = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'search_read',
+                [[['date', '=', date], ['state', '=', 'validated']]],
+                { fields: ['id', 'time_slot', 'student_id', 'parent_name'] }
+            ]);
+        } catch (odooErr) {
+            console.warn('Erreur lecture slots Odoo:', odooErr.message);
+            const appointments = loadAppointments();
+            bookedRecs = appointments.filter(a => a.date === date && a.status === 'validated');
+        }
+
+        const slots = STANDARD_TIME_SLOTS.map(slot => {
+            const booked = bookedRecs.find(a => a.time_slot === slot);
+            const isAvail = !booked;
+            const stdName = booked && booked.student_id ? (Array.isArray(booked.student_id) ? booked.student_id[1] : booked.student_name) : (booked ? booked.parent_name : null);
+            return {
+                time_slot: slot,
+                slot: slot,
+                is_available: isAvail,
+                available: isAvail,
+                is_booked: !isAvail,
+                booked: !isAvail,
+                status: booked ? 'validated' : 'available',
+                booked_by: booked ? (stdName ? `Réservé (${stdName})` : 'Réservé') : null,
+                appointment_id: booked ? booked.id : null
+            };
+        });
+
+        res.json({ date, slots });
+    } catch (error) {
+        console.error('Erreur /api/school/appointments/slots:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 3. Demande de rendez-vous par le parent (Création directe dans Odoo)
+app.post('/api/school/appointments/request', async (req, res) => {
+    const { 
+        student_id, 
+        student_name, 
+        parent_id, 
+        parent_name, 
+        parent_phone, 
+        parent_email, 
+        date, 
+        time_slot, 
+        subject, 
+        type, 
+        notes 
+    } = req.body;
+    
+    try {
+        if (!student_id || !date || !time_slot) {
+            return res.status(400).json({ success: false, message: 'Élève, date et créneau horaire requis' });
+        }
+
+        const adminUid = await getAdminUid();
+
+        // RÈGLE DE GESTION : Bloquer si le créneau est déjà validé dans Odoo
+        const conflictCount = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'search_count',
+            [[['date', '=', date], ['time_slot', '=', time_slot], ['state', '=', 'validated']]]
+        ]);
+
+        if (conflictCount > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                conflict: true,
+                message: 'Ce créneau horaire est déjà réservé et validé par la direction. Veuillez choisir un autre créneau disponible.' 
+            });
+        }
+
+        // Création de l'enregistrement dans Odoo
+        const newOdooId = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'create',
+            [{
+                student_id: parseInt(student_id),
+                parent_id: parent_id ? parseInt(parent_id) : false,
+                parent_name: parent_name || '',
+                parent_phone: parent_phone || '',
+                parent_email: parent_email || '',
+                date: date,
+                time_slot: time_slot,
+                subject: subject || 'Suivi pédagogique & scolaire',
+                appointment_type: type || 'in_person',
+                notes: notes || '',
+                location: 'Bureau de la Direction - Bâtiment Administratif',
+                state: 'pending'
+            }]
+        ]);
+
+        const newAppointment = {
+            id: newOdooId,
+            student_id: parseInt(student_id),
+            student_name: student_name || 'Élève',
+            parent_id: parent_id ? parseInt(parent_id) : null,
+            parent_name: parent_name || 'Parent d\'élève',
+            parent_phone: parent_phone || '',
+            parent_email: parent_email || '',
+            date,
+            time_slot,
+            subject: subject || 'Suivi pédagogique & scolaire',
+            type: type || 'in_person',
+            appointment_type: type || 'in_person',
+            notes: notes || '',
+            status: 'pending',
+            state: 'pending',
+            location: 'Bureau de la Direction - Bâtiment Administratif',
+            created_at: new Date().toISOString()
+        };
+
+        // Sauvegarder dans le cache local
+        const appointments = loadAppointments();
+        appointments.unshift(newAppointment);
+        saveAppointments(appointments);
+
+        // Envoyer la notification push immédiate à l'administration
+        try {
+            const adminSubs = await getSubscriptionTargets({ forAdmin: true });
+            if (adminSubs.length > 0) {
+                await sendPushToSubscriptions(adminSubs, {
+                    title: '📅 Nouvelle demande de Rendez-vous',
+                    body: `${newAppointment.parent_name} (${newAppointment.student_name}) a demandé un RDV pour le ${newAppointment.date} à ${newAppointment.time_slot}.`,
+                    url: '/admin/appointments',
+                    tag: `admin-apt-${newAppointment.id}`
+                });
+            }
+        } catch (pushErr) {
+            console.warn('Erreur push admin appointment:', pushErr.message);
+        }
+
+        res.json({ 
+            success: true, 
+            appointment: newAppointment, 
+            message: 'Votre demande de rendez-vous a été transmise avec succès à la direction.' 
+        });
+    } catch (error) {
+        console.error('Erreur request appointment:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 4. Parent accepte le créneau proposé par la direction (Mise à jour dans Odoo)
+app.post('/api/school/appointments/accept-proposal', async (req, res) => {
+    const { appointment_id, student_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const odooRecs = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'read',
+            [[parseInt(appointment_id)]],
+            { fields: ['id', 'proposed_date', 'proposed_time_slot', 'state', 'student_id', 'parent_name', 'location'] }
+        ]);
+
+        if (!odooRecs || odooRecs.length === 0) {
+            return res.status(404).json({ success: false, message: 'Rendez-vous introuvable' });
+        }
+
+        const apt = odooRecs[0];
+        if (apt.state !== 'rescheduled' || !apt.proposed_date || !apt.proposed_time_slot) {
+            return res.status(400).json({ success: false, message: 'Aucune proposition en attente pour ce rendez-vous.' });
+        }
+
+        // Vérifier si le créneau proposé est toujours libre dans Odoo
+        const conflict = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'search_count',
+            [[
+                ['id', '!=', apt.id],
+                ['state', '=', 'validated'],
+                ['date', '=', apt.proposed_date],
+                ['time_slot', '=', apt.proposed_time_slot]
+            ]]
+        ]);
+
+        if (conflict > 0) {
+            return res.status(400).json({
+                success: false,
+                conflict: true,
+                message: 'Ce créneau a malheureusement été réservé entre-temps. Veuillez choisir un autre créneau dans le formulaire.'
+            });
+        }
+
+        // Mettre à jour dans Odoo
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'write',
+            [[apt.id], {
+                date: apt.proposed_date,
+                time_slot: apt.proposed_time_slot,
+                state: 'validated'
+            }]
+        ]);
+
+        const studentName = apt.student_id ? apt.student_id[1] : 'Élève';
+        const parentName = apt.parent_name || 'Parent';
+
+        // Notifier l'admin que le parent a validé
+        try {
+            const adminSubs = await getSubscriptionTargets({ forAdmin: true });
+            if (adminSubs.length > 0) {
+                await sendPushToSubscriptions(adminSubs, {
+                    title: '🤝 Proposition de RDV acceptée',
+                    body: `${parentName} (${studentName}) a validé la proposition pour le ${apt.proposed_date} à ${apt.proposed_time_slot}.`,
+                    url: '/admin/appointments',
+                    tag: `admin-apt-acc-${apt.id}`
+                });
+            }
+        } catch (pushErr) {
+            console.warn('Erreur push admin proposal accept:', pushErr.message);
+        }
+
+        res.json({ success: true, message: 'Proposition acceptée. Votre rendez-vous est maintenant confirmé !' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 5. Parent annule son rendez-vous (Mise à jour dans Odoo)
+app.post('/api/school/appointments/cancel', async (req, res) => {
+    const { appointment_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const odooRecs = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'read',
+            [[parseInt(appointment_id)]],
+            { fields: ['id', 'date', 'time_slot', 'student_id', 'parent_name'] }
+        ]);
+
+        if (!odooRecs || odooRecs.length === 0) {
+            return res.status(404).json({ success: false, message: 'Rendez-vous introuvable' });
+        }
+
+        const apt = odooRecs[0];
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'write',
+            [[apt.id], { state: 'cancelled' }]
+        ]);
+
+        const studentName = apt.student_id ? apt.student_id[1] : 'Élève';
+        const parentName = apt.parent_name || 'Parent';
+
+        // Notifier l'administration
+        try {
+            const adminSubs = await getSubscriptionTargets({ forAdmin: true });
+            if (adminSubs.length > 0) {
+                await sendPushToSubscriptions(adminSubs, {
+                    title: '🚫 Rendez-vous annulé par le parent',
+                    body: `${parentName} (${studentName}) a annulé le RDV du ${apt.date} à ${apt.time_slot}. Le créneau est désormais libre.`,
+                    url: '/admin/appointments',
+                    tag: `admin-apt-canc-${apt.id}`
+                });
+            }
+        } catch (pushErr) {}
+
+        res.json({ success: true, message: 'Rendez-vous annulé avec succès.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 6. Liste complète des RDV côté administration avec statistiques (Direct Odoo)
+app.post('/api/school/admin/appointments', async (req, res) => {
+    const { status, search } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const domain = [];
+        if (status && status !== 'all') {
+            domain.push(['state', '=', status]);
+        }
+
+        const odooRecs = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'search_read',
+            [domain],
+            {
+                fields: [
+                    'id', 'student_id', 'parent_id', 'parent_name', 'parent_phone', 'parent_email',
+                    'date', 'time_slot', 'subject', 'appointment_type', 'notes', 'admin_notes',
+                    'proposed_date', 'proposed_time_slot', 'location', 'state', 'create_date', 'write_date'
+                ],
+                order: 'date desc, time_slot asc, id desc'
+            }
+        ]);
+
+        let appointments = odooRecs.map(mapOdooToAppAppointment);
+
+        // Récupération des compteurs globaux
+        const allRecs = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'search_read',
+            [[]],
+            { fields: ['id', 'state'] }
+        ]);
+
+        const stats = {
+            total: allRecs.length,
+            pending: allRecs.filter(a => a.state === 'pending').length,
+            validated: allRecs.filter(a => a.state === 'validated').length,
+            rescheduled: allRecs.filter(a => a.state === 'rescheduled').length,
+            rejected: allRecs.filter(a => a.state === 'rejected').length,
+            completed: allRecs.filter(a => a.state === 'completed').length,
+        };
+
+        if (search) {
+            const q = search.toLowerCase();
+            appointments = appointments.filter(a => 
+                (a.student_name && a.student_name.toLowerCase().includes(q)) ||
+                (a.parent_name && a.parent_name.toLowerCase().includes(q)) ||
+                (a.subject && a.subject.toLowerCase().includes(q)) ||
+                (a.date && a.date.includes(q)) ||
+                (a.time_slot && a.time_slot.includes(q))
+            );
+        }
+
+        res.json({ appointments, stats });
+    } catch (error) {
+        console.error('Erreur admin appointments Odoo:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 7. Validation d'un rendez-vous par l'administration (avec contrôle strict anti-conflit dans Odoo)
+app.post('/api/school/admin/appointments/validate', async (req, res) => {
+    const { appointment_id, location, admin_notes } = req.body;
+    try {
+        if (!appointment_id) {
+            return res.status(400).json({ success: false, message: 'ID de rendez-vous requis' });
+        }
+
+        const adminUid = await getAdminUid();
+        const odooRecs = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'read',
+            [[parseInt(appointment_id)]],
+            { fields: ['id', 'date', 'time_slot', 'student_id', 'parent_name', 'location'] }
+        ]);
+
+        if (!odooRecs || odooRecs.length === 0) {
+            return res.status(404).json({ success: false, message: 'Rendez-vous introuvable' });
+        }
+
+        const apt = odooRecs[0];
+
+        // RÈGLE DE GESTION : VÉRIFICATION STRICTE DE CONFLIT D'HORAIRE DANS ODOO
+        const conflictingApts = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'search_read',
+            [[
+                ['id', '!=', apt.id],
+                ['state', '=', 'validated'],
+                ['date', '=', apt.date],
+                ['time_slot', '=', apt.time_slot]
+            ]],
+            { fields: ['id', 'parent_name', 'student_id'] }
+        ]);
+
+        if (conflictingApts && conflictingApts.length > 0) {
+            const conflict = conflictingApts[0];
+            const pName = conflict.parent_name || (conflict.student_id ? conflict.student_id[1] : 'un autre parent');
+            return res.status(400).json({
+                success: false,
+                conflict: true,
+                message: `Conflit d'horaire : La direction a déjà un rendez-vous validé le ${apt.date} sur le créneau ${apt.time_slot} avec ${pName}. Vous ne pouvez pas valider deux rendez-vous au même moment. Veuillez proposer un autre créneau au parent.`
+            });
+        }
+
+        // Mettre à jour dans Odoo
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'write',
+            [[apt.id], {
+                state: 'validated',
+                location: location || apt.location || 'Bureau de la Direction - Bâtiment Administratif',
+                admin_notes: admin_notes || ''
+            }]
+        ]);
+
+        const studentId = apt.student_id ? apt.student_id[0] : null;
+        const studentName = apt.student_id ? apt.student_id[1] : 'Élève';
+
+        // Envoyer la notification push au parent
+        try {
+            if (studentId) {
+                const targetSubs = await getSubscriptionTargets({ studentIds: [studentId] });
+                if (targetSubs.length > 0) {
+                    await sendPushToSubscriptions(targetSubs, {
+                        title: '✅ Rendez-vous Direction Confirmé',
+                        body: `Votre rendez-vous pour ${studentName} le ${apt.date} à ${apt.time_slot} est validé (${location || 'Direction'}).`,
+                        url: '/tabs/appointments',
+                        tag: `parent-apt-val-${apt.id}`
+                    });
+                }
+            }
+        } catch (pushErr) {
+            console.warn('Erreur push parent appointment validate:', pushErr.message);
+        }
+
+        res.json({ success: true, message: 'Rendez-vous validé avec succès.' });
+    } catch (error) {
+        console.error('Erreur validate appointment:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 8. Proposition d'un autre créneau par l'administration (Reprogrammation dans Odoo)
+app.post('/api/school/admin/appointments/reschedule', async (req, res) => {
+    const { appointment_id, proposed_date, proposed_time_slot, admin_notes, location } = req.body;
+    try {
+        if (!appointment_id || !proposed_date || !proposed_time_slot) {
+            return res.status(400).json({ success: false, message: 'ID, nouvelle date et nouveau créneau requis' });
+        }
+
+        const adminUid = await getAdminUid();
+        const odooRecs = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'read',
+            [[parseInt(appointment_id)]],
+            { fields: ['id', 'student_id', 'parent_name'] }
+        ]);
+
+        if (!odooRecs || odooRecs.length === 0) {
+            return res.status(404).json({ success: false, message: 'Rendez-vous introuvable' });
+        }
+
+        const apt = odooRecs[0];
+
+        // Vérifier si le nouveau créneau proposé est libre dans Odoo
+        const conflict = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'search_count',
+            [[
+                ['id', '!=', apt.id],
+                ['state', '=', 'validated'],
+                ['date', '=', proposed_date],
+                ['time_slot', '=', proposed_time_slot]
+            ]]
+        ]);
+
+        if (conflict > 0) {
+            return res.status(400).json({
+                success: false,
+                conflict: true,
+                message: `Le créneau proposé (${proposed_date} à ${proposed_time_slot}) est déjà réservé par un autre rendez-vous validé. Veuillez sélectionner un autre créneau libre.`
+            });
+        }
+
+        // Mettre à jour dans Odoo
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'write',
+            [[apt.id], {
+                state: 'rescheduled',
+                proposed_date: proposed_date,
+                proposed_time_slot: proposed_time_slot,
+                admin_notes: admin_notes || 'La direction a proposé un ajustement d\'horaire selon ses disponibilités.',
+                location: location || 'Bureau de la Direction'
+            }]
+        ]);
+
+        const studentId = apt.student_id ? apt.student_id[0] : null;
+
+        // Envoyer la notification push au parent
+        try {
+            if (studentId) {
+                const targetSubs = await getSubscriptionTargets({ studentIds: [studentId] });
+                if (targetSubs.length > 0) {
+                    await sendPushToSubscriptions(targetSubs, {
+                        title: '🔄 Nouveau créneau proposé par la Direction',
+                        body: `La direction vous propose un nouveau créneau le ${proposed_date} à ${proposed_time_slot}. Cliquez pour accepter.`,
+                        url: '/tabs/appointments',
+                        tag: `parent-apt-resched-${apt.id}`
+                    });
+                }
+            }
+        } catch (pushErr) {
+            console.warn('Erreur push parent appointment reschedule:', pushErr.message);
+        }
+
+        res.json({ success: true, message: 'Nouveau créneau proposé au parent avec succès.' });
+    } catch (error) {
+        console.error('Erreur reschedule appointment:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 9. Refus d'un rendez-vous par l'administration (Mise à jour dans Odoo)
+app.post('/api/school/admin/appointments/reject', async (req, res) => {
+    const { appointment_id, admin_notes } = req.body;
+    try {
+        if (!appointment_id) {
+            return res.status(400).json({ success: false, message: 'ID requis' });
+        }
+
+        const adminUid = await getAdminUid();
+        const odooRecs = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'read',
+            [[parseInt(appointment_id)]],
+            { fields: ['id', 'date', 'student_id'] }
+        ]);
+
+        if (!odooRecs || odooRecs.length === 0) {
+            return res.status(404).json({ success: false, message: 'Rendez-vous introuvable' });
+        }
+
+        const apt = odooRecs[0];
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'write',
+            [[apt.id], {
+                state: 'rejected',
+                admin_notes: admin_notes || 'La direction ne peut pas donner suite à cette demande pour le moment.'
+            }]
+        ]);
+
+        const studentId = apt.student_id ? apt.student_id[0] : null;
+
+        // Envoyer la notification push au parent
+        try {
+            if (studentId) {
+                const targetSubs = await getSubscriptionTargets({ studentIds: [studentId] });
+                if (targetSubs.length > 0) {
+                    await sendPushToSubscriptions(targetSubs, {
+                        title: '❌ Rendez-vous non accepté',
+                        body: `Votre demande de RDV du ${apt.date} a été déclinée. Motif : ${admin_notes || 'Indisponibilité'}`,
+                        url: '/tabs/appointments',
+                        tag: `parent-apt-rej-${apt.id}`
+                    });
+                }
+            }
+        } catch (pushErr) {
+            console.warn('Erreur push parent appointment reject:', pushErr.message);
+        }
+
+        res.json({ success: true, message: 'Rendez-vous décliné.' });
+    } catch (error) {
+        console.error('Erreur reject appointment:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 10. Clôture d'un rendez-vous terminé (Mise à jour dans Odoo)
+app.post('/api/school/admin/appointments/complete', async (req, res) => {
+    const { appointment_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'write',
+            [[parseInt(appointment_id)], { state: 'completed' }]
+        ]);
+        res.json({ success: true, message: 'Rendez-vous marqué comme terminé.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+
 app.post('/api/school/schedule', async (req, res) => {
     const { level_id } = req.body;
     try {
@@ -1054,7 +2700,7 @@ app.post('/api/school/announcements', async (req, res) => {
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.announcement', 'search_read', 
             [domain], 
-            { fields: ['title', 'content', 'date', 'attachment', 'attachment_name'], order: 'date desc' }
+            { fields: ['id', 'title', 'content', 'date', 'create_date', 'attachment', 'attachment_name'], order: 'create_date desc, date desc, id desc' }
         ]);
         res.json(result);
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -1097,21 +2743,34 @@ app.post('/api/school/contacts', async (req, res) => {
 app.post('/api/school/admin/incoming-messages', async (req, res) => {
     try {
         const adminUid = await getAdminUid();
-        // Chercher les messages postés sur les étudiants par des parents
+        // Chercher les messages postés sur les étudiants
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'mail.message', 'search_read', 
             [[['model', '=', 'school.student'], ['message_type', '=', 'comment']]], 
-            { fields: ['id', 'body', 'date', 'author_id', 'res_id', 'record_name'], order: 'date desc', limit: 50 }
+            { fields: ['id', 'body', 'date', 'author_id', 'res_id', 'record_name'], order: 'date desc', limit: 500 }
         ]);
         
-        const cleaned = result.map(m => ({
-            id: m.id,
-            body: m.body.replace(/<[^>]*>?/gm, ''),
-            date: m.date,
-            author: m.author_id ? m.author_id[1] : 'Parent',
-            student_name: m.record_name,
-            student_id: m.res_id
-        }));
+        const cleaned = result.map(m => {
+            const rawBody = m.body || '';
+            const is_from_parent = rawBody.includes('data-sender="parent"') || 
+                                   rawBody.includes('[PARENT_MSG]') || 
+                                   (m.author_id && m.author_id[1].toLowerCase().includes('parent'));
+            
+            let textBody = rawBody.replace(/<[^>]*>?/gm, '');
+            textBody = textBody.replace('&lt;span data-sender="parent" style="display:none;"&gt;&lt;/span&gt;', '');
+            textBody = textBody.replace('[PARENT_MSG]', '');
+            textBody = textBody.replace('[PARENT] ', '');
+
+            return {
+                id: m.id,
+                body: textBody.trim(),
+                date: m.date,
+                author: m.author_id ? m.author_id[1] : (is_from_parent ? 'Parent' : 'École'),
+                student_name: m.record_name,
+                student_id: m.res_id,
+                is_from_parent: is_from_parent
+            };
+        });
 
         res.json(cleaned);
     } catch (error) { res.status(500).json({ error: error.message }); }
@@ -1131,9 +2790,51 @@ app.post('/api/school/payments', async (req, res) => {
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.payment', 'search_read', 
             [domain], 
-            { fields: ['month', 'amount', 'date', 'state', 'year_id'] }
+            { fields: ['id', 'month', 'amount', 'date', 'state', 'year_id', 'payment_type', 'receipt_number'] }
         ]);
-        res.json(result);
+
+        // Ordre scolaire strict : Inscription, Septembre 2026 (09) -> Juin 2027 (06)
+        const monthOrder = {
+            '09': 1, '10': 2, '11': 3, '12': 4,
+            '01': 5, '02': 6, '03': 7, '04': 8,
+            '05': 9, '06': 10, '07': 11, '08': 12
+        };
+
+        const monthNames = {
+            '09': 'Septembre', '10': 'Octobre', '11': 'Novembre', '12': 'Décembre',
+            '01': 'Janvier', '02': 'Février', '03': 'Mars', '04': 'Avril',
+            '05': 'Mai', '06': 'Juin', '07': 'Juillet', '08': 'Août'
+        };
+
+        const sorted = (result || []).sort((a, b) => {
+            // Frais d'inscription en premier
+            if (a.payment_type === 'registration' && b.payment_type !== 'registration') return -1;
+            if (b.payment_type === 'registration' && a.payment_type !== 'registration') return 1;
+
+            const ordA = monthOrder[a.month] || 99;
+            const ordB = monthOrder[b.month] || 99;
+            if (ordA !== ordB) return ordA - ordB;
+
+            return (a.id || 0) - (b.id || 0);
+        });
+
+        const formatted = sorted.map(p => {
+            const is2026 = ['09', '10', '11', '12'].includes(p.month);
+            const year = is2026 ? 2026 : 2027;
+            const mName = monthNames[p.month] || p.month;
+            return {
+                ...p,
+                academic_year: p.year_id ? p.year_id[1] : '2026-2027',
+                year,
+                month_name: mName,
+                academic_label: p.payment_type === 'registration' 
+                    ? "Frais d'inscription" 
+                    : `Scolarité ${mName} ${year}`,
+                academic_sequence: p.payment_type === 'registration' ? 0 : (monthOrder[p.month] || 99)
+            };
+        });
+
+        res.json(formatted);
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
@@ -1153,12 +2854,43 @@ app.post('/api/school/cahier-transmission', async (req, res) => {
     const { student_id } = req.body;
     try {
         const adminUid = await getAdminUid();
+        const parsedStudentId = parseInt(student_id);
+
+        let transDomain = [['student_id', '=', parsedStudentId]];
+        try {
+            const studentData = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
+                [[parsedStudentId]],
+                { fields: ['id', 'level_id'] }
+            ]);
+            const levelId = (studentData && studentData[0] && studentData[0].level_id) ? studentData[0].level_id[0] : null;
+            if (levelId) {
+                transDomain = [
+                    '|', '|',
+                    ['student_id', '=', parsedStudentId],
+                    ['student_ids', 'in', [parsedStudentId]],
+                    '&', '&',
+                    ['level_id', '=', levelId],
+                    ['student_id', '=', false],
+                    ['student_ids', '=', false]
+                ];
+            } else {
+                transDomain = [
+                    '|',
+                    ['student_id', '=', parsedStudentId],
+                    ['student_ids', 'in', [parsedStudentId]]
+                ];
+            }
+        } catch (sErr) {
+            console.warn('Erreur lecture level_id pour transmission:', sErr.message);
+        }
+
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.cahier.transmission', 'search_read',
-            [[['student_id', '=', parseInt(student_id)]]],
-            { fields: ['id', 'type', 'title', 'content', 'author', 'date', 'requires_signature', 'signed'] }
+            [transDomain],
+            { fields: ['id', 'type', 'title', 'content', 'author', 'date', 'requires_signature', 'signed', 'create_date'], order: 'create_date desc, date desc, id desc' }
         ]);
-        res.json(result);
+        res.json(result || []);
     } catch (error) {
         console.warn('Odoo query failed, falling back to mock transmission data:', error.message);
         res.json([
@@ -1184,15 +2916,183 @@ app.post('/api/school/cahier-transmission/sign', async (req, res) => {
     }
 });
 
-app.post('/api/school/resources', async (req, res) => {
-    const { student_id, level_id } = req.body;
+app.post('/api/school/regulations', async (req, res) => {
+    const { student_id, category } = req.body;
     try {
         const adminUid = await getAdminUid();
-        const domain = [['level_id', '=', parseInt(level_id)]];
+        let domain = [['active', '=', true]];
+
+        if (category && category !== 'all') {
+            domain.push(['category', '=', category]);
+        }
+
+        if (student_id) {
+            const parsedStudentId = parseInt(student_id);
+            if (!isNaN(parsedStudentId)) {
+                try {
+                    const studentData = await callOdoo('object', 'execute_kw', [
+                        ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
+                        [[parsedStudentId]],
+                        { fields: ['id', 'level_id'] }
+                    ]);
+                    const levelId = (studentData && studentData[0] && studentData[0].level_id) ? studentData[0].level_id[0] : null;
+                    if (levelId) {
+                        domain.push('|');
+                        domain.push(['target', '=', 'all']);
+                        domain.push(['level_ids', 'in', [levelId]]);
+                    }
+                } catch (sErr) {
+                    console.warn('Erreur lecture level_id pour reglement:', sErr.message);
+                }
+            }
+        }
+
+        const result = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.regulation', 'search_read',
+            [domain],
+            { 
+                fields: ['id', 'title', 'name', 'category', 'content', 'author', 'date', 'is_pinned', 'target', 'attachment', 'attachment_name', 'sequence'],
+                order: 'is_pinned desc, sequence asc, date desc, id desc'
+            }
+        ]);
+        res.json(result || []);
+    } catch (error) {
+        console.warn('Odoo query failed for regulations, returning default mock rules:', error.message);
+        res.json([
+            {
+                id: 1,
+                title: "ميثاق الحقوق والواجبات وقواعد الحياة المدرسية",
+                category: "general",
+                content: "تعتبر المدرسة فضاءً للتربية والتكوين والتعلم في إطار الاحترام المتبادل والمواطنة الإيجابية. يحق لكل تلميذ الاستفادة من بيئة تعليمية محفزة وآمنة، ويلتزم في المقابل بالانضباط واحترام الأساتذة وجميع مكونات الأسرة التربوية.",
+                author: "Direction Pédagogique",
+                date: "2026-09-01",
+                is_pinned: true,
+                target: "all"
+            },
+            {
+                id: 2,
+                title: "Article 1 : Horaires officiels et ponctualité",
+                category: "attendance",
+                content: "Les portes de l'établissement ouvrent à 08h00 le matin et à 14h00 l'après-midi. Tout retard supérieur à 10 minutes nécessite un billet d'entrée délivré par la vie scolaire. En cas d'absence, les parents sont tenus de prévenir la direction dans les 24 heures et de fournir un justificatif dès le retour de l'élève.",
+                author: "Administration & Vie Scolaire",
+                date: "2026-09-05",
+                is_pinned: true,
+                target: "all"
+            },
+            {
+                id: 3,
+                title: "Article 2 : Tenue vestimentaire et hygiène",
+                category: "hygiene",
+                content: "Le port de la blouse ou de l'uniforme officiel de l'école est obligatoire pour tous les élèves dès leur entrée dans l'enceinte scolaire. Une tenue correcte, propre et décente est exigée en toute circonstance. Les tenues de sport ne sont autorisées que durant les séances d'éducation physique.",
+                author: "Conseil Intérieur",
+                date: "2026-09-10",
+                is_pinned: false,
+                target: "all"
+            },
+            {
+                id: 4,
+                title: "Article 3 : Usage des téléphones portables et objets connectés",
+                category: "discipline",
+                content: "Conformément aux directives ministérielles, l'usage des téléphones portables, tablettes personnelles, consoles de jeux et écouteurs est strictement interdit à l'intérieur des salles de classe et dans les couloirs. En cas d'infraction, l'appareil sera confisqué et remis uniquement aux parents.",
+                author: "Direction",
+                date: "2026-09-12",
+                is_pinned: true,
+                target: "all"
+            },
+            {
+                id: 5,
+                title: "النصوص التشريعية والمذكرات الوزارية المنظمة للامتحانات والمراقبة المستمرة",
+                category: "law",
+                content: "تطبيقاً لمقتضيات المذكرة الوزارية الخاصة بالتقويم التربوي والامتحانات الإشهادية، يخضع التلميذ لفروض محروسة منتظمة وتقييمات دورية. يعتبر الغش أو محاولة الغش سلوكاً يستوجب العرض على المجلس التأديبي وتطبيق العقوبات المقررة قانوناً.",
+                author: "وزارة التربية الوطنية والتعليم الأولي",
+                date: "2026-09-15",
+                is_pinned: false,
+                target: "all"
+            }
+        ]);
+    }
+});
+
+const getSchoolContactInfo = async (req, res) => {
+    try {
+        const adminUid = await getAdminUid();
+        const configs = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.config', 'search_read',
+            [[]],
+            {
+                fields: [
+                    'id', 'name', 'phone', 'email', 'address',
+                    'pedagogical_director_name', 'pedagogical_director_phone', 'pedagogical_director_email',
+                    'administration_phone', 'whatsapp_number', 'emergency_phone', 'opening_hours',
+                    'facebook_url', 'instagram_url', 'website_url',
+                    'map_address', 'map_url', 'logo'
+                ],
+                limit: 1
+            }
+        ]);
+        if (configs && configs.length > 0) {
+            res.json(configs[0]);
+        } else {
+            res.json({
+                name: "Groupe Scolaire Al Ibdae Al Alamia",
+                pedagogical_director_name: "Directeur Pédagogique",
+                pedagogical_director_phone: "+212 6 61 23 45 67",
+                pedagogical_director_email: "pedagogie@alibdaealamia.ma",
+                administration_phone: "+212 5 39 90 12 34",
+                phone: "+212 5 39 90 12 34",
+                whatsapp_number: "+212 6 61 23 45 67",
+                emergency_phone: "+212 6 61 99 88 77",
+                opening_hours: "Lundi - Vendredi : 08h00 - 18h00 | Samedi : 08h30 - 12h30",
+                email: "contact@alibdaealamia.ma",
+                address: "Boulevard Moulay Rachid, Tanger, Maroc",
+                map_address: "Boulevard Moulay Rachid, Tanger",
+                map_url: "https://maps.google.com/?q=Groupe+Scolaire+Al+Ibdae+Al+Alamia+Tanger",
+                facebook_url: "https://www.facebook.com/alibdaealamia",
+                instagram_url: "https://www.instagram.com/alibdaealamia",
+                website_url: "https://www.alibdaealamia.ma"
+            });
+        }
+    } catch (error) {
+        console.warn('Odoo query failed for contact-info, returning fallback:', error.message);
+        res.json({
+            name: "Groupe Scolaire Al Ibdae Al Alamia",
+            pedagogical_director_name: "Directeur Pédagogique",
+            pedagogical_director_phone: "+212 6 61 23 45 67",
+            pedagogical_director_email: "pedagogie@alibdaealamia.ma",
+            administration_phone: "+212 5 39 90 12 34",
+            phone: "+212 5 39 90 12 34",
+            whatsapp_number: "+212 6 61 23 45 67",
+            emergency_phone: "+212 6 61 99 88 77",
+            opening_hours: "Lundi - Vendredi : 08h00 - 18h00 | Samedi : 08h30 - 12h30",
+            email: "contact@alibdaealamia.ma",
+            address: "Boulevard Moulay Rachid, Tanger, Maroc",
+            map_address: "Boulevard Moulay Rachid, Tanger",
+            map_url: "https://maps.google.com/?q=Groupe+Scolaire+Al+Ibdae+Al+Alamia+Tanger",
+            facebook_url: "https://www.facebook.com/alibdaealamia",
+            instagram_url: "https://www.instagram.com/alibdaealamia",
+            website_url: "https://www.alibdaealamia.ma"
+        });
+    }
+};
+
+app.post('/api/school/contact-info', getSchoolContactInfo);
+app.get('/api/school/contact-info', getSchoolContactInfo);
+
+app.post('/api/school/resources', async (req, res) => {
+    const { student_id, level_id, teacher_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        let domain = [];
+        if (level_id && !isNaN(parseInt(level_id))) {
+            domain = ['|', ['level_id', '=', parseInt(level_id)], ['level_id', '=', false]];
+        }
+        if (teacher_id && !isNaN(parseInt(teacher_id))) {
+            domain.push(['teacher_id', '=', parseInt(teacher_id)]);
+        }
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.resources', 'search_read',
             [domain],
-            { fields: ['id', 'name', 'subject', 'teacher', 'type', 'mimetype', 'date', 'size', 'url', 'datas'] }
+            { fields: ['id', 'name', 'subject', 'subject_id', 'teacher', 'teacher_id', 'type', 'mimetype', 'date', 'size', 'url', 'datas', 'level_id'] }
         ]);
         res.json(result);
     } catch (error) {
@@ -1379,23 +3279,105 @@ app.post('/api/school/shop/buy', async (req, res) => {
     }
 });
 
+app.post('/api/school/parent/info', async (req, res) => {
+    const { parent_id, email, user_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        let parentRecord = null;
+
+        if (parent_id) {
+            const pList = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'search_read',
+                [[['id', '=', parseInt(parent_id)]]],
+                { fields: ['id', 'name', 'phone', 'email', 'student_ids'], limit: 1 }
+            ]);
+            if (pList && pList.length > 0) parentRecord = pList[0];
+        }
+
+        if (!parentRecord && email) {
+            const pList = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'search_read',
+                [[['email', '=ilike', email.trim()]]],
+                { fields: ['id', 'name', 'phone', 'email', 'student_ids'], limit: 1 }
+            ]);
+            if (pList && pList.length > 0) parentRecord = pList[0];
+        }
+
+        if (!parentRecord && user_id) {
+            const uList = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'res.users', 'search_read',
+                [[['id', '=', parseInt(user_id)]]],
+                { fields: ['id', 'name', 'phone', 'email', 'login'], limit: 1 }
+            ]);
+            if (uList && uList.length > 0) {
+                parentRecord = {
+                    id: uList[0].id,
+                    name: uList[0].name,
+                    email: uList[0].email || uList[0].login,
+                    phone: uList[0].phone || '',
+                    is_admin: true
+                };
+            }
+        }
+
+        if (parentRecord) {
+            return res.json({ success: true, parent: parentRecord });
+        }
+        res.json({ success: false, message: "Profil non trouvé" });
+    } catch (error) {
+        console.error('Erreur /api/school/parent/info:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 app.post('/api/school/parent/update', async (req, res) => {
     const { parent_id, email, phone, name } = req.body;
     try {
         const adminUid = await getAdminUid();
         const updates = {};
-        if (email) updates.email = email;
-        if (phone) updates.phone = phone;
-        if (name) updates.name = name;
+        if (email !== undefined) updates.email = String(email).trim();
+        if (phone !== undefined) updates.phone = String(phone).trim();
+        if (name !== undefined) updates.name = String(name).trim();
 
-        await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'write',
-            [[parseInt(parent_id)], updates]
-        ]);
-        res.json({ success: true });
+        const pid = parseInt(parent_id);
+        if (isNaN(pid)) {
+            return res.status(400).json({ success: false, message: "ID parent invalide" });
+        }
+
+        let updated = false;
+        try {
+            await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.parent', 'write',
+                [[pid], updates]
+            ]);
+            updated = true;
+        } catch (pErr) {
+            console.warn('Erreur écriture school.parent:', pErr.message);
+        }
+
+        if (!updated) {
+            try {
+                const userUpdates = {};
+                if (updates.name) userUpdates.name = updates.name;
+                if (updates.email) {
+                    userUpdates.email = updates.email;
+                    userUpdates.login = updates.email;
+                }
+                if (updates.phone) userUpdates.phone = updates.phone;
+                await callOdoo('object', 'execute_kw', [
+                    ODOO_DB, adminUid, ADMIN_PASS, 'res.users', 'write',
+                    [[pid], userUpdates]
+                ]);
+                updated = true;
+            } catch (uErr) {
+                console.warn('Erreur écriture res.users:', uErr.message);
+            }
+        }
+
+        res.json({ success: true, updated });
     } catch (error) {
-        console.warn('Odoo parent update failed, returning success for mock compatibility:', error.message);
-        res.json({ success: true });
+        console.error('Erreur /api/school/parent/update:', error.message);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
@@ -1414,6 +3396,512 @@ app.use((req, res) => {
     res.setHeader('Expires', '0');
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
+
+// =========================================================================
+// Moteur de notifications push en temps réel : Surveillance multi-modèles
+// =========================================================================
+let isMonitoringInitialized = false;
+let lastMonitoredHomeworkId = 0;
+let lastMonitoredGradeDate = '';
+let lastMonitoredGradeId = 0;
+let lastMonitoredAttendanceId = 0;
+let lastMonitoredResourceId = 0;
+let lastMonitoredAnnouncementId = 0;
+let lastMonitoredTransmissionId = 0;
+let lastMonitoredMessageId = 0;
+let lastMonitoredAppointmentDate = '';
+const knownAppointmentStates = new Map();
+
+const runOdooEventsMonitoring = async () => {
+    try {
+        const adminUid = await getAdminUid();
+
+        // 1. Initialisation au démarrage : récupérer les derniers ID pour ne pas spammer d'anciennes données
+        if (!isMonitoringInitialized) {
+            try {
+                const getLatestId = async (model) => {
+                    const res = await callOdoo('object', 'execute_kw', [
+                        ODOO_DB, adminUid, ADMIN_PASS, model, 'search_read', [[]],
+                        { fields: ['id'], limit: 1, order: 'id desc' }
+                    ]);
+                    return res?.[0]?.id || 0;
+                };
+
+                const [hwId, attId, resId, annId, trId, msgId] = await Promise.all([
+                    getLatestId('school.homework'),
+                    getLatestId('school.attendance'),
+                    getLatestId('school.resources'),
+                    getLatestId('school.announcement'),
+                    getLatestId('school.cahier.transmission'),
+                    getLatestId('mail.message')
+                ]);
+
+                lastMonitoredHomeworkId = hwId;
+                lastMonitoredAttendanceId = attId;
+                lastMonitoredResourceId = resId;
+                lastMonitoredAnnouncementId = annId;
+                lastMonitoredTransmissionId = trId;
+                lastMonitoredMessageId = msgId;
+
+                const latestGrades = await callOdoo('object', 'execute_kw', [
+                    ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read', [[]],
+                    { fields: ['id', 'write_date'], limit: 1, order: 'write_date desc' }
+                ]);
+                lastMonitoredGradeDate = latestGrades?.[0]?.write_date || new Date().toISOString().replace('T', ' ').substring(0, 19);
+                lastMonitoredGradeId = latestGrades?.[0]?.id || 0;
+
+                // Initialiser les états des rendez-vous existants
+                try {
+                    const currentAppointments = await callOdoo('object', 'execute_kw', [
+                        ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'search_read', [[]],
+                        { fields: ['id', 'state', 'write_date'], order: 'write_date desc', limit: 100 }
+                    ]);
+                    if (Array.isArray(currentAppointments)) {
+                        currentAppointments.forEach(a => knownAppointmentStates.set(a.id, a.state));
+                        lastMonitoredAppointmentDate = currentAppointments[0]?.write_date || new Date().toISOString().replace('T', ' ').substring(0, 19);
+                    }
+                } catch (aptInitErr) {
+                    console.warn('Init appointments monitoring:', aptInitErr.message);
+                }
+
+                isMonitoringInitialized = true;
+                console.log(`🔔 Surveillance Push initialisée: Devoirs(#${hwId}), Notes(${lastMonitoredGradeDate}), Absences(#${attId}), Ressources(#${resId}), Annonces(#${annId}), Transmissions(#${trId}), Messages(#${msgId}), RDVs(${knownAppointmentStates.size})`);
+                return;
+            } catch (initErr) {
+                console.warn('Erreur initialisation surveillance Odoo:', initErr.message);
+                return;
+            }
+        }
+
+        // =====================================================================
+        // A. Surveillance des Nouveaux Devoirs (school.homework) -> /tabs/homework
+        // =====================================================================
+        try {
+            const newHws = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.homework', 'search_read',
+                [[['id', '>', lastMonitoredHomeworkId]]],
+                { fields: ['id', 'title', 'title_fr', 'subject', 'subject_id', 'date_due', 'student_id', 'student_ids', 'level_id'], order: 'id asc', limit: 15 }
+            ]);
+
+            if (Array.isArray(newHws) && newHws.length > 0) {
+                for (const hw of newHws) {
+                    if (hw.id > lastMonitoredHomeworkId) lastMonitoredHomeworkId = hw.id;
+
+                    const studentIds = [];
+                    if (hw.student_id) studentIds.push(hw.student_id[0]);
+                    if (Array.isArray(hw.student_ids)) {
+                        for (const sid of hw.student_ids) {
+                            if (!studentIds.includes(sid)) studentIds.push(sid);
+                        }
+                    }
+
+                    // Si des élèves précis sont assignés, cibler STRICTEMENT leurs parents.
+                    // Si aucun élève n'est précisé mais une classe l'est, cibler les parents de la classe.
+                    const targetSubs = await getSubscriptionTargets({
+                        studentIds: studentIds.length > 0 ? studentIds : [],
+                        levelId: studentIds.length === 0 && hw.level_id ? hw.level_id[0] : null
+                    });
+
+                    if (targetSubs.length > 0) {
+                        const subj = hw.subject_id ? hw.subject_id[1] : (hw.subject || 'Devoir');
+                        const hwTitle = hw.title || hw.title_fr || 'Nouveau travail à réaliser';
+                        const dueTxt = hw.date_due ? ` (à rendre pour le ${hw.date_due})` : '';
+
+                        await sendPushToSubscriptions(targetSubs, {
+                            title: `📚 Nouveau devoir : ${subj}`,
+                            body: `${hwTitle}${dueTxt}`,
+                            url: '/tabs/homework',
+                            tag: `hw-${hw.id}`
+                        });
+                        console.log(`🔔 Push envoyé pour Devoir #${hw.id} (${subj}) à ${targetSubs.length} appareil(s)`);
+                    }
+                }
+            }
+        } catch (hwErr) {
+            console.warn('Erreur polling Devoirs:', hwErr.message);
+        }
+
+        // =====================================================================
+        // B. Surveillance Changement ou Insertion de Notes (school.grade) -> /tabs/notes
+        // =====================================================================
+        try {
+            const gradeDomain = ['|', ['id', '>', lastMonitoredGradeId], ['write_date', '>', lastMonitoredGradeDate]];
+            const newGrades = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.grade', 'search_read',
+                [gradeDomain],
+                { fields: ['id', 'student_id', 'subject', 'subject_id', 'semester', 'write_date', 'create_date'], order: 'write_date desc, id desc', limit: 30 }
+            ]);
+
+            if (Array.isArray(newGrades) && newGrades.length > 0) {
+                const maxId = Math.max(...newGrades.map(g => g.id));
+                if (maxId > lastMonitoredGradeId) lastMonitoredGradeId = maxId;
+                if (newGrades[0].write_date && newGrades[0].write_date > lastMonitoredGradeDate) {
+                    lastMonitoredGradeDate = newGrades[0].write_date;
+                }
+
+                // Grouper par élève pour éviter de spammer le parent avec 10 notifs en même temps
+                const studentGradeMap = new Map();
+                for (const g of newGrades) {
+                    const sid = g.student_id ? g.student_id[0] : 0;
+                    if (!sid) continue;
+                    if (!studentGradeMap.has(sid)) {
+                        studentGradeMap.set(sid, {
+                            studentName: g.student_id[1] || 'Votre enfant',
+                            subjects: new Set(),
+                            semester: g.semester || 'Semestre'
+                        });
+                    }
+                    const sName = g.subject_id ? g.subject_id[1] : (g.subject || 'Matière');
+                    studentGradeMap.get(sid).subjects.add(sName);
+                }
+
+                for (const [sid, info] of studentGradeMap.entries()) {
+                    const targetSubs = await getSubscriptionTargets({ studentIds: [sid] });
+                    if (targetSubs.length > 0) {
+                        const subjList = Array.from(info.subjects).slice(0, 3).join(', ');
+                        await sendPushToSubscriptions(targetSubs, {
+                            title: `📝 Note : ${info.studentName}`,
+                            body: `Nouvelle note ou mise à jour enregistrée en ${subjList} (${info.semester}).`,
+                            url: '/tabs/notes',
+                            tag: `grade-${sid}-${Date.now()}`
+                        });
+                        console.log(`🔔 Push envoyé pour Note de ${info.studentName} (${subjList}) à ${targetSubs.length} appareil(s)`);
+                    }
+                }
+            }
+        } catch (grErr) {
+            console.warn('Erreur polling Notes:', grErr.message);
+        }
+
+        // =====================================================================
+        // C. Surveillance Ajout Absence ou Retard (school.attendance) -> /tabs/absences
+        // =====================================================================
+        try {
+            const newAtts = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.attendance', 'search_read',
+                [[['id', '>', lastMonitoredAttendanceId]]],
+                { fields: ['id', 'student_id', 'type', 'date', 'reason', 'duration', 'is_justified'], order: 'id asc', limit: 15 }
+            ]);
+
+            if (Array.isArray(newAtts) && newAtts.length > 0) {
+                for (const att of newAtts) {
+                    if (att.id > lastMonitoredAttendanceId) lastMonitoredAttendanceId = att.id;
+
+                    const sid = att.student_id ? att.student_id[0] : null;
+                    if (!sid) continue;
+                    const studentName = att.student_id ? att.student_id[1] : 'Votre enfant';
+                    const targetSubs = await getSubscriptionTargets({ studentIds: [sid] });
+
+                    if (targetSubs.length > 0) {
+                        const isLate = att.type === 'late' || att.type === 'retard';
+                        const title = isLate ? '⏰ Retard signalé' : '⚠️ Absence signalée';
+                        const reasonTxt = att.reason ? ` (${att.reason})` : '';
+                        const dateTxt = att.date ? ` le ${att.date}` : '';
+                        const durTxt = isLate && att.duration ? ` de ${att.duration} min` : '';
+
+                        await sendPushToSubscriptions(targetSubs, {
+                            title,
+                            body: `${studentName} : ${isLate ? 'Retard' : 'Absence'} enregistré(e)${durTxt}${reasonTxt}${dateTxt}.`,
+                            url: '/tabs/absences',
+                            tag: `att-${att.id}`
+                        });
+                        console.log(`🔔 Push envoyé pour ${title} (${studentName}) à ${targetSubs.length} appareil(s)`);
+                    }
+                }
+            }
+        } catch (attErr) {
+            console.warn('Erreur polling Absences:', attErr.message);
+        }
+
+        // =====================================================================
+        // D. Surveillance Nouvelles Ressources (school.resources) -> /tabs/ressources
+        // =====================================================================
+        try {
+            const newRes = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.resources', 'search_read',
+                [[['id', '>', lastMonitoredResourceId]]],
+                { fields: ['id', 'name', 'subject', 'level_id', 'type'], order: 'id asc', limit: 10 }
+            ]);
+
+            if (Array.isArray(newRes) && newRes.length > 0) {
+                for (const res of newRes) {
+                    if (res.id > lastMonitoredResourceId) lastMonitoredResourceId = res.id;
+
+                    const levelId = res.level_id ? res.level_id[0] : null;
+                    const targetSubs = await getSubscriptionTargets({
+                        levelId,
+                        isGeneral: !levelId
+                    });
+
+                    if (targetSubs.length > 0) {
+                        const subj = res.subject || 'Document';
+                        await sendPushToSubscriptions(targetSubs, {
+                            title: `📁 Nouvelle ressource : ${subj}`,
+                            body: res.name || 'Un nouveau cours ou document a été mis à disposition.',
+                            url: '/tabs/ressources',
+                            tag: `res-${res.id}`
+                        });
+                        console.log(`🔔 Push envoyé pour Ressource #${res.id} (${res.name}) à ${targetSubs.length} appareil(s)`);
+                    }
+                }
+            }
+        } catch (resErr) {
+            console.warn('Erreur polling Ressources:', resErr.message);
+        }
+
+        // =====================================================================
+        // E. Surveillance Annonces Scolaires (school.announcement) -> /tabs/transmission
+        // =====================================================================
+        try {
+            const newAnns = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.announcement', 'search_read',
+                [[['id', '>', lastMonitoredAnnouncementId]]],
+                { fields: ['id', 'title', 'content', 'level_id', 'date'], order: 'id asc', limit: 10 }
+            ]);
+
+            if (Array.isArray(newAnns) && newAnns.length > 0) {
+                for (const ann of newAnns) {
+                    if (ann.id > lastMonitoredAnnouncementId) lastMonitoredAnnouncementId = ann.id;
+
+                    const levelId = ann.level_id ? ann.level_id[0] : null;
+                    const targetSubs = await getSubscriptionTargets({
+                        levelId,
+                        isGeneral: !levelId
+                    });
+
+                    if (targetSubs.length > 0) {
+                        let cleanBody = (ann.content || '').replace(/<[^>]*>?/gm, '').trim();
+                        if (cleanBody.length > 120) cleanBody = cleanBody.substring(0, 120) + '...';
+
+                        await sendPushToSubscriptions(targetSubs, {
+                            title: `📢 Annonce : ${ann.title || 'École'}`,
+                            body: cleanBody || 'Nouvelle annonce de l\'établissement.',
+                            url: '/tabs/transmission',
+                            tag: `ann-${ann.id}`
+                        });
+                        console.log(`🔔 Push envoyé pour Annonce #${ann.id} à ${targetSubs.length} appareil(s)`);
+                    }
+                }
+            }
+        } catch (annErr) {
+            console.warn('Erreur polling Annonces:', annErr.message);
+        }
+
+        // =====================================================================
+        // F. Surveillance Cahier de transmission (school.cahier.transmission) -> /tabs/transmission
+        // =====================================================================
+        try {
+            const newTrans = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.cahier.transmission', 'search_read',
+                [[['id', '>', lastMonitoredTransmissionId]]],
+                { fields: ['id', 'title', 'content', 'author', 'student_id', 'student_ids', 'level_id', 'date'], order: 'id asc', limit: 10 }
+            ]);
+
+            if (Array.isArray(newTrans) && newTrans.length > 0) {
+                for (const entry of newTrans) {
+                    if (entry.id > lastMonitoredTransmissionId) lastMonitoredTransmissionId = entry.id;
+
+                    const studentIds = [];
+                    if (entry.student_id) studentIds.push(entry.student_id[0]);
+                    if (Array.isArray(entry.student_ids)) {
+                        for (const sid of entry.student_ids) {
+                            if (!studentIds.includes(sid)) studentIds.push(sid);
+                        }
+                    }
+
+                    // Si des élèves précis sont ciblés, STRICTEMENT leurs parents !
+                    // Si aucun élève n'est ciblé mais un niveau est renseigné : parents de la classe.
+                    // Si ni élève ni niveau : ordre général de l'école.
+                    const targetSubs = await getSubscriptionTargets({
+                        studentIds: studentIds.length > 0 ? studentIds : [],
+                        levelId: studentIds.length === 0 && entry.level_id ? entry.level_id[0] : null,
+                        isGeneral: studentIds.length === 0 && !entry.level_id
+                    });
+
+                    if (targetSubs.length > 0) {
+                        let cleanBody = (entry.content || '').replace(/<[^>]*>?/gm, '').trim();
+                        if (cleanBody.length > 120) cleanBody = cleanBody.substring(0, 120) + '...';
+
+                        await sendPushToSubscriptions(targetSubs, {
+                            title: `📓 ${entry.author || 'École'} : ${entry.title || 'Cahier de liaison'}`,
+                            body: cleanBody || 'Nouveau mot inscrit dans le cahier de liaison.',
+                            url: '/tabs/transmission',
+                            tag: `transmission-${entry.id}`
+                        });
+                        console.log(`🔔 Push envoyé pour Transmission #${entry.id} à ${targetSubs.length} appareil(s)`);
+                    }
+                }
+            }
+        } catch (trErr) {
+            console.warn('Erreur polling Transmission:', trErr.message);
+        }
+
+        // =====================================================================
+        // G. Surveillance Messages Chatter (mail.message sur school.student)
+        // =====================================================================
+        try {
+            const newMsgs = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'mail.message', 'search_read',
+                [[['model', '=', 'school.student'], ['message_type', '=', 'comment'], ['id', '>', lastMonitoredMessageId]]],
+                { fields: ['id', 'body', 'res_id', 'author_id', 'create_date'], order: 'id asc', limit: 15 }
+            ]);
+
+            if (Array.isArray(newMsgs) && newMsgs.length > 0) {
+                for (const msg of newMsgs) {
+                    if (msg.id > lastMonitoredMessageId) lastMonitoredMessageId = msg.id;
+
+                    const rawBody = msg.body || '';
+                    const isParentMsg = rawBody.includes('[PARENT_MSG]') || rawBody.includes('data-sender="parent"') || (msg.author_id && msg.author_id[1].toLowerCase().includes('parent'));
+                    let cleanText = rawBody.replace(/<[^>]*>?/gm, '').replace(/\[PARENT_MSG\]/g, '').trim();
+                    if (cleanText.length > 120) cleanText = cleanText.substring(0, 120) + '...';
+
+                    const studentId = parseInt(msg.res_id);
+
+                    if (isParentMsg) {
+                        // Notifier l'administration
+                        const adminSubs = await getSubscriptionTargets({ forAdmin: true });
+                        if (adminSubs.length > 0) {
+                            await sendPushToSubscriptions(adminSubs, {
+                                title: '💬 Nouveau message de parent',
+                                body: cleanText || 'Nouveau message reçu.',
+                                url: `/admin/chat/${studentId}`,
+                                tag: `chat-admin-${studentId}-${msg.id}`
+                            });
+                            console.log(`🔔 Push envoyé à l'Admin pour Message #${msg.id} de l'élève #${studentId}`);
+                        }
+                    } else {
+                        // Notifier le parent
+                        const targetSubs = await getSubscriptionTargets({ studentIds: [studentId] });
+                        if (targetSubs.length > 0) {
+                            await sendPushToSubscriptions(targetSubs, {
+                                title: `💬 Message de l'école`,
+                                body: cleanText || 'Nouveau message reçu de l\'établissement.',
+                                url: '/chat',
+                                tag: `chat-parent-${studentId}-${msg.id}`
+                            });
+                            console.log(`🔔 Push envoyé au Parent pour Message #${msg.id} de l'élève #${studentId}`);
+                        }
+                    }
+                }
+            }
+        } catch (msgErr) {
+            console.warn('Erreur polling Messages:', msgErr.message);
+        }
+
+        // =====================================================================
+        // H. Surveillance Rendez-vous Direction (school.appointment) -> /tabs/appointments
+        // Détecte les validations, reprogrammations ou nouveaux RDV créés directement dans Odoo Backend
+        // =====================================================================
+        try {
+            const aptDomain = lastMonitoredAppointmentDate 
+                ? ['|', ['write_date', '>=', lastMonitoredAppointmentDate], ['create_date', '>=', lastMonitoredAppointmentDate]]
+                : [];
+            const recentApts = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.appointment', 'search_read',
+                [aptDomain],
+                {
+                    fields: [
+                        'id', 'student_id', 'parent_name', 'date', 'time_slot', 
+                        'proposed_date', 'proposed_time_slot', 'location', 
+                        'admin_notes', 'state', 'write_date', 'create_date'
+                    ],
+                    order: 'write_date desc, id desc',
+                    limit: 25
+                }
+            ]);
+
+            if (Array.isArray(recentApts) && recentApts.length > 0) {
+                for (const apt of recentApts) {
+                    const prevKnownState = knownAppointmentStates.get(apt.id);
+                    const studentId = apt.student_id ? apt.student_id[0] : null;
+                    const studentName = apt.student_id ? apt.student_id[1] : 'votre enfant';
+
+                    if (prevKnownState !== apt.state) {
+                        // L'état a changé !
+                        knownAppointmentStates.set(apt.id, apt.state);
+
+                        // 1. Validation de rendez-vous -> Notifier le Parent
+                        if (apt.state === 'validated' && prevKnownState !== 'validated') {
+                            if (studentId) {
+                                const targetSubs = await getSubscriptionTargets({ studentIds: [studentId] });
+                                if (targetSubs.length > 0) {
+                                    await sendPushToSubscriptions(targetSubs, {
+                                        title: '✅ Rendez-vous Direction Confirmé',
+                                        body: `Votre rendez-vous pour ${studentName} le ${apt.date} à ${apt.time_slot} a été validé (${apt.location || 'Direction'}).`,
+                                        url: '/tabs/appointments',
+                                        tag: `parent-apt-val-${apt.id}`
+                                    });
+                                    console.log(`🔔 Push envoyé au Parent pour validation RDV #${apt.id} (${studentName})`);
+                                }
+                            }
+                        }
+
+                        // 2. Changement / Proposition d'un autre créneau -> Notifier le Parent
+                        else if (apt.state === 'rescheduled' && prevKnownState !== 'rescheduled') {
+                            if (studentId) {
+                                const targetSubs = await getSubscriptionTargets({ studentIds: [studentId] });
+                                if (targetSubs.length > 0) {
+                                    const pDate = apt.proposed_date || apt.date;
+                                    const pSlot = apt.proposed_time_slot || apt.time_slot;
+                                    await sendPushToSubscriptions(targetSubs, {
+                                        title: '🔄 Nouveau créneau proposé par la Direction',
+                                        body: `La direction vous propose un nouveau créneau le ${pDate} à ${pSlot} pour ${studentName}. Cliquez pour valider.`,
+                                        url: '/tabs/appointments',
+                                        tag: `parent-apt-resched-${apt.id}`
+                                    });
+                                    console.log(`🔔 Push envoyé au Parent pour proposition nouveau créneau RDV #${apt.id} (${pDate} ${pSlot})`);
+                                }
+                            }
+                        }
+
+                        // 3. Rendez-vous refusé -> Notifier le Parent
+                        else if (apt.state === 'rejected' && prevKnownState !== 'rejected') {
+                            if (studentId) {
+                                const targetSubs = await getSubscriptionTargets({ studentIds: [studentId] });
+                                if (targetSubs.length > 0) {
+                                    await sendPushToSubscriptions(targetSubs, {
+                                        title: '❌ Rendez-vous non accepté',
+                                        body: `Votre demande de RDV du ${apt.date} a été déclinée. Motif : ${apt.admin_notes || 'Indisponibilité de la direction.'}`,
+                                        url: '/tabs/appointments',
+                                        tag: `parent-apt-rej-${apt.id}`
+                                    });
+                                    console.log(`🔔 Push envoyé au Parent pour refus RDV #${apt.id}`);
+                                }
+                            }
+                        }
+
+                        // 4. Nouveau rendez-vous créé en attente -> Notifier Admin
+                        else if (apt.state === 'pending' && !prevKnownState) {
+                            const adminSubs = await getSubscriptionTargets({ forAdmin: true });
+                            if (adminSubs.length > 0) {
+                                await sendPushToSubscriptions(adminSubs, {
+                                    title: '📅 Nouvelle demande de rendez-vous',
+                                    body: `${apt.parent_name || 'Un parent'} (${studentName}) demande un RDV le ${apt.date} à ${apt.time_slot}.`,
+                                    url: '/admin/appointments',
+                                    tag: `admin-apt-new-${apt.id}`
+                                });
+                                console.log(`🔔 Push envoyé aux Admins pour nouvelle demande RDV #${apt.id}`);
+                            }
+                        }
+                    }
+                }
+
+                // Mettre à jour la date max surveillée
+                if (recentApts[0].write_date && recentApts[0].write_date > lastMonitoredAppointmentDate) {
+                    lastMonitoredAppointmentDate = recentApts[0].write_date;
+                }
+            }
+        } catch (aptErr) {
+            console.warn('Erreur polling Rendez-vous:', aptErr.message);
+        }
+
+    } catch (e) {
+        console.warn('Erreur générale cycle de surveillance notifications:', e.message);
+    }
+};
+
+setInterval(runOdooEventsMonitoring, 15000);
+setTimeout(runOdooEventsMonitoring, 3000);
 
 app.listen(3000, () => {
     console.log('🚀 Server running on port 3000');

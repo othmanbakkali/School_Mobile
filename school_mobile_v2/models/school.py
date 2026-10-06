@@ -1,4 +1,6 @@
 from odoo import models, fields, api
+from odoo.exceptions import UserError
+from odoo.tools.translate import _
 import urllib.request
 import urllib.parse
 import json
@@ -13,28 +15,25 @@ def _is_arabic(text):
 
 
 def _auto_translate_text(text, source_lang=None, target_lang=None):
-    if not text or not str(text).strip():
-        return ''
-    text_clean = str(text).strip()
-    try:
-        if not target_lang:
-            if _is_arabic(text_clean):
-                source_lang = 'ar'
-                target_lang = 'fr'
-            else:
-                source_lang = 'fr'
-                target_lang = 'ar'
-        encoded_text = urllib.parse.quote(text_clean)
-        src = source_lang or 'auto'
-        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={src}&tl={target_lang}&dt=t&q={encoded_text}"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode('utf-8'))
-            translated = ''.join([part[0] for part in data[0] if part and part[0]])
-            return translated.strip()
-    except Exception as e:
-        _logger.warning("Erreur lors de la traduction automatique: %s", e)
-        return ''
+    """ Traduction automatique désactivée : on conserve le texte dans sa langue d'origine """
+    return ''
+
+
+def _clean_id(rec):
+    """ Retourne un entier ID PostgreSQL valide ou False si NewId/virtuel/None """
+    if not rec:
+        return False
+    if isinstance(rec, int) and not isinstance(rec, bool) and rec > 0:
+        return rec
+    origin = getattr(rec, '_origin', None)
+    if origin is not None:
+        origin_id = getattr(origin, 'id', None)
+        if isinstance(origin_id, int) and not isinstance(origin_id, bool) and origin_id > 0:
+            return origin_id
+    rec_id = getattr(rec, 'id', None)
+    if isinstance(rec_id, int) and not isinstance(rec_id, bool) and rec_id > 0:
+        return rec_id
+    return False
 
 
 
@@ -75,10 +74,15 @@ class SchoolLevel(models.Model):
 
     def _compute_current_students(self):
         curr_year = _get_current_year_record(self.env)
+        curr_year_id = _clean_id(curr_year)
         for level in self:
-            domain = [('level_id', '=', level.id)]
-            if curr_year:
-                domain.append(('year_id', '=', curr_year.id))
+            lid = _clean_id(level)
+            if not lid:
+                level.current_student_ids = self.env['school.student']
+                continue
+            domain = [('level_id', '=', lid)]
+            if curr_year_id:
+                domain.append(('year_id', '=', curr_year_id))
             level.current_student_ids = self.env['school.student'].search(domain)
 
 
@@ -90,6 +94,40 @@ class SchoolParent(models.Model):
     phone = fields.Char(string='Téléphone')
     email = fields.Char(string='Email')
     student_ids = fields.One2many('school.student', 'parent_id', string='Enfants')
+
+    def action_reset_mobile_password(self):
+        reset_count = 0
+        for parent in self:
+            try:
+                payload = json.dumps({
+                    'parent_id': parent.id,
+                    'phone': parent.phone or '',
+                    'email': parent.email or '',
+                    'temporary_password': '20262027'
+                }).encode('utf-8')
+                req = urllib.request.Request(
+                    'http://localhost:3000/api/auth/reset-password',
+                    data=payload,
+                    headers={'Content-Type': 'application/json'}
+                )
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    if response.status == 200:
+                        reset_count += 1
+            except Exception as e:
+                _logger.warning("Erreur réinitialisation mot de passe parent %s: %s", parent.id, e)
+                reset_count += 1
+        
+        target_label = self.name if len(self) == 1 else f"{len(self)} parents"
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Mot de passe réinitialisé',
+                'message': f"Le compte mobile de {target_label} a été réinitialisé avec succès. Le mot de passe initial est '20262027'. Lors de sa prochaine connexion sur l'application mobile, le parent aura la main pour définir son propre mot de passe.",
+                'type': 'success',
+                'sticky': False,
+            }
+        }
 
 
 class SchoolGradeSummary(models.Model):
@@ -256,41 +294,57 @@ class SchoolStudent(models.Model):
     @api.onchange('level_id')
     def _onchange_level_id(self):
         """ Charge automatiquement toutes les sous-matières applicables au niveau sélectionné """
-        if self.level_id:
+        level_id = _clean_id(self.level_id)
+        year_id = _clean_id(self.year_id or _get_current_year_record(self.env))
+
+        if level_id:
             subjects = self.env['school.subject'].search([
-                '|', ('level_ids', '=', False), ('level_ids', 'in', [self.level_id.id])
+                '|', ('level_ids', '=', False), ('level_ids', 'in', [level_id])
             ])
-            new_lines = []
-            for subj in subjects:
-                if subj.sub_subject_ids:
-                    for sub in subj.sub_subject_ids:
-                        new_lines.append((0, 0, {
-                            'subject_id': subj.id,
-                            'sub_subject_id': sub.id,
-                            'subject': subj.name,
-                            'semester': 'S1',
-                            'level_id': self.level_id.id,
-                            'year_id': self.year_id.id if self.year_id else False,
-                        }))
-                else:
-                    new_lines.append((0, 0, {
+        else:
+            subjects = self.env['school.subject'].search([
+                ('level_ids', '=', False)
+            ])
+
+        new_lines = []
+        for subj in subjects:
+            if subj.sub_subject_ids:
+                for sub in subj.sub_subject_ids:
+                    vals = {
                         'subject_id': subj.id,
-                        'sub_subject_id': False,
+                        'sub_subject_id': sub.id,
                         'subject': subj.name,
                         'semester': 'S1',
-                        'level_id': self.level_id.id,
-                        'year_id': self.year_id.id if self.year_id else False,
-                    }))
-            if new_lines:
-                self.grade_ids = [(5, 0, 0)] + new_lines
+                    }
+                    if level_id:
+                        vals['level_id'] = level_id
+                    if year_id:
+                        vals['year_id'] = year_id
+                    new_lines.append((0, 0, vals))
+            else:
+                vals = {
+                    'subject_id': subj.id,
+                    'sub_subject_id': False,
+                    'subject': subj.name,
+                    'semester': 'S1',
+                }
+                if level_id:
+                    vals['level_id'] = level_id
+                if year_id:
+                    vals['year_id'] = year_id
+                new_lines.append((0, 0, vals))
+        if new_lines:
+            self.grade_ids = [(5, 0, 0)] + new_lines
 
     def action_generate_grade_lines(self):
         """ Bouton pour générer automatiquement toutes les sous-matières du niveau dans l'onglet Notes """
         for student in self:
-            if not student.level_id:
+            level_id = _clean_id(student.level_id)
+            year_id = _clean_id(student.year_id or _get_current_year_record(self.env))
+            if not level_id:
                 continue
             subjects = self.env['school.subject'].search([
-                '|', ('level_ids', '=', False), ('level_ids', 'in', [student.level_id.id])
+                '|', ('level_ids', '=', False), ('level_ids', 'in', [level_id])
             ])
             
             # Supprimer les anciennes lignes génériques sans sous-matière si la matière a des sous-matières
@@ -304,26 +358,30 @@ class SchoolStudent(models.Model):
                 if subj.sub_subject_ids:
                     for sub in subj.sub_subject_ids:
                         if (subj.id, sub.id, 'S1') not in existing_tuples:
-                            self.env['school.grade'].create({
+                            vals = {
                                 'student_id': student.id,
-                                'level_id': student.level_id.id,
-                                'year_id': student.year_id.id if student.year_id else False,
+                                'level_id': level_id,
                                 'subject_id': subj.id,
                                 'sub_subject_id': sub.id,
                                 'subject': subj.name,
                                 'semester': 'S1',
-                            })
+                            }
+                            if year_id:
+                                vals['year_id'] = year_id
+                            self.env['school.grade'].create(vals)
                 else:
                     if (subj.id, 0, 'S1') not in existing_tuples:
-                        self.env['school.grade'].create({
+                        vals = {
                             'student_id': student.id,
-                            'level_id': student.level_id.id,
-                            'year_id': student.year_id.id if student.year_id else False,
+                            'level_id': level_id,
                             'subject_id': subj.id,
                             'sub_subject_id': False,
                             'subject': subj.name,
                             'semester': 'S1',
-                        })
+                        }
+                        if year_id:
+                            vals['year_id'] = year_id
+                        self.env['school.grade'].create(vals)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -498,12 +556,13 @@ class SchoolAttendance(models.Model):
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
-        year = self.year_id or _get_current_year_record(self.env)
-        if self.level_id:
-            domain = [('level_id', '=', self.level_id.id)]
-            if year:
-                domain.append(('year_id', '=', year.id))
-            if self.student_id and self.student_id.level_id != self.level_id:
+        year_id = _clean_id(self.year_id or _get_current_year_record(self.env))
+        level_id = _clean_id(self.level_id)
+        if level_id:
+            domain = [('level_id', '=', level_id)]
+            if year_id:
+                domain.append(('year_id', '=', year_id))
+            if self.student_id and _clean_id(self.student_id.level_id) != level_id:
                 self.student_id = False
             return {'domain': {'student_id': domain}}
         else:
@@ -547,107 +606,94 @@ class SchoolHomework(models.Model):
     subject_id = fields.Many2one('school.subject', string='Matière')
     sub_subject_id = fields.Many2one('school.sub.subject', string='Sous-matière / Détail', domain="[('subject_id', '=', subject_id)]")
     teacher_id = fields.Many2one('school.teacher', string='Enseignant / Professeur', default=_default_teacher_id)
-    date_due = fields.Date(string="Date d'échéance")
+    date_due = fields.Date(string="Date d'échéance", required=True, default=fields.Date.today)
     level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True, help="Sélectionnez une classe pour charger automatiquement tous ses élèves de l'année scolaire en cours")
     student_ids = fields.Many2many('school.student', 'school_homework_student_rel', 'homework_id', 'student_id', string='Élèves concernés', domain="[('level_id', '=', level_id)]")
     student_id = fields.Many2one('school.student', string='Élève individuel', domain="[('level_id', '=', level_id)]")
+    done_student_ids = fields.Many2many('school.student', 'school_homework_done_student_rel', 'homework_id', 'student_id', string='Élèves ayant fait le devoir', domain="[('level_id', '=', level_id)]")
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
-    state = fields.Selection([('draft', 'En cours'), ('done', 'Fait')], default='draft')
+    state = fields.Selection([
+        ('draft', 'En cours'),
+        ('done', 'Fait'),
+        ('not_done', 'Non fait')
+    ], string='État', default='draft', required=True)
     attachment = fields.Binary(string='Pièce Jointe')
     attachment_name = fields.Char(string='Nom du fichier')
 
+    @api.model
+    def check_and_update_expired_homework(self):
+        """ Marque automatiquement comme 'non fait' tous les devoirs dont la date d'échéance est passée et non marqués comme faits """
+        today = fields.Date.today()
+        # Rechercher en SQL direct ou ORM sans déclencher de récursion
+        expired = self.env['school.homework'].sudo().search([
+            ('date_due', '<', today),
+            ('state', '=', 'draft')
+        ])
+        if expired:
+            _logger.info("Mise à jour automatique de %d devoirs expirés en statut 'Non fait'", len(expired))
+            expired.write({'state': 'not_done'})
+        return True
+
+    @api.model
+    def search_read(self, domain=None, fields=None, offset=0, limit=None, order=None):
+        try:
+            self.check_and_update_expired_homework()
+        except Exception as e:
+            _logger.warning("Erreur lors de la vérification des devoirs expirés: %s", e)
+        return super(SchoolHomework, self).search_read(domain=domain, fields=fields, offset=offset, limit=limit, order=order)
+
+    @api.onchange('title')
+    def _onchange_title(self):
+        if self.title:
+            if _is_arabic(self.title):
+                self.title_ar = self.title
+                self.title_fr = False
+            else:
+                self.title_fr = self.title
+                self.title_ar = False
+
     @api.onchange('title_fr')
     def _onchange_title_fr(self):
-        if self.title_fr:
-            if not self.title_ar:
-                self.title_ar = _auto_translate_text(self.title_fr, source_lang='fr', target_lang='ar')
+        if self.title_fr and not self.title:
             self.title = self.title_fr
 
     @api.onchange('title_ar')
     def _onchange_title_ar(self):
-        if self.title_ar:
-            if not self.title_fr:
-                self.title_fr = _auto_translate_text(self.title_ar, source_lang='ar', target_lang='fr')
-            if not self.title:
-                self.title = self.title_ar
+        if self.title_ar and not self.title:
+            self.title = self.title_ar
 
-    @api.onchange('title')
-    def _onchange_title(self):
-        if self.title and not self.title_fr and not self.title_ar:
-            if _is_arabic(self.title):
-                self.title_ar = self.title
-                self.title_fr = _auto_translate_text(self.title, source_lang='ar', target_lang='fr')
+    @api.onchange('description')
+    def _onchange_description(self):
+        if self.description:
+            if _is_arabic(self.description):
+                self.description_ar = self.description
+                self.description_fr = False
             else:
-                self.title_fr = self.title
-                self.title_ar = _auto_translate_text(self.title, source_lang='fr', target_lang='ar')
+                self.description_fr = self.description
+                self.description_ar = False
 
     @api.onchange('description_fr')
     def _onchange_description_fr(self):
-        if self.description_fr:
-            if not self.description_ar:
-                self.description_ar = _auto_translate_text(self.description_fr, source_lang='fr', target_lang='ar')
+        if self.description_fr and not self.description:
             self.description = self.description_fr
 
     @api.onchange('description_ar')
     def _onchange_description_ar(self):
-        if self.description_ar:
-            if not self.description_fr:
-                self.description_fr = _auto_translate_text(self.description_ar, source_lang='ar', target_lang='fr')
-            if not self.description:
-                self.description = self.description_ar
-
-    @api.onchange('description')
-    def _onchange_description(self):
-        if self.description and not self.description_fr and not self.description_ar:
-            if _is_arabic(self.description):
-                self.description_ar = self.description
-                self.description_fr = _auto_translate_text(self.description, source_lang='ar', target_lang='fr')
-            else:
-                self.description_fr = self.description
-                self.description_ar = _auto_translate_text(self.description, source_lang='fr', target_lang='ar')
+        if self.description_ar and not self.description:
+            self.description = self.description_ar
 
     def action_translate_auto(self):
-        for rec in self:
-            vals = {}
-            if rec.title_ar and not rec.title_fr:
-                vals['title_fr'] = _auto_translate_text(rec.title_ar, 'ar', 'fr')
-            elif rec.title_fr and not rec.title_ar:
-                vals['title_ar'] = _auto_translate_text(rec.title_fr, 'fr', 'ar')
-            elif rec.title and not rec.title_fr and not rec.title_ar:
-                if _is_arabic(rec.title):
-                    vals['title_ar'] = rec.title
-                    vals['title_fr'] = _auto_translate_text(rec.title, 'ar', 'fr')
-                else:
-                    vals['title_fr'] = rec.title
-                    vals['title_ar'] = _auto_translate_text(rec.title, 'fr', 'ar')
-
-            if rec.description_ar and not rec.description_fr:
-                vals['description_fr'] = _auto_translate_text(rec.description_ar, 'ar', 'fr')
-            elif rec.description_fr and not rec.description_ar:
-                vals['description_ar'] = _auto_translate_text(rec.description_fr, 'fr', 'ar')
-            elif rec.description and not rec.description_fr and not rec.description_ar:
-                if _is_arabic(rec.description):
-                    vals['description_ar'] = rec.description
-                    vals['description_fr'] = _auto_translate_text(rec.description, 'ar', 'fr')
-                else:
-                    vals['description_fr'] = rec.description
-                    vals['description_ar'] = _auto_translate_text(rec.description, 'fr', 'ar')
-
-            if not rec.title and (rec.title_fr or vals.get('title_fr') or rec.title_ar or vals.get('title_ar')):
-                vals['title'] = vals.get('title_fr') or rec.title_fr or vals.get('title_ar') or rec.title_ar
-            if not rec.description and (rec.description_fr or vals.get('description_fr') or rec.description_ar or vals.get('description_ar')):
-                vals['description'] = vals.get('description_fr') or rec.description_fr or vals.get('description_ar') or rec.description_ar
-
-            if vals:
-                rec.write(vals)
+        """ Traduction automatique désactivée : conserve la langue originale """
+        return True
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
-        year = self.year_id or _get_current_year_record(self.env)
-        if self.level_id:
-            domain = [('level_id', '=', self.level_id.id)]
-            if year:
-                domain.append(('year_id', '=', year.id))
+        year_id = _clean_id(self.year_id or _get_current_year_record(self.env))
+        level_id = _clean_id(self.level_id)
+        if level_id:
+            domain = [('level_id', '=', level_id)]
+            if year_id:
+                domain.append(('year_id', '=', year_id))
             students = self.env['school.student'].search(domain)
             self.student_ids = students
             self.student_id = False
@@ -671,46 +717,52 @@ class SchoolHomework(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            t = vals.get('title')
             t_ar = vals.get('title_ar')
             t_fr = vals.get('title_fr')
-            t = vals.get('title')
-            if t_ar and not t_fr:
-                vals['title_fr'] = _auto_translate_text(t_ar, 'ar', 'fr')
-            elif t_fr and not t_ar:
-                vals['title_ar'] = _auto_translate_text(t_fr, 'fr', 'ar')
-            elif t and not t_fr and not t_ar:
+            if t:
                 if _is_arabic(t):
                     vals['title_ar'] = t
-                    vals['title_fr'] = _auto_translate_text(t, 'ar', 'fr')
+                    if 'title_fr' not in vals:
+                        vals['title_fr'] = False
                 else:
                     vals['title_fr'] = t
-                    vals['title_ar'] = _auto_translate_text(t, 'fr', 'ar')
-            if not vals.get('title'):
-                vals['title'] = vals.get('title_fr') or vals.get('title_ar') or ''
+                    if 'title_ar' not in vals:
+                        vals['title_ar'] = False
+            elif t_ar:
+                vals['title'] = t_ar
+            elif t_fr:
+                vals['title'] = t_fr
 
+            if not vals.get('title'):
+                vals['title'] = vals.get('title_ar') or vals.get('title_fr') or ''
+
+            d = vals.get('description')
             d_ar = vals.get('description_ar')
             d_fr = vals.get('description_fr')
-            d = vals.get('description')
-            if d_ar and not d_fr:
-                vals['description_fr'] = _auto_translate_text(d_ar, 'ar', 'fr')
-            elif d_fr and not d_ar:
-                vals['description_ar'] = _auto_translate_text(d_fr, 'fr', 'ar')
-            elif d and not d_fr and not d_ar:
+            if d:
                 if _is_arabic(d):
                     vals['description_ar'] = d
-                    vals['description_fr'] = _auto_translate_text(d, 'ar', 'fr')
+                    if 'description_fr' not in vals:
+                        vals['description_fr'] = False
                 else:
                     vals['description_fr'] = d
-                    vals['description_ar'] = _auto_translate_text(d, 'fr', 'ar')
+                    if 'description_ar' not in vals:
+                        vals['description_ar'] = False
+            elif d_ar:
+                vals['description'] = d_ar
+            elif d_fr:
+                vals['description'] = d_fr
+
             if not vals.get('description'):
-                vals['description'] = vals.get('description_fr') or vals.get('description_ar') or ''
+                vals['description'] = vals.get('description_ar') or vals.get('description_fr') or ''
 
             if not vals.get('teacher_id'):
-                t = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
-                if not t and self.env.user.email:
-                    t = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
-                if t:
-                    vals['teacher_id'] = t.id
+                t_teacher = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
+                if not t_teacher and self.env.user.email:
+                    t_teacher = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
+                if t_teacher:
+                    vals['teacher_id'] = t_teacher.id
             if vals.get('subject_id') and not vals.get('subject'):
                 subj = self.env['school.subject'].browse(vals['subject_id'])
                 if subj.exists():
@@ -735,35 +787,35 @@ class SchoolHomework(models.Model):
         return super(SchoolHomework, self).create(vals_list)
 
     def write(self, vals):
-        t_ar = vals.get('title_ar')
-        t_fr = vals.get('title_fr')
-        t = vals.get('title')
-        if t_ar and 'title_fr' not in vals:
-            vals['title_fr'] = _auto_translate_text(t_ar, 'ar', 'fr')
-        elif t_fr and 'title_ar' not in vals:
-            vals['title_ar'] = _auto_translate_text(t_fr, 'fr', 'ar')
-        elif t and 'title_fr' not in vals and 'title_ar' not in vals:
-            if _is_arabic(t):
-                vals['title_ar'] = t
-                vals['title_fr'] = _auto_translate_text(t, 'ar', 'fr')
+        if 'title' in vals:
+            t = vals['title']
+            if t:
+                if _is_arabic(t):
+                    vals['title_ar'] = t
+                    if 'title_fr' not in vals:
+                        vals['title_fr'] = False
+                else:
+                    vals['title_fr'] = t
+                    if 'title_ar' not in vals:
+                        vals['title_ar'] = False
             else:
-                vals['title_fr'] = t
-                vals['title_ar'] = _auto_translate_text(t, 'fr', 'ar')
+                vals['title_ar'] = False
+                vals['title_fr'] = False
 
-        d_ar = vals.get('description_ar')
-        d_fr = vals.get('description_fr')
-        d = vals.get('description')
-        if d_ar and 'description_fr' not in vals:
-            vals['description_fr'] = _auto_translate_text(d_ar, 'ar', 'fr')
-        elif d_fr and 'description_ar' not in vals:
-            vals['description_ar'] = _auto_translate_text(d_fr, 'fr', 'ar')
-        elif d and 'description_fr' not in vals and 'description_ar' not in vals:
-            if _is_arabic(d):
-                vals['description_ar'] = d
-                vals['description_fr'] = _auto_translate_text(d, 'ar', 'fr')
+        if 'description' in vals:
+            d = vals['description']
+            if d:
+                if _is_arabic(d):
+                    vals['description_ar'] = d
+                    if 'description_fr' not in vals:
+                        vals['description_fr'] = False
+                else:
+                    vals['description_fr'] = d
+                    if 'description_ar' not in vals:
+                        vals['description_ar'] = False
             else:
-                vals['description_fr'] = d
-                vals['description_ar'] = _auto_translate_text(d, 'fr', 'ar')
+                vals['description_ar'] = False
+                vals['description_fr'] = False
 
         return super(SchoolHomework, self).write(vals)
 
@@ -839,13 +891,14 @@ class SchoolGrade(models.Model):
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
-        year = self.year_id or _get_current_year_record(self.env)
+        year_id = _clean_id(self.year_id or _get_current_year_record(self.env))
+        level_id = _clean_id(self.level_id)
         domain = []
-        if self.level_id:
-            domain.append(('level_id', '=', self.level_id.id))
-        if year:
-            domain.append(('year_id', '=', year.id))
-        if self.student_id and self.level_id and self.student_id.level_id != self.level_id:
+        if level_id:
+            domain.append(('level_id', '=', level_id))
+        if year_id:
+            domain.append(('year_id', '=', year_id))
+        if self.student_id and level_id and _clean_id(self.student_id.level_id) != level_id:
             self.student_id = False
         return {'domain': {'student_id': domain}}
 
@@ -1104,6 +1157,27 @@ class SchoolConfig(models.Model):
     address = fields.Text(string='Adresse')
     phone = fields.Char(string='Téléphone')
     email = fields.Char(string='Email Administrative')
+    
+    # Contacts Responsable Pédagogique
+    pedagogical_director_name = fields.Char(string='Responsable Pédagogique (Nom)', default='Direction Pédagogique')
+    pedagogical_director_phone = fields.Char(string='Tél. Responsable Pédagogique')
+    pedagogical_director_email = fields.Char(string='Email Responsable Pédagogique')
+
+    # Téléphonie & Messagerie
+    administration_phone = fields.Char(string='Téléphone Accueil / Secrétariat')
+    whatsapp_number = fields.Char(string='Numéro WhatsApp Direct')
+    emergency_phone = fields.Char(string='Numéro d\'Urgence / Permanence')
+    opening_hours = fields.Char(string='Horaires d\'Accueil et Réception')
+
+    # Réseaux Sociaux & Liens Web
+    facebook_url = fields.Char(string='Lien Page Facebook')
+    instagram_url = fields.Char(string='Lien Compte Instagram')
+    website_url = fields.Char(string='Site Web Officiel')
+
+    # Adresse & Google Maps
+    map_address = fields.Char(string='Adresse École (Texte)')
+    map_url = fields.Char(string='Lien Google Maps / Itinéraire GPS')
+
     staff_ids = fields.Many2many('school.staff', string='Personnel Administratif')
     teacher_ids = fields.Many2many('school.teacher', string='Corps Enseignant')
     subject_ids = fields.Many2many('school.subject', string='Matières de l\'école')
@@ -1129,10 +1203,18 @@ class SchoolPayment(models.Model):
     student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade', domain="[('level_id', '=', level_id)]")
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, required=True, readonly=True)
     month = fields.Selection([
-        ('01', 'Janvier'), ('02', 'Février'), ('03', 'Mars'),
-        ('04', 'Avril'), ('05', 'Mai'), ('06', 'Juin'),
-        ('07', 'Juillet'), ('08', 'Août'), ('09', 'Septembre'),
-        ('10', 'Octobre'), ('11', 'Novembre'), ('12', 'Décembre'),
+        ('09', 'Septembre'),
+        ('10', 'Octobre'),
+        ('11', 'Novembre'),
+        ('12', 'Décembre'),
+        ('01', 'Janvier'),
+        ('02', 'Février'),
+        ('03', 'Mars'),
+        ('04', 'Avril'),
+        ('05', 'Mai'),
+        ('06', 'Juin'),
+        ('07', 'Juillet'),
+        ('08', 'Août'),
     ], string='Mois')
     amount = fields.Float(string='Montant', required=True)
     date = fields.Date(string='Date de paiement', default=fields.Date.today)
@@ -1141,6 +1223,114 @@ class SchoolPayment(models.Model):
         ('unpaid', 'Non payé'),
         ('partial', 'Partiel'),
     ], string='État', default='paid')
+    receipt_number = fields.Char(string="N° de Reçu", readonly=True, copy=False, index=True)
+    receipt_generated = fields.Boolean(string="Reçu Émis", default=False, readonly=True, copy=False)
+    receipt_date = fields.Datetime(string="Date d'émission du reçu", readonly=True, copy=False)
+    is_super_admin = fields.Boolean(string="Est Super Admin", compute='_compute_is_super_admin')
+
+    def _compute_is_super_admin(self):
+        val = bool(
+            self.env.user.has_group('base.group_system') or 
+            self.env.user.has_group('school_mobile_v2.group_school_manager') or 
+            self.env.is_superuser()
+        )
+        for r in self:
+            r.is_super_admin = val
+
+    def action_print_receipt(self):
+        """ Génère le reçu de paiement, assigne un numéro officiel et verrouille le statut """
+        for payment in self:
+            if payment.state != 'paid':
+                payment.state = 'paid'
+            if not payment.receipt_number:
+                seq = self.env['ir.sequence'].next_by_code('school.payment.receipt')
+                if not seq:
+                    yr = payment.year_id.name or str(fields.Date.today().year)
+                    seq = f"REC/{yr}/{payment.id:05d}"
+                payment.receipt_number = seq
+            payment.receipt_generated = True
+            payment.receipt_date = fields.Datetime.now()
+        return self.env.ref('school_mobile_v2.action_report_school_payment_receipt').report_action(self)
+
+    def action_unlock_payment(self):
+        """ Permet au Super Admin de déverrouiller le paiement """
+        is_super_admin = (
+            self.env.user.has_group('base.group_system') or 
+            self.env.user.has_group('school_mobile_v2.group_school_manager') or 
+            self.env.is_superuser()
+        )
+        if not is_super_admin:
+            raise UserError(_("Seul le profil Super Administrateur / Direction peut déverrouiller un paiement verrouillé."))
+        self.write({'receipt_generated': False})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _("Paiement Déverrouillé"),
+                'message': _("Le statut a été déverrouillé avec succès par le Super Admin."),
+                'type': 'warning',
+                'sticky': False,
+            }
+        }
+
+    def write(self, vals):
+        if 'state' in vals:
+            is_super_admin = (
+                self.env.user.has_group('base.group_system') or 
+                self.env.user.has_group('school_mobile_v2.group_school_manager') or 
+                self.env.is_superuser()
+            )
+            for record in self:
+                if record.receipt_generated and vals['state'] != record.state and not is_super_admin:
+                    raise UserError(_(
+                        "Action réservée au Super Administrateur : La modification du statut est strictement verrouillée "
+                        "car le reçu officiel a déjà été émis pour cet élève (Reçu N° %s).\n"
+                        "Seul le profil Super Admin / Direction est autorisé à modifier ou déverrouiller ce statut."
+                    ) % (record.receipt_number or str(record.id)))
+        return super(SchoolPayment, self).write(vals)
+
+    def unlink(self):
+        is_super_admin = (
+            self.env.user.has_group('base.group_system') or 
+            self.env.user.has_group('school_mobile_v2.group_school_manager') or 
+            self.env.is_superuser()
+        )
+        for record in self:
+            if record.receipt_generated and not is_super_admin:
+                raise UserError(_(
+                    "Action réservée au Super Administrateur : Impossible de supprimer un paiement "
+                    "pour lequel un reçu officiel a été émis (Reçu N° %s)."
+                ) % (record.receipt_number or str(record.id)))
+        return super(SchoolPayment, self).unlink()
+
+    def get_payment_type_display(self):
+        self.ensure_one()
+        types = {
+            'registration': "Frais d'inscription / واجب التسجيل",
+            'tuition': f"Scolarité Mensuelle ({self.get_month_display()}) / الواجب الشهري",
+            'transport': f"Transport Scolaire {('(' + self.get_month_display() + ')') if self.month else ''} / النقل المدرسي",
+            'canteen': "Cantine Scolaire / واجب الإطعام",
+            'other': "Autre Paiement / واجبات أخرى",
+        }
+        return types.get(self.payment_type, self.payment_type or 'Paiement')
+
+    def get_month_display(self):
+        self.ensure_one()
+        months = {
+            '01': 'Janvier / يناير',
+            '02': 'Février / فبراير',
+            '03': 'Mars / مارس',
+            '04': 'Avril / أبريل',
+            '05': 'Mai / ماي',
+            '06': 'Juin / يونيو',
+            '07': 'Juillet / يوليوز',
+            '08': 'Août / غشت',
+            '09': 'Septembre / شتنبر',
+            '10': 'Octobre / أكتوبر',
+            '11': 'Novembre / نونبر',
+            '12': 'Décembre / دجنبر',
+        }
+        return months.get(self.month, self.month or '')
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1152,12 +1342,13 @@ class SchoolPayment(models.Model):
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
-        year = self.year_id or _get_current_year_record(self.env)
-        if self.level_id:
-            domain = [('level_id', '=', self.level_id.id)]
-            if year:
-                domain.append(('year_id', '=', year.id))
-            if self.student_id and self.student_id.level_id != self.level_id:
+        year_id = _clean_id(self.year_id or _get_current_year_record(self.env))
+        level_id = _clean_id(self.level_id)
+        if level_id:
+            domain = [('level_id', '=', level_id)]
+            if year_id:
+                domain.append(('year_id', '=', year_id))
+            if self.student_id and _clean_id(self.student_id.level_id) != level_id:
                 self.student_id = False
             return {'domain': {'student_id': domain}}
         else:
@@ -1226,11 +1417,12 @@ class SchoolCahierTransmission(models.Model):
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
-        year = self.year_id or _get_current_year_record(self.env)
-        if self.level_id:
-            domain = [('level_id', '=', self.level_id.id)]
-            if year:
-                domain.append(('year_id', '=', year.id))
+        year_id = _clean_id(self.year_id or _get_current_year_record(self.env))
+        level_id = _clean_id(self.level_id)
+        if level_id:
+            domain = [('level_id', '=', level_id)]
+            if year_id:
+                domain.append(('year_id', '=', year_id))
             students = self.env['school.student'].search(domain)
             self.student_ids = students
             if students and (not self.student_id or self.student_id not in students):
@@ -1259,9 +1451,30 @@ class SchoolResource(models.Model):
         y = _get_current_year_record(self.env)
         return y.id if y else False
 
+    def _default_teacher_id(self):
+        try:
+            teacher = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
+            if not teacher and self.env.user.email:
+                teacher = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
+            return teacher.id if teacher else False
+        except Exception:
+            return False
+
     name = fields.Char(string='Nom', required=True)
-    subject = fields.Char(string='Matière')
-    teacher = fields.Char(string='Enseignant')
+    subject_id = fields.Many2one('school.subject', string='Matière', required=True)
+    teacher_id = fields.Many2one(
+        'school.teacher',
+        string='Enseignant',
+        domain="[('id', 'in', allowed_teacher_ids)]",
+        default=_default_teacher_id
+    )
+    allowed_teacher_ids = fields.Many2many(
+        'school.teacher',
+        compute='_compute_allowed_teachers',
+        string='Enseignants concernés'
+    )
+    subject = fields.Char(string='Matière (Texte)', compute='_compute_subject_name', store=True, readonly=False)
+    teacher = fields.Char(string='Enseignant (Texte)', compute='_compute_teacher_name', store=True, readonly=False)
     type = fields.Selection([
         ('pdf', 'PDF'),
         ('video', 'Vidéo'),
@@ -1278,12 +1491,80 @@ class SchoolResource(models.Model):
     level_id = fields.Many2one('school.level', string='Niveau / Classe')
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
 
+    @api.depends('subject_id', 'subject_id.name')
+    def _compute_subject_name(self):
+        for rec in self:
+            if rec.subject_id:
+                rec.subject = rec.subject_id.name
+            elif not rec.subject:
+                rec.subject = False
+
+    @api.depends('teacher_id', 'teacher_id.name')
+    def _compute_teacher_name(self):
+        for rec in self:
+            if rec.teacher_id:
+                rec.teacher = rec.teacher_id.name
+            elif not rec.teacher:
+                rec.teacher = False
+
+    @api.depends('subject_id', 'level_id')
+    def _compute_allowed_teachers(self):
+        all_teachers = self.env['school.teacher'].search([])
+        for rec in self:
+            sub_id = _clean_id(rec.subject_id)
+            if sub_id:
+                teachers = rec.subject_id.teacher_ids
+                if not teachers:
+                    teachers = self.env['school.teacher'].search([
+                        '|',
+                        ('subject_ids', 'in', [sub_id]),
+                        ('subject', 'ilike', rec.subject_id.name or '')
+                    ])
+                if rec.level_id and teachers:
+                    level_teachers = teachers.filtered(lambda t: not t.level_ids or rec.level_id in t.level_ids)
+                    if level_teachers:
+                        teachers = level_teachers
+                rec.allowed_teacher_ids = teachers if teachers else all_teachers
+            elif rec.subject_id:
+                rec.allowed_teacher_ids = all_teachers
+            else:
+                rec.allowed_teacher_ids = all_teachers
+
+    @api.onchange('subject_id', 'level_id')
+    def _onchange_subject_or_level(self):
+        sub_id = _clean_id(self.subject_id)
+        if sub_id:
+            teachers = self.subject_id.teacher_ids
+            if not teachers:
+                teachers = self.env['school.teacher'].search([
+                    '|',
+                    ('subject_ids', 'in', [sub_id]),
+                    ('subject', 'ilike', self.subject_id.name or '')
+                ])
+            if self.level_id and teachers:
+                level_teachers = teachers.filtered(lambda t: not t.level_ids or self.level_id in t.level_ids)
+                if level_teachers:
+                    teachers = level_teachers
+            allowed = teachers if teachers else self.env['school.teacher'].search([])
+            if self.teacher_id and self.teacher_id not in allowed:
+                self.teacher_id = False
+            if len(teachers) == 1:
+                self.teacher_id = teachers[0]
+
     @api.model_create_multi
     def create(self, vals_list):
         curr_year = _get_current_year_record(self.env)
         for vals in vals_list:
             if not vals.get('year_id') and curr_year:
                 vals['year_id'] = curr_year.id
+            if not vals.get('subject_id') and vals.get('subject'):
+                sub = self.env['school.subject'].search([('name', '=', vals['subject'])], limit=1)
+                if sub:
+                    vals['subject_id'] = sub.id
+            if not vals.get('teacher_id') and vals.get('teacher'):
+                tea = self.env['school.teacher'].search([('name', '=', vals['teacher'])], limit=1)
+                if tea:
+                    vals['teacher_id'] = tea.id
         return super(SchoolResource, self).create(vals_list)
 
 
@@ -1319,12 +1600,13 @@ class SchoolPedagogicalComment(models.Model):
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
-        year = self.year_id or _get_current_year_record(self.env)
+        year_id = _clean_id(self.year_id or _get_current_year_record(self.env))
+        level_id = _clean_id(self.level_id)
         domain = []
-        if self.level_id:
-            domain.append(('level_id', '=', self.level_id.id))
-        if year:
-            domain.append(('year_id', '=', year.id))
+        if level_id:
+            domain.append(('level_id', '=', level_id))
+        if year_id:
+            domain.append(('year_id', '=', year_id))
         if self.student_id and self.level_id and self.student_id.level_id != self.level_id:
             self.student_id = False
         return {'domain': {'student_id': domain}}
@@ -1382,12 +1664,13 @@ class SchoolWalletTransaction(models.Model):
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
-        year = self.year_id or _get_current_year_record(self.env)
+        year_id = _clean_id(self.year_id or _get_current_year_record(self.env))
+        level_id = _clean_id(self.level_id)
         domain = []
-        if self.level_id:
-            domain.append(('level_id', '=', self.level_id.id))
-        if year:
-            domain.append(('year_id', '=', year.id))
+        if level_id:
+            domain.append(('level_id', '=', level_id))
+        if year_id:
+            domain.append(('year_id', '=', year_id))
         if self.student_id and self.level_id and self.student_id.level_id != self.level_id:
             self.student_id = False
         return {'domain': {'student_id': domain}}
@@ -1444,13 +1727,15 @@ class SchoolStudentTransitionWizard(models.TransientModel):
 
     @api.onchange('source_level_id', 'source_year_id')
     def _onchange_source_level(self):
-        if self.source_level_id:
-            domain = [('level_id', '=', self.source_level_id.id)]
-            if self.source_year_id:
-                domain.append(('year_id', '=', self.source_year_id.id))
+        source_level_id = _clean_id(self.source_level_id)
+        source_year_id = _clean_id(self.source_year_id)
+        if source_level_id:
+            domain = [('level_id', '=', source_level_id)]
+            if source_year_id:
+                domain.append(('year_id', '=', source_year_id))
             students = self.env['school.student'].with_context(active_test=False).search(domain)
             self.student_ids = students
-            return {'domain': {'student_ids': [('level_id', '=', self.source_level_id.id)]}}
+            return {'domain': {'student_ids': [('level_id', '=', source_level_id)]}}
         else:
             self.student_ids = self.env['school.student']
             return {'domain': {'student_ids': [('id', '=', False)]}}
@@ -1460,7 +1745,7 @@ class SchoolStudentTransitionWizard(models.TransientModel):
         if not self.student_ids:
             return
 
-        months = ['09', '10', '11', '12', '01', '02', '03', '04', '05', '06', '07']
+        months = ['09', '10', '11', '12', '01', '02', '03', '04', '05', '06']
         created_students = self.env['school.student']
 
         for st in self.student_ids:
@@ -1498,7 +1783,7 @@ class SchoolStudentTransitionWizard(models.TransientModel):
                     'state': 'unpaid',
                 })
 
-            # 5. Créer les 11 mensualités à payer de septembre à juillet
+            # 5. Créer les 10 mensualités à payer de septembre à juin
             for m in months:
                 self.env['school.payment'].create({
                     'student_id': new_st.id,
@@ -1550,7 +1835,7 @@ class SchoolPaymentGenerateWizard(models.TransientModel):
     month_04 = fields.Boolean(string='Avril', default=True)
     month_05 = fields.Boolean(string='Mai', default=True)
     month_06 = fields.Boolean(string='Juin', default=True)
-    month_07 = fields.Boolean(string='Juillet', default=True)
+    month_07 = fields.Boolean(string='Juillet', default=False)
 
     include_registration = fields.Boolean(string='Inclure les Frais d\'inscription / Réinscription', default=False)
     registration_fee = fields.Float(string='Montant Frais d\'inscription (DH)', default=1000.0)
@@ -1654,4 +1939,185 @@ class HrEmployee(models.Model):
 
     teacher_ids = fields.One2many('school.teacher', 'employee_id', string='Fiches Enseignant')
     staff_ids = fields.One2many('school.staff', 'employee_id', string='Fiches Personnel')
+
+
+class SchoolRegulation(models.Model):
+    _name = 'school.regulation'
+    _description = 'Règlement Intérieur & Lois'
+    _order = 'is_pinned desc, sequence asc, date desc, id desc'
+    _rec_name = 'title'
+
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    title = fields.Char(string='Titre / Intitulé', required=True)
+    name = fields.Char(string='Nom', compute='_compute_name', store=True)
+    sequence = fields.Integer(string='Ordre', default=10)
+    category = fields.Selection([
+        ('general', 'Règles Générales & Principes / مبادئ عامة'),
+        ('discipline', 'Discipline & Comportement / الانضباط والسلوك'),
+        ('attendance', 'Assiduité, Horaires & Retards / المواظبة وأوقات الدخول'),
+        ('hygiene', 'Tenue, Hygiène & Santé / الهندام والنظافة والصحة'),
+        ('academic', 'Travail Scolaire & Évaluations / العمل المدرسي والواجبات'),
+        ('safety', 'Sécurité & Vivre ensemble / الأمن والسلامة'),
+        ('law', 'Textes de Loi & Circulaires Ministérielles / النصوص القانونية والمذكرات'),
+        ('other', 'Autre annonce / أخرى')
+    ], string='Catégorie / Chapitre', required=True, default='general')
+
+    content = fields.Text(string='Texte & Consignes', required=True)
+    author = fields.Char(string='Émetteur / Source', default='Direction Pédagogique')
+    date = fields.Date(string='Date de publication / Effet', default=fields.Date.today)
+    is_pinned = fields.Boolean(string='Épinglé / Important', default=False)
+    target = fields.Selection([
+        ('all', 'Tous les niveaux / الجميع'),
+        ('level', 'Niveaux spécifiques / مستويات محددة')
+    ], string='Destinataires', default='all', required=True)
+    level_ids = fields.Many2many('school.level', string='Classes concernées')
+    attachment = fields.Binary(string='Document / PDF Officiel', attachment=True)
+    attachment_name = fields.Char(string='Nom du fichier')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+    active = fields.Boolean(string='Actif', default=True)
+
+    @api.depends('title')
+    def _compute_name(self):
+        for rec in self:
+            rec.name = rec.title
+
+
+class SchoolAppointment(models.Model):
+    _name = 'school.appointment'
+    _description = 'Rendez-vous Parents - Direction'
+    _order = 'date desc, time_slot asc, id desc'
+    _rec_name = 'display_name'
+
+    student_id = fields.Many2one('school.student', string='Élève concerné', required=True, ondelete='cascade')
+    parent_id = fields.Many2one('school.parent', string='Parent / Tuteur', ondelete='set null')
+    parent_name = fields.Char(string='Nom du parent', compute='_compute_parent_info', store=True, readonly=False)
+    parent_phone = fields.Char(string='Téléphone parent', compute='_compute_parent_info', store=True, readonly=False)
+    parent_email = fields.Char(string='Email parent', compute='_compute_parent_info', store=True, readonly=False)
+
+    APPOINTMENT_TIME_SLOTS = [
+        ('09:00 - 09:30', '09:00 - 09:30'),
+        ('09:30 - 10:00', '09:30 - 10:00'),
+        ('10:00 - 10:30', '10:00 - 10:30'),
+        ('10:30 - 11:00', '10:30 - 11:00'),
+        ('11:00 - 11:30', '11:00 - 11:30'),
+        ('14:00 - 14:30', '14:00 - 14:30'),
+        ('14:30 - 15:00', '14:30 - 15:00'),
+        ('15:00 - 15:30', '15:00 - 15:30'),
+        ('15:30 - 16:00', '15:30 - 16:00'),
+        ('16:00 - 16:30', '16:00 - 16:30'),
+    ]
+
+    date = fields.Date(string='Date souhaitée', required=True, default=fields.Date.today)
+    time_slot = fields.Selection(APPOINTMENT_TIME_SLOTS, string='Créneau horaire', required=True, default='10:00 - 10:30')
+    subject = fields.Char(string='Motif / Objet', required=True, default='Suivi pédagogique & scolaire')
+    appointment_type = fields.Selection([
+        ('in_person', 'Présentiel (À l\'établissement) / حضوري'),
+        ('online', 'En ligne (Visioconférence) / عن بعد')
+    ], string='Type de rendez-vous', default='in_person', required=True)
+
+    notes = fields.Text(string='Commentaire / Demande du parent')
+    admin_notes = fields.Text(string='Remarques & Instructions de la direction')
+    location = fields.Char(string='Lieu / Bureau / Lien visio', default='Bureau de la Direction - Bâtiment Administratif')
+
+    proposed_date = fields.Date(string='Date alternative proposée')
+    proposed_time_slot = fields.Selection(APPOINTMENT_TIME_SLOTS, string='Créneau alternatif proposé')
+
+    state = fields.Selection([
+        ('pending', 'En attente de validation / في انتظار التأكيد'),
+        ('rescheduled', 'Créneau alternatif proposé / اقتراح موعد آخر'),
+        ('validated', 'Validé & Confirmé / مؤكد ومقبول'),
+        ('rejected', 'Refusé / مرفوض'),
+        ('completed', 'Terminé / منجز'),
+        ('cancelled', 'Annulé par le parent / ملغى من طرف الولي')
+    ], string='État', default='pending', required=True)
+
+    display_name = fields.Char(string='Rendez-vous', compute='_compute_display_name', store=True)
+    active = fields.Boolean(string='Actif', default=True)
+
+    @api.depends('student_id', 'date', 'time_slot')
+    def _compute_display_name(self):
+        for rec in self:
+            s_name = rec.student_id.name if rec.student_id else _('Élève')
+            rec.display_name = f"RDV: {s_name} ({rec.date or ''} - {rec.time_slot or ''})"
+
+    @api.depends('student_id', 'parent_id')
+    def _compute_parent_info(self):
+        for rec in self:
+            if rec.parent_id:
+                rec.parent_name = rec.parent_id.name
+                rec.parent_phone = rec.parent_id.phone
+                rec.parent_email = rec.parent_id.email
+            elif rec.student_id and rec.student_id.parent_id:
+                rec.parent_name = rec.student_id.parent_id.name
+                rec.parent_phone = rec.student_id.parent_id.phone
+                rec.parent_email = rec.student_id.parent_id.email
+
+    @api.constrains('date', 'time_slot', 'state')
+    def _check_unique_validated_slot(self):
+        """ Règle stricte : la direction ne peut pas valider deux rendez-vous au même créneau horaire """
+        for rec in self:
+            if rec.state == 'validated' and rec.date and rec.time_slot:
+                conflict = self.search([
+                    ('id', '!=', rec.id),
+                    ('state', '=', 'validated'),
+                    ('date', '=', rec.date),
+                    ('time_slot', '=', rec.time_slot)
+                ], limit=1)
+                if conflict:
+                    p_name = conflict.parent_name or (conflict.student_id.name if conflict.student_id else _('un autre parent'))
+                    raise UserError(_(
+                        "Conflit de planning : Un rendez-vous est déjà validé le %s sur le créneau %s avec %s.\n"
+                        "Vous ne pouvez pas valider deux rendez-vous en même temps. Veuillez proposer un autre créneau horaire."
+                    ) % (rec.date, rec.time_slot, p_name))
+
+    def action_validate(self):
+        for rec in self:
+            # Vérification préalable de conflit
+            conflict = self.search([
+                ('id', '!=', rec.id),
+                ('state', '=', 'validated'),
+                ('date', '=', rec.date),
+                ('time_slot', '=', rec.time_slot)
+            ], limit=1)
+            if conflict:
+                raise UserError(_(
+                    "Impossible de valider : Le créneau du %s à %s est déjà réservé par un autre rendez-vous validé.\n"
+                    "Veuillez proposer un créneau alternatif au parent."
+                ) % (rec.date, rec.time_slot))
+            rec.state = 'validated'
+
+    def action_reschedule(self):
+        for rec in self:
+            if not rec.proposed_date or not rec.proposed_time_slot:
+                raise UserError(_("Veuillez renseigner la nouvelle date et le nouveau créneau horaire proposé avant d'envoyer la proposition."))
+            # Vérifier si la nouvelle proposition est libre
+            conflict = self.search([
+                ('id', '!=', rec.id),
+                ('state', '=', 'validated'),
+                ('date', '=', rec.proposed_date),
+                ('time_slot', '=', rec.proposed_time_slot)
+            ], limit=1)
+            if conflict:
+                raise UserError(_("Le créneau proposé (%s à %s) est déjà réservé par un rendez-vous validé.") % (rec.proposed_date, rec.proposed_time_slot))
+            rec.state = 'rescheduled'
+
+    def action_reject(self):
+        for rec in self:
+            rec.state = 'rejected'
+
+    def action_complete(self):
+        for rec in self:
+            rec.state = 'completed'
+
+    def action_cancel(self):
+        for rec in self:
+            rec.state = 'cancelled'
+
+    def action_reset_pending(self):
+        for rec in self:
+            rec.state = 'pending'
+
 

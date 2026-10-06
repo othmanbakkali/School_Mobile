@@ -11,18 +11,21 @@ export default defineConfig(() => ({
   plugins: [
     vue(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       workbox: {
-        skipWaiting: true,
+        cleanupOutdatedCaches: true,
         clientsClaim: true,
-        cleanupOutdatedCaches: true
+        importScripts: ['/sw-push.js']
       },
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+      includeAssets: ['favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'icons/*.webp'],
       manifest: {
         name: 'School Mobile',
         short_name: 'SchoolApp',
         description: 'Application Scolaire Mobile',
-        theme_color: '#6366f1',
+        theme_color: '#5c2d54',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
         icons: [
           {
             src: 'icons/icon-192.webp',

@@ -113,6 +113,21 @@
         <field name="view_mode">kanban,list,form</field>
     </record>
 
+    <record id="action_school_regulation" model="ir.actions.act_window">
+        <field name="name">📜 Règlement Intérieur &amp; Lois</field>
+        <field name="res_model">school.regulation</field>
+        <field name="view_mode">list,form,kanban</field>
+        <field name="context">{'search_default_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Ajoutez un nouvel article du règlement intérieur ou un texte de loi officiel
+            </p>
+            <p>
+                Ces textes et règles s'affichent automatiquement sur l'application mobile des parents et élèves.
+            </p>
+        </field>
+    </record>
+
     <record id="action_school_resources" model="ir.actions.act_window">
         <field name="name">Ressources Pédagogiques</field>
         <field name="res_model">school.resources</field>
@@ -165,6 +180,17 @@
         <field name="target">new</field>
     </record>
 
+    <record id="action_school_appointment" model="ir.actions.act_window">
+        <field name="name">Rendez-vous Direction</field>
+        <field name="res_model">school.appointment</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Aucun rendez-vous planifié.
+            </p>
+        </field>
+    </record>
+
     <!-- MENUS -->
     <!-- Menu Racine -->
     <menuitem id="menu_mobile_v2_root" 
@@ -215,6 +241,13 @@
               action="action_parent_v2" 
               groups="group_school_staff"
               sequence="30"/>
+
+    <menuitem id="menu_mobile_v2_appointment" 
+              name="📅 Rendez-vous Direction" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_appointment" 
+              groups="group_school_staff"
+              sequence="35"/>
 
     <menuitem id="menu_mobile_v2_attendance" 
               name="Absences / Retards" 
@@ -279,12 +312,26 @@
               groups="group_school_teacher"
               sequence="92"/>
 
+    <menuitem id="menu_mobile_v2_regulation" 
+              name="📜 Règlement Intérieur &amp; Lois" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_regulation" 
+              groups="group_school_teacher"
+              sequence="93"/>
+
+    <menuitem id="menu_mobile_v2_contact_info" 
+              name="📞 Contacts &amp; Réseaux Sociaux" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_config" 
+              groups="group_school_staff"
+              sequence="94"/>
+
     <menuitem id="menu_mobile_v2_resources" 
               name="Ressources" 
               parent="menu_mobile_v2_root" 
               action="action_school_resources" 
               groups="group_school_teacher"
-              sequence="94"/>
+              sequence="95"/>
 
     <menuitem id="menu_mobile_v2_pedagogical_comment" 
               name="Commentaires Pédagogiques" 
@@ -482,6 +529,13 @@
         <field name="model">school.parent</field>
         <field name="arch" type="xml">
             <form>
+                <header>
+                    <button name="action_reset_mobile_password" 
+                            string="🔄 Réinitialiser le mot de passe Mobile" 
+                            type="object" 
+                            class="oe_highlight" 
+                            confirm="Êtes-vous sûr de vouloir réinitialiser le mot de passe de ce parent ? Le parent pourra se connecter avec le mot de passe provisoire 20262027 et l'application mobile lui permettra immédiatement de choisir son nouveau mot de passe personnel."/>
+                </header>
                 <sheet>
                     <div class="oe_title">
                         <h1><field name="name" placeholder="Nom du Parent"/></h1>
@@ -502,6 +556,18 @@
                     </notebook>
                 </sheet>
             </form>
+        </field>
+    </record>
+
+    <!-- Action Serveur : Réinitialisation en lot des mots de passe parents -->
+    <record id="action_server_reset_parent_password" model="ir.actions.server">
+        <field name="name">🔄 Réinitialiser le mot de passe Mobile</field>
+        <field name="model_id" ref="model_school_parent"/>
+        <field name="binding_model_id" ref="model_school_parent"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="state">code</field>
+        <field name="code">
+records.action_reset_mobile_password()
         </field>
     </record>
 
@@ -739,18 +805,45 @@
         <field name="arch" type="xml">
             <form>
                 <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Nom de l'établissement"/>
+                        <h1><field name="name" placeholder="Ex: Groupe Scolaire Al Ibdae Al Alamia"/></h1>
+                    </div>
                     <group>
-                        <group string="École &amp; Paramètres par Défaut">
-                            <field name="name"/>
+                        <group string="🏫 Paramètres de l'École">
                             <field name="current_year_id" options="{'no_create': True}"/>
                             <field name="default_level_id" options="{'no_create': True}"/>
                             <field name="grade_scale" widget="radio"/>
                             <field name="logo" widget="image" class="oe_avatar"/>
                         </group>
-                        <group string="Contact">
-                            <field name="phone"/>
-                            <field name="email"/>
-                            <field name="address"/>
+                        <group string="🎓 Responsable Pédagogique">
+                            <field name="pedagogical_director_name" placeholder="Nom complet du responsable"/>
+                            <field name="pedagogical_director_phone" placeholder="Ex: +212 661-000000"/>
+                            <field name="pedagogical_director_email" placeholder="directeur.pedagogique@ecole.ma"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="📞 Téléphonie &amp; WhatsApp">
+                            <field name="administration_phone" placeholder="Fixe standard / accueil"/>
+                            <field name="phone" string="Tél. Général"/>
+                            <field name="whatsapp_number" placeholder="Ex: +212 661-000000"/>
+                            <field name="emergency_phone" placeholder="Numéro de permanence / urgence"/>
+                            <field name="opening_hours" placeholder="Lun-Ven : 08h00 - 18h00"/>
+                            <field name="email" placeholder="contact@alibdaealamia.ma"/>
+                        </group>
+                        <group string="📍 Adresse &amp; Géolocalisation (Google Maps)">
+                            <field name="address" placeholder="Adresse complète..."/>
+                            <field name="map_address" placeholder="Quartier, Ville, Pays"/>
+                            <field name="map_url" placeholder="https://maps.google.com/?q=..."/>
+                            <field name="website_url" placeholder="https://www.alibdaealamia.ma"/>
+                        </group>
+                    </group>
+                    <group string="🌐 Réseaux Sociaux">
+                        <group>
+                            <field name="facebook_url" placeholder="https://facebook.com/alibdaealamia"/>
+                        </group>
+                        <group>
+                            <field name="instagram_url" placeholder="https://instagram.com/alibdaealamia"/>
                         </group>
                     </group>
                     <notebook>
@@ -905,20 +998,20 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_translate_auto" string="🔄 Traduire (Arabe ↔ Français)" type="object" class="btn-primary" icon="fa-language"/>
-                    <field name="state" widget="statusbar" clickable="1"/>
+                    <button name="check_and_update_expired_homework" string="⏳ Vérifier Échéances" type="object" class="btn-outline-secondary" icon="fa-clock-o"/>
+                    <field name="state" widget="statusbar" clickable="1" statusbar_visible="draft,done,not_done"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
-                        <label for="title" string="Titre principal"/>
-                        <h1><field name="title" placeholder="Titre du devoir (généré ou saisi)"/></h1>
+                        <label for="title" string="Titre du devoir"/>
+                        <h1><field name="title" placeholder="Ex: Devoir de lecture ou واجب في القراءة"/></h1>
                     </div>
                     <group>
                         <group string="Matière &amp; Planning">
                             <field name="subject_id" options="{'no_create_edit': True}" placeholder="Sélectionnez la matière"/>
                             <field name="sub_subject_id" options="{'no_create_edit': True}" placeholder="Sélectionnez la sous-matière / détail" invisible="not subject_id"/>
                             <field name="teacher_id" options="{'no_create': True}"/>
-                            <field name="date_due"/>
+                            <field name="date_due" required="1"/>
                             <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
                         <group string="Classe &amp; Destinataires">
@@ -928,28 +1021,30 @@
                     </group>
                     
                     <notebook>
-                        <page string="Contenu Bilingue (Arabe ↔ Français)">
-                            <div class="alert alert-info py-2" role="status">
-                                ℹ️ <b>Traduction Automatique Instantanée :</b> Saisissez le titre ou les consignes en <b>Arabe</b> ou en <b>Français</b>, la traduction se génère automatiquement dans l'autre langue dès que vous quittez le champ. Vous pouvez également cliquer sur <b>🔄 Traduire</b>.
-                            </div>
-                            <group>
-                                <group string="🇫🇷 Version Française">
-                                    <field name="title_fr" placeholder="Titre en français..."/>
-                                    <field name="description_fr" placeholder="Consignes détaillées en français..."/>
-                                </group>
-                                <group string="🇲🇦 النسخة العربية">
-                                    <field name="title_ar" placeholder="العنوان بالعربية..."/>
-                                    <field name="description_ar" placeholder="التعليمات والتفاصيل بالعربية..."/>
-                                </group>
-                            </group>
-                        </page>
-                        <page string="Consignes Globales &amp; Pièce Jointe">
+                        <page string="Consignes &amp; Pièce Jointe">
                             <group string="Document / Fichier">
                                 <field name="attachment" filename="attachment_name"/>
                                 <field name="attachment_name" invisible="1"/>
                             </group>
                             <separator string="Consignes &amp; Description"/>
-                            <field name="description" placeholder="Détails du travail à faire, consignes particulières..."/>
+                            <field name="description" placeholder="Détails du travail à faire, exercices, consignes en français ou en arabe..."/>
+                        </page>
+                        <page string="Détails de langue (Optionnel)">
+                            <group>
+                                <group string="🇫🇷 Français">
+                                    <field name="title_fr" placeholder="Titre en français..."/>
+                                    <field name="description_fr" placeholder="Consignes en français..."/>
+                                </group>
+                                <group string="🇲🇦 العربية">
+                                    <field name="title_ar" placeholder="العنوان بالعربية..."/>
+                                    <field name="description_ar" placeholder="التعليمات بالعربية..."/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Élèves ayant terminé (App Mobile)">
+                            <group>
+                                <field name="done_student_ids" widget="many2many_tags" readonly="1" options="{'no_create': True}"/>
+                            </group>
                         </page>
                     </notebook>
                 </sheet>
@@ -962,7 +1057,7 @@
         <field name="model">school.homework</field>
         <field name="arch" type="xml">
             <list>
-                <field name="date_due"/>
+                <field name="date_due" decoration-danger="state == 'not_done'"/>
                 <field name="title"/>
                 <field name="title_fr" optional="show"/>
                 <field name="title_ar" optional="show"/>
@@ -971,7 +1066,7 @@
                 <field name="teacher_id" optional="show"/>
                 <field name="level_id"/>
                 <field name="student_ids" widget="many2many_tags"/>
-                <field name="state" widget="badge" decoration-success="state == 'done'" decoration-info="state == 'draft'"/>
+                <field name="state" widget="badge" decoration-success="state == 'done'" decoration-info="state == 'draft'" decoration-danger="state == 'not_done'"/>
             </list>
         </field>
     </record>
@@ -1055,6 +1150,115 @@
         </field>
     </record>
 
+    <!-- VUES RÈGLEMENT INTÉRIEUR & LOIS -->
+    <record id="view_school_regulation_tree" model="ir.ui.view">
+        <field name="name">school.regulation.tree</field>
+        <field name="model">school.regulation</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="is_pinned" decoration-muted="not active">
+                <field name="sequence" widget="handle"/>
+                <field name="is_pinned" widget="boolean_toggle" string="📌 Important"/>
+                <field name="date"/>
+                <field name="category" widget="badge"/>
+                <field name="title"/>
+                <field name="author"/>
+                <field name="target"/>
+                <field name="attachment_name" string="Document PDF"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_regulation_form" model="ir.ui.view">
+        <field name="name">school.regulation.form</field>
+        <field name="model">school.regulation</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="title" string="Titre de la règle ou de la loi"/>
+                        <h1>
+                            <field name="title" placeholder="Ex: Article 12 : Retards et autorisations d'entrée..."/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Catégorie &amp; Publication">
+                            <field name="category"/>
+                            <field name="author" placeholder="Ex: Direction Pédagogique"/>
+                            <field name="date"/>
+                            <field name="is_pinned"/>
+                            <field name="sequence"/>
+                        </group>
+                        <group string="Destinataires &amp; Statut">
+                            <field name="target" widget="radio"/>
+                            <field name="level_ids" widget="many2many_tags" invisible="target == 'all'" options="{'no_create': True}" placeholder="Classes spécifiques..."/>
+                            <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="📜 Texte &amp; Consignes">
+                            <field name="content" placeholder="Texte complet de la règle, circulaire ministérielle ou extrait du règlement intérieur (en français ou en arabe)..."/>
+                        </page>
+                        <page string="📎 Document / Circulaire PDF">
+                            <group>
+                                <field name="attachment" filename="attachment_name"/>
+                                <field name="attachment_name" invisible="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_school_regulation_search" model="ir.ui.view">
+        <field name="name">school.regulation.search</field>
+        <field name="model">school.regulation</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="title"/>
+                <field name="author"/>
+                <field name="category"/>
+                <separator/>
+                <filter string="📌 Épinglés / Importants" name="pinned" domain="[('is_pinned', '=', True)]"/>
+                <filter string="⚖️ Textes de Loi" name="law" domain="[('category', '=', 'law')]"/>
+                <filter string="⚠️ Discipline" name="discipline" domain="[('category', '=', 'discipline')]"/>
+                <filter string="⏰ Horaires &amp; Assiduité" name="attendance" domain="[('category', '=', 'attendance')]"/>
+                <separator/>
+                <filter string="Actifs" name="active" domain="[('active', '=', True)]"/>
+                <filter string="Archivés" name="inactive" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter string="Grouper par Catégorie" name="group_by_category" context="{'group_by': 'category'}"/>
+                <filter string="Grouper par Émetteur" name="group_by_author" context="{'group_by': 'author'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_school_regulation_kanban" model="ir.ui.view">
+        <field name="name">school.regulation.kanban</field>
+        <field name="model">school.regulation</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="category">
+                <field name="title"/>
+                <field name="category"/>
+                <field name="is_pinned"/>
+                <field name="date"/>
+                <field name="author"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="badge text-bg-primary"><field name="category"/></span>
+                            <span t-if="record.is_pinned.raw_value" class="badge text-bg-warning">📌 Important</span>
+                        </div>
+                        <div class="fw-bold fs-6 mb-1"><field name="title"/></div>
+                        <div class="text-muted small"><field name="author"/> - <field name="date"/></div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
     <!-- VUES RESSOURCES -->
     <record id="view_resources_tree" model="ir.ui.view">
         <field name="name">school.resources.tree</field>
@@ -1063,8 +1267,8 @@
             <list>
                 <field name="date"/>
                 <field name="name"/>
-                <field name="subject"/>
-                <field name="teacher"/>
+                <field name="subject_id"/>
+                <field name="teacher_id"/>
                 <field name="type"/>
                 <field name="level_id"/>
             </list>
@@ -1080,15 +1284,16 @@
                     <group>
                         <group>
                             <field name="name"/>
-                            <field name="subject"/>
-                            <field name="teacher"/>
+                            <field name="subject_id" options="{'no_create': True, 'no_open': True}" required="1"/>
+                            <field name="allowed_teacher_ids" invisible="1"/>
+                            <field name="teacher_id" domain="[('id', 'in', allowed_teacher_ids)]" options="{'no_create': True, 'no_open': True}"/>
                             <field name="type"/>
                         </group>
                         <group>
+                            <field name="level_id" options="{'no_create': True, 'no_open': True}"/>
                             <field name="mimetype"/>
                             <field name="date"/>
                             <field name="size"/>
-                            <field name="level_id"/>
                             <field name="year_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
                         </group>
                     </group>
@@ -1100,6 +1305,7 @@
             </form>
         </field>
     </record>
+
 
     <!-- VUES COMMENTAIRES PEDAGOGIQUES -->
     <record id="view_pedagogical_comment_tree" model="ir.ui.view">
@@ -1307,14 +1513,18 @@
                 <header>
                     <button name="%(action_school_payment_generate_wizard)d" string="⚡ Générer les Mensualités (Non payé)" type="action" class="btn-primary" icon="fa-bolt"/>
                 </header>
-                <field name="payment_type" widget="badge" decoration-info="payment_type == 'tuition'" decoration-primary="payment_type == 'registration'"/>
+                <button name="action_print_receipt" string="Reçu" type="object" icon="fa-print" class="btn-sm btn-outline-primary" invisible="state != 'paid'"/>
+                <field name="receipt_number" optional="show" string="N° Reçu"/>
+                <field name="receipt_generated" column_invisible="True"/>
+                <field name="is_super_admin" column_invisible="True"/>
+                <field name="payment_type" widget="badge" decoration-info="payment_type == 'tuition'" decoration-primary="payment_type == 'registration'" decoration-success="payment_type == 'transport'"/>
                 <field name="level_id"/>
                 <field name="student_id"/>
                 <field name="year_id" readonly="1"/>
                 <field name="month"/>
                 <field name="amount" sum="Total"/>
                 <field name="date"/>
-                <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-warning="state == 'partial'" decoration-danger="state == 'unpaid'"/>
+                <field name="state" widget="badge" decoration-success="state == 'paid'" decoration-warning="state == 'partial'" decoration-danger="state == 'unpaid'" readonly="receipt_generated == True and not is_super_admin"/>
             </list>
         </field>
     </record>
@@ -1325,9 +1535,21 @@
         <field name="arch" type="xml">
             <form string="Paiement Scolarité">
                 <header>
+                    <button name="action_print_receipt" string="🖨️ Générer &amp; Imprimer le Reçu" type="object" class="btn-primary" icon="fa-print"/>
+                    <button name="action_unlock_payment" string="🔓 Déverrouiller le Statut (Super Admin)" type="object" class="btn-warning" icon="fa-unlock" groups="school_mobile_v2.group_school_manager,base.group_system" invisible="not receipt_generated"/>
                     <button name="%(action_school_payment_generate_wizard)d" string="⚡ Générer les Mensualités (Non payé)" type="action" class="btn-secondary" icon="fa-bolt"/>
                 </header>
                 <sheet>
+                    <field name="is_super_admin" invisible="1"/>
+                    <div class="alert alert-success d-flex align-items-center mb-3" role="alert" invisible="not receipt_generated">
+                        <i class="fa fa-lock fa-2x me-3 text-success"/>
+                        <div>
+                            <strong>Reçu Officiel Émis : <field name="receipt_number" readonly="1" class="oe_inline font-monospace"/></strong>
+                            <span class="text-muted ms-2">(Validé le <field name="receipt_date" readonly="1" class="oe_inline"/>)</span>
+                            <div class="small text-danger fw-bold mt-1" invisible="is_super_admin">🔒 Le statut de ce paiement est verrouillé (modification réservée au profil Super Admin).</div>
+                            <div class="small text-success fw-bold mt-1" invisible="not is_super_admin">🔓 Profil Super Admin : vous avez l'autorisation de modifier ou déverrouiller ce paiement.</div>
+                        </div>
+                    </div>
                     <group>
                         <group string="Type &amp; Période">
                             <field name="payment_type" widget="radio"/>
@@ -1345,7 +1567,10 @@
                             <field name="date"/>
                         </group>
                         <group>
-                            <field name="state" widget="radio"/>
+                            <field name="receipt_generated" invisible="1"/>
+                            <field name="state" widget="radio" readonly="receipt_generated == True and not is_super_admin"/>
+                            <field name="receipt_number" readonly="1" invisible="not receipt_generated"/>
+                            <field name="receipt_date" readonly="1" invisible="not receipt_generated"/>
                         </group>
                     </group>
                 </sheet>
@@ -1795,6 +2020,99 @@
                     <button string="Annuler" class="btn-secondary" special="cancel"/>
                 </footer>
             </form>
+        </field>
+    </record>
+
+    <!-- VUES RENDEZ-VOUS DIRECTION -->
+    <record id="view_school_appointment_tree" model="ir.ui.view">
+        <field name="name">school.appointment.list</field>
+        <field name="model">school.appointment</field>
+        <field name="arch" type="xml">
+            <list string="Rendez-vous Direction" decoration-info="state == 'pending'" decoration-warning="state == 'rescheduled'" decoration-success="state == 'validated'" decoration-muted="state in ('completed', 'cancelled')" decoration-danger="state == 'rejected'">
+                <field name="date"/>
+                <field name="time_slot"/>
+                <field name="student_id"/>
+                <field name="parent_name"/>
+                <field name="parent_phone"/>
+                <field name="subject"/>
+                <field name="appointment_type"/>
+                <field name="state" widget="badge" decoration-info="state == 'pending'" decoration-warning="state == 'rescheduled'" decoration-success="state == 'validated'" decoration-danger="state == 'rejected'" decoration-muted="state in ('completed', 'cancelled')"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_appointment_form" model="ir.ui.view">
+        <field name="name">school.appointment.form</field>
+        <field name="model">school.appointment</field>
+        <field name="arch" type="xml">
+            <form string="Rendez-vous avec la Direction">
+                <header>
+                    <button name="action_validate" string="✅ Valider le Rendez-vous" type="object" class="oe_highlight" invisible="state == 'validated'"/>
+                    <button name="action_reschedule" string="🔄 Proposer un autre créneau" type="object" class="btn-warning" invisible="state in ('validated', 'completed')"/>
+                    <button name="action_complete" string="🏁 Marquer comme Terminé" type="object" class="btn-success" invisible="state != 'validated'"/>
+                    <button name="action_reject" string="❌ Refuser" type="object" class="btn-danger" invisible="state in ('rejected', 'completed', 'cancelled')"/>
+                    <button name="action_reset_pending" string="Remettre en attente" type="object" invisible="state == 'pending'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,rescheduled,validated,completed"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="alert" invisible="state != 'rescheduled'">
+                        <strong><i class="fa fa-clock-o me-1"/> Proposition en cours :</strong>
+                        Un créneau alternatif a été proposé au parent (<field name="proposed_date" readonly="1"/> à <field name="proposed_time_slot" readonly="1"/>). En attente de son acceptation.
+                    </div>
+                    <div class="alert alert-success" role="alert" invisible="state != 'validated'">
+                        <strong><i class="fa fa-check-circle me-1"/> Rendez-vous confirmé :</strong>
+                        Ce créneau est bloqué et réservé. Aucun autre rendez-vous ne peut être validé en même temps.
+                    </div>
+                    <group>
+                        <group string="Élève &amp; Parent">
+                            <field name="student_id" options="{'no_create': True}"/>
+                            <field name="parent_id" options="{'no_create': True}"/>
+                            <field name="parent_name"/>
+                            <field name="parent_phone" widget="phone"/>
+                            <field name="parent_email" widget="email"/>
+                        </group>
+                        <group string="Planning &amp; Modalités">
+                            <field name="date"/>
+                            <field name="time_slot"/>
+                            <field name="appointment_type" widget="radio"/>
+                            <field name="location"/>
+                        </group>
+                    </group>
+                    <group string="Objet de la rencontre">
+                        <field name="subject" placeholder="Ex: Suivi pédagogique, Comportement, Réclamation, Orientation..."/>
+                        <field name="notes" placeholder="Commentaire / Détails transmis par le parent..."/>
+                    </group>
+                    <group string="Contre-proposition de la Direction (Optionnel si indisponible)">
+                        <group>
+                            <field name="proposed_date"/>
+                            <field name="proposed_time_slot"/>
+                        </group>
+                        <group>
+                            <field name="admin_notes" placeholder="Explication transmise au parent (ex: La direction est en réunion d'inspection le matin...)"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_school_appointment_search" model="ir.ui.view">
+        <field name="name">school.appointment.search</field>
+        <field name="model">school.appointment</field>
+        <field name="arch" type="xml">
+            <search string="Recherche Rendez-vous">
+                <field name="student_id"/>
+                <field name="parent_name"/>
+                <field name="parent_phone"/>
+                <field name="subject"/>
+                <filter name="filter_pending" string="En attente" domain="[('state', '=', 'pending')]"/>
+                <filter name="filter_validated" string="Validés" domain="[('state', '=', 'validated')]"/>
+                <filter name="filter_rescheduled" string="Reprogrammés" domain="[('state', '=', 'rescheduled')]"/>
+                <separator/>
+                <filter name="group_by_state" string="État" context="{'group_by': 'state'}"/>
+                <filter name="group_by_date" string="Date" context="{'group_by': 'date'}"/>
+                <filter name="group_by_type" string="Type" context="{'group_by': 'appointment_type'}"/>
+            </search>
         </field>
     </record>
 

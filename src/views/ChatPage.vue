@@ -76,7 +76,11 @@
 
               <div class="message-footer">
                 <span class="time">{{ formatTime(msg.date) }}</span>
-                <ion-icon v-if="msg.is_parent" :icon="checkmarkDoneOutline" class="read-icon"></ion-icon>
+                <span v-if="!msg.is_parent" class="msg-note-received">• Reçu de l'école</span>
+                <span v-else class="msg-note-sent">
+                  <ion-icon :icon="checkmarkDoneOutline" class="read-icon"></ion-icon>
+                  • Envoyé
+                </span>
               </div>
             </div>
           </div>
@@ -155,6 +159,7 @@ import {
 } from 'ionicons/icons';
 import { ref, onMounted, nextTick, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
+import { notificationService } from '@/services/notificationService';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const messages = ref<any[]>([]);
@@ -247,7 +252,23 @@ const fetchData = async (silent = false) => {
   
   if (!silent) loading.value = true;
   try {
+    const prevCount = messages.value.length;
     const history = await odoo.getChatHistory(studentId);
+
+    // Détecter si un nouveau message de l'école est arrivé pendant la session
+    if (silent && history && history.length > prevCount && prevCount > 0) {
+      const newMessages = history.slice(prevCount);
+      const incomingFromAdmin = newMessages.filter((m: any) => !m.is_parent);
+      if (incomingFromAdmin.length > 0) {
+        const lastMsg = incomingFromAdmin[incomingFromAdmin.length - 1];
+        notificationService.showPhoneNotification("💬 Direction Scolaire", {
+          body: lastMsg.body || 'Nouveau message reçu de l\'école.',
+          url: '/chat',
+          tag: `chat-msg-${lastMsg.id || Date.now()}`
+        });
+      }
+    }
+
     messages.value = history;
     if (!silent) scrollToBottom();
   } catch (e) {
@@ -300,7 +321,13 @@ const scrollToBottom = () => {
 const formatTime = (dateStr: string) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const now = new Date();
+  const time = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  
+  if (date.toDateString() === now.toDateString()) {
+    return time;
+  }
+  return `${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} ${time}`;
 };
 
 const formatDateDivider = (dateStr: string) => {
@@ -323,8 +350,13 @@ const handleStudentChanged = () => {
 
 onMounted(() => {
   fetchData();
-  pollInterval = setInterval(() => fetchData(true), 5000); // Polling every 5s
+  pollInterval = setInterval(() => fetchData(true), 5000); // Polling toutes les 5s
   window.addEventListener('student-changed', handleStudentChanged);
+
+  // S'assurer que le parent est abonné aux notifications Push
+  if (notificationService.getPermission() === 'granted') {
+    notificationService.subscribeToPush();
+  }
 });
 
 onUnmounted(() => {
@@ -396,12 +428,15 @@ onUnmounted(() => {
 .sent .message-bubble {
   background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   border-bottom-right-radius: 4px;
+  color: #ffffff !important;
 }
 
 .received .message-bubble {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
   border-bottom-left-radius: 4px;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .message-text {
@@ -411,18 +446,19 @@ onUnmounted(() => {
 }
 
 .sent .message-text {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .received .message-text {
-  color: #1e293b;
+  color: #0f172a !important;
+  font-weight: 500;
 }
 
 .message-footer {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   margin-top: 4px;
 }
 
@@ -432,11 +468,26 @@ onUnmounted(() => {
 }
 
 .sent .time {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.8) !important;
 }
 
 .received .time {
-  color: #64748b;
+  color: #64748b !important;
+}
+
+.msg-note-received {
+  font-size: 0.65rem;
+  color: #64748b !important;
+  font-weight: 500;
+}
+
+.msg-note-sent {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-weight: 500;
 }
 
 .read-icon {
@@ -444,7 +495,7 @@ onUnmounted(() => {
 }
 
 .sent .read-icon {
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .date-divider {

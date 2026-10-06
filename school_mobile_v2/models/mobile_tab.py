@@ -50,6 +50,7 @@ class SchoolMobileTab(models.Model):
             {'name': 'Notes & Relevés', 'technical_code': 'notes', 'icon': 'ribbonOutline', 'path': '/tabs/notes', 'sequence': 40},
             {'name': 'Absences & Retards', 'technical_code': 'absences', 'icon': 'alertCircleOutline', 'path': '/tabs/absences', 'sequence': 50},
             {'name': 'Cahier de transmission', 'technical_code': 'transmission', 'icon': 'heartOutline', 'path': '/tabs/transmission', 'sequence': 60},
+            {'name': 'Règlement Intérieur & Lois', 'technical_code': 'reglement', 'icon': 'shieldCheckmarkOutline', 'path': '/tabs/reglement', 'sequence': 65},
             {'name': 'Suivi Pédagogique', 'technical_code': 'suivi', 'icon': 'schoolOutline', 'path': '/tabs/suivi-pedagogique', 'sequence': 70},
             {'name': 'Ressources Pédagogiques', 'technical_code': 'ressources', 'icon': 'bookmarkOutline', 'path': '/tabs/ressources', 'sequence': 80},
             {'name': 'Cantine / Menus', 'technical_code': 'canteen', 'icon': 'restaurantOutline', 'path': '/tabs/vie-scolaire', 'sequence': 90},
@@ -62,6 +63,7 @@ class SchoolMobileTab(models.Model):
             {'name': 'Objets Perdus', 'technical_code': 'lostItems', 'icon': 'archiveOutline', 'path': '/tabs/lost-items', 'sequence': 160},
             {'name': 'Messagerie Directe', 'technical_code': 'chat', 'icon': 'mailOutline', 'path': '/chat', 'sequence': 170},
             {'name': 'Album Photo', 'technical_code': 'album', 'icon': 'imagesOutline', 'path': '/tabs/album', 'sequence': 180},
+            {'name': 'Contact & Accès', 'technical_code': 'contact', 'icon': 'callOutline', 'path': '/tabs/contact', 'sequence': 185},
             {'name': 'Mon Compte', 'technical_code': 'account', 'icon': 'personOutline', 'path': '/tabs/account', 'sequence': 190},
         ]
         for t in default_tabs:
