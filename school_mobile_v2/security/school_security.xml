@@ -200,6 +200,18 @@
             <field name="perm_unlink" eval="True"/>
         </record>
 
+        <!-- 14. Points Bonus & Discipline : Ses classes -->
+        <record id="rule_school_discipline_bonus_teacher" model="ir.rule">
+            <field name="name">Professeur : Bonus et discipline de ses classes</field>
+            <field name="model_id" ref="model_school_discipline_bonus"/>
+            <field name="domain_force">['|', ('create_uid', '=', user.id), ('student_id.level_id.teacher_ids.user_id', '=', user.id)]</field>
+            <field name="groups" eval="[(4, ref('group_school_teacher'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
         <!-- ======================================================== -->
         <!-- RÈGLES DE SÉCURITÉ - ADMINISTRATION & SUPER ADMIN        -->
         <!-- (Accès global à toutes les classes pour le staff/admin)  -->
@@ -292,6 +304,13 @@
         <record id="rule_school_pedagogical_comment_staff" model="ir.rule">
             <field name="name">Administration : Tous les commentaires pédagogiques</field>
             <field name="model_id" ref="model_school_pedagogical_comment"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('group_school_staff'))]"/>
+        </record>
+
+        <record id="rule_school_discipline_bonus_staff" model="ir.rule">
+            <field name="name">Administration : Tous les bonus et discipline</field>
+            <field name="model_id" ref="model_school_discipline_bonus"/>
             <field name="domain_force">[(1, '=', 1)]</field>
             <field name="groups" eval="[(4, ref('group_school_staff'))]"/>
         </record>

@@ -59,6 +59,12 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_discipline_bonus_v2" model="ir.actions.act_window">
+        <field name="name">Points Bonus &amp; Discipline</field>
+        <field name="res_model">school.discipline.bonus</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <record id="action_school_config" model="ir.actions.act_window">
         <field name="name">Configuration École</field>
         <field name="res_model">school.config</field>
@@ -220,6 +226,13 @@
               action="action_grade_v2" 
               groups="group_school_teacher"
               sequence="15"/>
+
+    <menuitem id="menu_mobile_v2_discipline_bonus" 
+              name="🌟 Points Bonus &amp; Discipline" 
+              parent="menu_mobile_v2_root" 
+              action="action_discipline_bonus_v2" 
+              groups="group_school_teacher"
+              sequence="18"/>
 
     <menuitem id="menu_mobile_v2_massar_import" 
               name="📥 Importer Notes MASSAR (Excel)" 
@@ -1346,6 +1359,57 @@ records.action_reset_mobile_password()
                     <field name="text"/>
                 </sheet>
             </form>
+        </field>
+    </record>
+
+    <!-- VUES DISCIPLINE & POINTS BONUS -->
+    <record id="view_discipline_bonus_form" model="ir.ui.view">
+        <field name="name">school.discipline.bonus.form</field>
+        <field name="model">school.discipline.bonus</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="student_id" string="Élève bénéficiaire"/>
+                        <h1><field name="student_id" options="{'no_create': True}" placeholder="Sélectionnez l'élève"/></h1>
+                    </div>
+                    <group>
+                        <group string="Critère &amp; Attribution">
+                            <field name="category" required="1"/>
+                            <field name="points" required="1"/>
+                            <field name="date" required="1"/>
+                            <field name="semester" required="1"/>
+                        </group>
+                        <group string="Contexte Pédagogique">
+                            <field name="level_id" readonly="1" options="{'no_open': True}"/>
+                            <field name="subject_id" options="{'no_create': True}" placeholder="Optionnel (matière liée)"/>
+                            <field name="teacher_id" options="{'no_create': True}"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True}"/>
+                        </group>
+                    </group>
+                    <group string="Motif / Observation de l'enseignant">
+                        <field name="comment" placeholder="Ex: Intervention remarquable en classe, aide apportée à un camarade, assiduité parfaite..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_discipline_bonus_tree" model="ir.ui.view">
+        <field name="name">school.discipline.bonus.tree</field>
+        <field name="model">school.discipline.bonus</field>
+        <field name="arch" type="xml">
+            <list decoration-success="points &gt; 0">
+                <field name="date"/>
+                <field name="student_id"/>
+                <field name="level_id"/>
+                <field name="category" widget="badge"/>
+                <field name="points" sum="Total Bonus"/>
+                <field name="subject_id" optional="show"/>
+                <field name="teacher_id" optional="show"/>
+                <field name="semester"/>
+                <field name="comment"/>
+            </list>
         </field>
     </record>
 

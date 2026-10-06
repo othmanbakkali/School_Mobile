@@ -3125,6 +3125,101 @@ app.post('/api/school/pedagogical-comments', async (req, res) => {
     }
 });
 
+// Points Bonus & Discipline
+app.post('/api/school/discipline-bonuses', async (req, res) => {
+    const { student_id, semester } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const yearId = await getCurrentYearId(adminUid);
+        const parsedStudentId = parseInt(student_id);
+
+        const domain = [['student_id', '=', parsedStudentId]];
+        if (semester) {
+            domain.push(['semester', '=', semester]);
+        }
+        if (yearId) {
+            domain.push('|');
+            domain.push(['year_id', '=', yearId]);
+            domain.push(['year_id', '=', false]);
+        }
+
+        const bonuses = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.discipline.bonus', 'search_read',
+            [domain],
+            {
+                fields: ['id', 'category', 'points', 'date', 'semester', 'comment', 'teacher_id', 'teacher_name', 'subject_id', 'subject_name', 'create_date'],
+                order: 'date desc, id desc'
+            }
+        ]);
+
+        const formatted = bonuses.map(b => ({
+            id: b.id,
+            category: b.category,
+            points: b.points || 1.0,
+            date: b.date || b.create_date,
+            semester: b.semester || 'S1',
+            comment: b.comment || '',
+            teacher: b.teacher_name || (b.teacher_id ? b.teacher_id[1] : 'Enseignant'),
+            subject: b.subject_name || (b.subject_id ? b.subject_id[1] : 'Général')
+        }));
+
+        res.json(formatted);
+    } catch (error) {
+        console.warn('Odoo discipline bonuses query fallback:', error.message);
+        res.json([]);
+    }
+});
+
+app.post('/api/school/discipline-bonuses/create', async (req, res) => {
+    const { student_id, category, points, semester, comment, subject_id, subject_name, teacher_name, date } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const yearId = await getCurrentYearId(adminUid);
+        const parsedStudentId = parseInt(student_id);
+
+        const vals = {
+            student_id: parsedStudentId,
+            category: category || 'participation',
+            points: parseFloat(points) || 1.0,
+            semester: semester || 'S1',
+            date: date || new Date().toISOString().split('T')[0],
+            comment: comment || '',
+            teacher_name: teacher_name || 'Enseignant',
+            subject_name: subject_name || ''
+        };
+        if (subject_id) {
+            vals.subject_id = parseInt(subject_id);
+        }
+        if (yearId) {
+            vals.year_id = yearId;
+        }
+
+        const newId = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.discipline.bonus', 'create',
+            [vals]
+        ]);
+
+        res.json({ success: true, id: newId });
+    } catch (error) {
+        console.error('Erreur create discipline bonus:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/school/discipline-bonuses/delete', async (req, res) => {
+    const { id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.discipline.bonus', 'unlink',
+            [[parseInt(id)]]
+        ]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.post('/api/school/transport', async (req, res) => {
     const { student_id } = req.body;
     try {

@@ -924,6 +924,95 @@ class SchoolGrade(models.Model):
             return {'domain': {'sub_subject_id': []}}
 
 
+class SchoolDisciplineBonus(models.Model):
+    _name = 'school.discipline.bonus'
+    _description = 'Points Bonus & Discipline / نقط إضافية وانضباط'
+    _order = 'date desc, id desc'
+
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    def _default_teacher_id(self):
+        try:
+            teacher = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
+            if not teacher and self.env.user.email:
+                teacher = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
+            return teacher.id if teacher else False
+        except Exception:
+            return False
+
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
+    level_id = fields.Many2one('school.level', string='Niveau / Classe')
+    teacher_id = fields.Many2one('school.teacher', string='Enseignant / Professeur', default=_default_teacher_id)
+    teacher_name = fields.Char(string='Nom Enseignant')
+    subject_id = fields.Many2one('school.subject', string='Matière')
+    subject_name = fields.Char(string='Nom Matière')
+    category = fields.Selection([
+        ('participation', '🙋‍♂️ Participation active / المشاركة والتفاعل'),
+        ('assiduite', '⏰ Assiduité & Ponctualité / المواظبة والحضور'),
+        ('discipline', '📜 Discipline & Respect / الانضباط وحسن السلوك'),
+        ('travail', '📚 Soin du travail & Devoirs / العناية بالواجبات'),
+        ('entraide', '🤝 Entraide & Esprit d\'équipe / روح التعاون والمساعدة'),
+        ('autre', '⭐ Autre distinction / تميز آخر')
+    ], string='Critère / Catégorie', default='participation', required=True)
+    points = fields.Float(string='Points Bonus (+)', default=1.0, required=True, help="Points bonus attribués (ex: +0.5, +1.0, +2.0)")
+    date = fields.Date(string="Date d'attribution", default=fields.Date.today, required=True)
+    semester = fields.Selection([
+        ('S1', 'Semestre 1'),
+        ('S2', 'Semestre 2'),
+    ], string='Semestre', default='S1', required=True)
+    comment = fields.Text(string="Motif / Remarque de l'enseignant", help="Ex: Excellente réponse au tableau, investissement exemplaire")
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('teacher_id'):
+                t = self.env['school.teacher'].search([('user_id', '=', self.env.uid)], limit=1)
+                if not t and self.env.user.email:
+                    t = self.env['school.teacher'].search([('email', '=', self.env.user.email)], limit=1)
+                if t:
+                    vals['teacher_id'] = t.id
+            if vals.get('teacher_id') and not vals.get('teacher_name'):
+                teacher = self.env['school.teacher'].browse(vals['teacher_id'])
+                if teacher.exists():
+                    vals['teacher_name'] = teacher.name
+            if vals.get('subject_id') and not vals.get('subject_name'):
+                subj = self.env['school.subject'].browse(vals['subject_id'])
+                if subj.exists():
+                    vals['subject_name'] = subj.name
+            if vals.get('student_id'):
+                st = self.env['school.student'].browse(vals['student_id'])
+                if st.exists():
+                    if not vals.get('level_id') and st.level_id:
+                        vals['level_id'] = st.level_id.id
+                    if not vals.get('year_id') and st.year_id:
+                        vals['year_id'] = st.year_id.id
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+        return super(SchoolDisciplineBonus, self).create(vals_list)
+
+    @api.onchange('student_id')
+    def _onchange_student_id(self):
+        if self.student_id:
+            if self.student_id.level_id:
+                self.level_id = self.student_id.level_id
+            if self.student_id.year_id:
+                self.year_id = self.student_id.year_id
+
+    @api.onchange('teacher_id')
+    def _onchange_teacher_id(self):
+        if self.teacher_id:
+            self.teacher_name = self.teacher_id.name
+
+    @api.onchange('subject_id')
+    def _onchange_subject_id(self):
+        if self.subject_id:
+            self.subject_name = self.subject_id.name
+
+
 class SchoolCanteen(models.Model):
     _name = 'school.canteen.menu'
     _description = 'Menu Cantine'
