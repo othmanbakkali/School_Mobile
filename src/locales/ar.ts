@@ -278,6 +278,15 @@ export const ar: any = {
     positive: "ممتاز / مستحسن",
     negative: "يحتاج إلى تحسين / متابعة",
     neutral: "مستقر / عادي",
-    points: "نقطة"
+    points: "نقطة",
+    evalBehaviourBtn: "+ تقييم السلوك والمواظبة",
+    addCommentBtn: "+ إضافة ملاحظة بيداغوجية",
+    evalModalTitle: "تقييم السلوك والمواظبة",
+    evalModalDesc: "منح النجوم (من 1 إلى 5) لكل معيار سلوكي وبيداغوجي",
+    saveEvalBtn: "حفظ التقييم",
+    addCommentTitle: "ملاحظة بيداغوجية جديدة",
+    addCommentDesc: "ملاحظة وتوجيه رسمي من الأستاذ لملف التلميذ",
+    saveCommentBtn: "نشر الملاحظة",
+    deleteCommentConfirm: "هل تريد حذف هذه الملاحظة البيداغوجية ؟"
   }
 };

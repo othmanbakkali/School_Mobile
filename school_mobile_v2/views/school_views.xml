@@ -146,6 +146,12 @@
         <field name="view_mode">kanban,list,form</field>
     </record>
 
+    <record id="action_school_behaviour_evaluation" model="ir.actions.act_window">
+        <field name="name">Évaluations Comportement &amp; Assiduité</field>
+        <field name="res_model">school.behaviour.evaluation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <record id="action_school_transport" model="ir.actions.act_window">
         <field name="name">Transport Scolaire</field>
         <field name="res_model">school.transport</field>
@@ -233,6 +239,13 @@
               action="action_discipline_bonus_v2" 
               groups="group_school_teacher"
               sequence="18"/>
+
+    <menuitem id="menu_mobile_v2_behaviour_eval" 
+              name="📊 Comportement &amp; Assiduité" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_behaviour_evaluation" 
+              groups="group_school_teacher"
+              sequence="19"/>
 
     <menuitem id="menu_mobile_v2_massar_import" 
               name="📥 Importer Notes MASSAR (Excel)" 
@@ -1409,6 +1422,66 @@ records.action_reset_mobile_password()
                 <field name="teacher_id" optional="show"/>
                 <field name="semester"/>
                 <field name="comment"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- VUES COMPORTEMENT & ASSIDUITE -->
+    <record id="view_behaviour_evaluation_form" model="ir.ui.view">
+        <field name="name">school.behaviour.evaluation.form</field>
+        <field name="model">school.behaviour.evaluation</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="student_id" string="Élève"/>
+                        <h1><field name="student_id" options="{'no_create': True}" placeholder="Sélectionnez l'élève"/></h1>
+                    </div>
+                    <group>
+                        <group string="Informations Générales">
+                            <field name="date" required="1"/>
+                            <field name="semester" required="1"/>
+                            <field name="level_id" readonly="1" options="{'no_open': True}"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True}"/>
+                        </group>
+                        <group string="Évaluateur / Enseignant">
+                            <field name="teacher_id" options="{'no_create': True}"/>
+                            <field name="teacher_name" placeholder="Nom de l'enseignant"/>
+                        </group>
+                    </group>
+                    <group string="Critères d'évaluation (Notation sur 5 étoiles)">
+                        <group>
+                            <field name="participation" string="🙋‍♂️ Participation active (1-5)"/>
+                            <field name="rules" string="📜 Discipline &amp; Respect des règles (1-5)"/>
+                            <field name="group_work" string="🤝 Travail en groupe &amp; Entraide (1-5)"/>
+                        </group>
+                        <group>
+                            <field name="punctuality" string="⏰ Assiduité &amp; Ponctualité (1-5)"/>
+                            <field name="care" string="🎒 Soin du travail &amp; Matériel (1-5)"/>
+                        </group>
+                    </group>
+                    <group string="Appréciation &amp; Remarque Globale">
+                        <field name="general_appreciation" placeholder="Ex: Attitude très positive en classe, élève sérieux et impliqué..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_behaviour_evaluation_tree" model="ir.ui.view">
+        <field name="name">school.behaviour.evaluation.tree</field>
+        <field name="model">school.behaviour.evaluation</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="date"/>
+                <field name="student_id"/>
+                <field name="level_id"/>
+                <field name="semester"/>
+                <field name="participation" widget="badge"/>
+                <field name="rules" widget="badge"/>
+                <field name="punctuality" widget="badge"/>
+                <field name="teacher_name" optional="show"/>
+                <field name="general_appreciation"/>
             </list>
         </field>
     </record>

@@ -3110,18 +3110,182 @@ app.post('/api/school/pedagogical-comments', async (req, res) => {
     const { student_id } = req.body;
     try {
         const adminUid = await getAdminUid();
+        const yearId = await getCurrentYearId(adminUid);
+        const domain = [['student_id', '=', parseInt(student_id)]];
+        if (yearId) {
+            domain.push('|');
+            domain.push(['year_id', '=', yearId]);
+            domain.push(['year_id', '=', false]);
+        }
         const result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.pedagogical.comment', 'search_read',
-            [[['student_id', '=', parseInt(student_id)]]],
-            { fields: ['id', 'teacher', 'subject', 'date', 'sentiment', 'text'] }
+            [domain],
+            { fields: ['id', 'teacher', 'subject', 'date', 'sentiment', 'text'], order: 'date desc, id desc' }
         ]);
         res.json(result);
     } catch (error) {
-        console.warn('Odoo query failed, falling back to mock comments:', error.message);
-        res.json([
-            { id: 1, teacher: 'Mme. Leclerc', subject: 'Français', date: new Date().toISOString(), sentiment: 'positive', text: 'Excellent trimestre ! Votre enfant fait preuve d\'une grande curiosité et participe activement en classe.' },
-            { id: 2, teacher: 'M. Karim', subject: 'Mathématiques', date: new Date(Date.now() - 7 * 86400000).toISOString(), sentiment: 'negative', text: 'Des efforts supplémentaires sont nécessaires en algèbre. Je recommande de retravailler les exercices du chapitre 5.' },
+        console.warn('Odoo query failed for pedagogical comments:', error.message);
+        res.json([]);
+    }
+});
+
+app.post('/api/school/pedagogical-comments/create', async (req, res) => {
+    const { student_id, teacher, subject, sentiment, text, date } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const yearId = await getCurrentYearId(adminUid);
+        const parsedStudentId = parseInt(student_id);
+
+        const vals = {
+            student_id: parsedStudentId,
+            teacher: teacher || 'Enseignant',
+            subject: subject || 'Général',
+            sentiment: sentiment || 'positive',
+            text: text || '',
+            date: date || new Date().toISOString().split('T')[0]
+        };
+        if (yearId) {
+            vals.year_id = yearId;
+        }
+
+        const newId = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.pedagogical.comment', 'create',
+            [vals]
         ]);
+        res.json({ success: true, id: newId });
+    } catch (error) {
+        console.error('Erreur create pedagogical comment:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/school/pedagogical-comments/delete', async (req, res) => {
+    const { id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.pedagogical.comment', 'unlink',
+            [[parseInt(id)]]
+        ]);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Comportement & Assiduité Évaluations
+app.post('/api/school/behaviour', async (req, res) => {
+    const { student_id, semester } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const yearId = await getCurrentYearId(adminUid);
+        const parsedStudentId = parseInt(student_id);
+
+        const domain = [['student_id', '=', parsedStudentId]];
+        if (semester && semester !== 'all') {
+            domain.push(['semester', '=', semester]);
+        }
+        if (yearId) {
+            domain.push('|');
+            domain.push(['year_id', '=', yearId]);
+            domain.push(['year_id', '=', false]);
+        }
+
+        const evals = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.behaviour.evaluation', 'search_read',
+            [domain],
+            {
+                fields: ['id', 'student_id', 'level_id', 'teacher_name', 'date', 'semester', 'participation', 'rules', 'group_work', 'punctuality', 'care', 'general_appreciation'],
+                order: 'date desc, id desc',
+                limit: 1
+            }
+        ]);
+
+        if (evals && evals.length > 0) {
+            res.json(evals[0]);
+        } else {
+            res.json({
+                participation: 5,
+                rules: 5,
+                group_work: 5,
+                punctuality: 5,
+                care: 5,
+                general_appreciation: '',
+                teacher_name: '',
+                is_default: true
+            });
+        }
+    } catch (error) {
+        console.warn('Odoo query failed for behaviour evaluation:', error.message);
+        res.json({
+            participation: 5,
+            rules: 5,
+            group_work: 5,
+            punctuality: 5,
+            care: 5,
+            general_appreciation: '',
+            teacher_name: '',
+            is_default: true
+        });
+    }
+});
+
+app.post('/api/school/behaviour/save', async (req, res) => {
+    const { student_id, participation, rules, group_work, punctuality, care, general_appreciation, teacher_name, semester, date } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const yearId = await getCurrentYearId(adminUid);
+        const parsedStudentId = parseInt(student_id);
+        const targetSem = semester || 'S1';
+
+        const domain = [
+            ['student_id', '=', parsedStudentId],
+            ['semester', '=', targetSem]
+        ];
+        if (yearId) {
+            domain.push(['year_id', '=', yearId]);
+        }
+
+        const existing = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.behaviour.evaluation', 'search_read',
+            [domain],
+            { fields: ['id'], limit: 1 }
+        ]);
+
+        const vals = {
+            student_id: parsedStudentId,
+            participation: parseInt(participation) || 5,
+            rules: parseInt(rules) || 5,
+            group_work: parseInt(group_work) || 5,
+            punctuality: parseInt(punctuality) || 5,
+            care: parseInt(care) || 5,
+            general_appreciation: general_appreciation || '',
+            teacher_name: teacher_name || 'Enseignant',
+            semester: targetSem,
+            date: date || new Date().toISOString().split('T')[0]
+        };
+        if (yearId) {
+            vals.year_id = yearId;
+        }
+
+        let resultId;
+        if (existing && existing.length > 0) {
+            await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.behaviour.evaluation', 'write',
+                [[existing[0].id], vals]
+            ]);
+            resultId = existing[0].id;
+        } else {
+            resultId = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.behaviour.evaluation', 'create',
+                [vals]
+            ]);
+        }
+
+        res.json({ success: true, id: resultId });
+    } catch (error) {
+        console.error('Erreur save behaviour evaluation:', error.message);
+        res.status(500).json({ error: error.message });
     }
 });
 

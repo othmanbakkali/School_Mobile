@@ -1709,6 +1709,54 @@ class SchoolPedagogicalComment(models.Model):
                 self.year_id = self.student_id.year_id
 
 
+
+class SchoolBehaviourEvaluation(models.Model):
+    _name = 'school.behaviour.evaluation'
+    _description = 'Évaluation du Comportement et Assiduité'
+    _order = 'date desc, id desc'
+
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
+    level_id = fields.Many2one('school.level', string='Niveau / Classe')
+    teacher_id = fields.Many2one('school.teacher', string='Enseignant')
+    teacher_name = fields.Char(string='Nom Enseignant / Évaluateur')
+    date = fields.Date(string='Date', default=fields.Date.today)
+    semester = fields.Selection([
+        ('S1', 'Semestre 1'),
+        ('S2', 'Semestre 2'),
+    ], string='Semestre', default='S1')
+    participation = fields.Integer(string='Participation active (1-5)', default=5)
+    rules = fields.Integer(string='Discipline & Respect des règles (1-5)', default=5)
+    group_work = fields.Integer(string='Travail en groupe & Entraide (1-5)', default=5)
+    punctuality = fields.Integer(string='Assiduité & Ponctualité (1-5)', default=5)
+    care = fields.Integer(string='Soin du travail & Matériel (1-5)', default=5)
+    general_appreciation = fields.Text(string='Appréciation globale')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+            if vals.get('student_id') and not vals.get('level_id'):
+                stud = self.env['school.student'].browse(vals['student_id'])
+                if stud and stud.level_id:
+                    vals['level_id'] = stud.level_id.id
+        return super(SchoolBehaviourEvaluation, self).create(vals_list)
+
+    @api.onchange('student_id')
+    def _onchange_student_id(self):
+        if self.student_id:
+            if self.student_id.level_id and not self.level_id:
+                self.level_id = self.student_id.level_id
+            if self.student_id.year_id and not self.year_id:
+                self.year_id = self.student_id.year_id
+
+
 class SchoolTransport(models.Model):
     _name = 'school.transport'
     _description = 'Transport Scolaire'

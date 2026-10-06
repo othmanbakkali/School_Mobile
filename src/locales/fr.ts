@@ -278,6 +278,15 @@ export const fr: any = {
     positive: "Très satisfaisant",
     negative: "À surveiller / À améliorer",
     neutral: "Régulier",
-    points: "pts"
+    points: "pts",
+    evalBehaviourBtn: "+ Évaluer le Comportement",
+    addCommentBtn: "+ Ajouter une Remarque",
+    evalModalTitle: "Évaluation Comportement & Assiduité",
+    evalModalDesc: "Attribution des étoiles (1 à 5) pour chaque critère comportemental",
+    saveEvalBtn: "Enregistrer l'Évaluation",
+    addCommentTitle: "Nouvelle Remarque Pédagogique",
+    addCommentDesc: "Observation officielle de l'enseignant pour le dossier de l'élève",
+    saveCommentBtn: "Publier la Remarque",
+    deleteCommentConfirm: "Voulez-vous supprimer cette remarque pédagogique ?"
   }
 };
