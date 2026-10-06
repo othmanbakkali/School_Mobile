@@ -8,11 +8,6 @@
         <ion-title class="page-title">
           <span class="title-main">{{ t('notes.title') }}</span>
         </ion-title>
-        <ion-buttons slot="end">
-          <ion-button v-if="activeMainTab === 'discipline'" fill="clear" color="primary" class="header-action-btn" @click="openBonusModal">
-            <ion-icon slot="icon-only" :icon="addCircleOutline" />
-          </ion-button>
-        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
@@ -236,6 +231,7 @@
 
         <!-- ========================================== -->
         <!-- TAB 2: DISCIPLINE & POINTS BONUS           -->
+        <!-- (Vue Consultation Parent / Élève)          -->
         <!-- ========================================== -->
         <div v-else-if="activeMainTab === 'discipline'" class="discipline-section">
           <!-- Discipline Semester Filter -->
@@ -286,17 +282,8 @@
             </div>
 
             <div class="kpi-footer-note">
-              <span>🌟 Les points bonus récompensent la participation active, le sérieux et l'esprit d'entraide.</span>
+              <span>🌟 Les points bonus récompensent la participation active, le sérieux et l'esprit d'entraide attribués par les professeurs.</span>
             </div>
-          </div>
-
-          <!-- Action & Filter Bar -->
-          <div class="discipline-actions-bar">
-            <!-- Add Bonus Button -->
-            <button class="award-bonus-btn" @click="openBonusModal">
-              <ion-icon :icon="sparklesOutline" class="btn-icon" />
-              <span>{{ t('notes.awardBonusBtn') }}</span>
-            </button>
           </div>
 
           <!-- Category Quick Filter Chips -->
@@ -319,10 +306,6 @@
             <div class="empty-icon">🌟</div>
             <h3>{{ t('notes.emptyBonuses') }}</h3>
             <p>{{ t('notes.emptyBonusesDesc') }}</p>
-            <button class="empty-action-btn" @click="openBonusModal">
-              <ion-icon :icon="addCircleOutline" />
-              <span>{{ t('notes.awardBonusBtn') }}</span>
-            </button>
           </div>
 
           <!-- Timeline / Merit Cards Feed -->
@@ -348,10 +331,6 @@
                   <span class="points-val">{{ parseFloat(item.points).toFixed(1) }}</span>
                   <span class="points-unit">pts</span>
                 </div>
-
-                <button class="bonus-delete-btn" @click.stop="confirmDeleteBonus(item)" title="Supprimer ce bonus">
-                  <ion-icon :icon="trashOutline" />
-                </button>
               </div>
 
               <div class="bonus-card-meta">
@@ -388,128 +367,6 @@
           </div>
         </div>
       </div>
-
-      <!-- ========================================== -->
-      <!-- MODAL: ATTRIBUER UN POINT BONUS            -->
-      <!-- ========================================== -->
-      <ion-modal :is-open="showBonusModal" @didDismiss="closeBonusModal" class="bonus-form-modal">
-        <div class="modal-wrapper-custom">
-          <!-- Modal Header -->
-          <div class="modal-header-custom">
-            <div class="modal-header-info">
-              <div class="modal-icon-badge">✨</div>
-              <div>
-                <h2 class="modal-title">{{ t('notes.awardBonusTitle') }}</h2>
-                <p class="modal-subtitle">{{ t('notes.awardBonusDesc') }}</p>
-              </div>
-            </div>
-            <button class="modal-close-btn" @click="closeBonusModal">
-              <ion-icon :icon="closeOutline" />
-            </button>
-          </div>
-
-          <!-- Modal Body Form -->
-          <div class="modal-body-custom">
-            <!-- 1. Category Selection -->
-            <div class="form-group">
-              <label class="form-label">{{ t('notes.selectCategory') }}</label>
-              <div class="category-picker-grid">
-                <button 
-                  type="button" 
-                  v-for="c in categoriesList" 
-                  :key="c.id"
-                  class="cat-picker-btn"
-                  :class="{ 'selected': bonusForm.category === c.id }"
-                  @click="bonusForm.category = c.id"
-                >
-                  <span class="picker-emoji">{{ c.icon }}</span>
-                  <span class="picker-text">{{ c.label }}</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- 2. Points Amount Picker -->
-            <div class="form-group">
-              <label class="form-label">{{ t('notes.bonusValue') }}</label>
-              <div class="points-picker-row">
-                <button 
-                  type="button"
-                  v-for="p in [0.5, 1.0, 1.5, 2.0, 3.0]" 
-                  :key="p"
-                  class="points-quick-pill"
-                  :class="{ 'selected': bonusForm.points === p }"
-                  @click="bonusForm.points = p"
-                >
-                  +{{ p.toFixed(1) }} pt{{ p > 1 ? 's' : '' }}
-                </button>
-              </div>
-            </div>
-
-            <!-- 3. Semester & Subject -->
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">Semestre</label>
-                <select v-model="bonusForm.semester" class="custom-select">
-                  <option value="S1">{{ t('notes.semester1') }}</option>
-                  <option value="S2">{{ t('notes.semester2') }}</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">{{ t('notes.associatedSubject') }}</label>
-                <select v-model="bonusForm.subject_name" class="custom-select">
-                  <option value="">{{ t('notes.generalSubject') }}</option>
-                  <option v-for="s in uniqueSubjectNames" :key="s" :value="s">
-                    {{ s }}
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <!-- 4. Teacher Name / Sign -->
-            <div class="form-group">
-              <label class="form-label">Nom de l'Enseignant</label>
-              <input 
-                v-model="bonusForm.teacher_name" 
-                type="text" 
-                class="custom-input" 
-                placeholder="Ex: Professeur / Direction"
-              />
-            </div>
-
-            <!-- 5. Teacher Observation / Comment -->
-            <div class="form-group">
-              <label class="form-label">{{ t('notes.teacherComment') }}</label>
-              <textarea 
-                v-model="bonusForm.comment" 
-                rows="3" 
-                class="custom-textarea" 
-                :placeholder="t('notes.teacherCommentPlaceholder')"
-              ></textarea>
-            </div>
-          </div>
-
-          <!-- Modal Footer Actions -->
-          <div class="modal-footer-custom">
-            <button class="btn-cancel" @click="closeBonusModal">Annuler</button>
-            <button class="btn-submit" :disabled="savingBonus" @click="submitBonusForm">
-              <ion-spinner v-if="savingBonus" name="crescent" class="btn-spinner" />
-              <span v-else>{{ t('notes.confirmBonus') }}</span>
-            </button>
-          </div>
-        </div>
-      </ion-modal>
-
-      <!-- Delete Confirmation Toast / Alert Modal -->
-      <ion-alert
-        :is-open="showDeleteAlert"
-        header="Confirmation"
-        :message="t('notes.deleteBonusConfirm')"
-        :buttons="[
-          { text: 'Annuler', role: 'cancel', handler: () => { showDeleteAlert = false; } },
-          { text: 'Supprimer', role: 'destructive', handler: executeDeleteBonus }
-        ]"
-      />
     </ion-content>
   </ion-page>
 </template>
@@ -518,13 +375,12 @@
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
   IonSegment, IonSegmentButton, IonLabel, IonSpinner, IonButtons, 
-  IonMenuButton, IonIcon, IonModal, IonAlert, IonButton
+  IonMenuButton, IonIcon
 } from '@ionic/vue';
 import { 
-  chevronDownOutline, chevronUpOutline, sparklesOutline, 
-  addCircleOutline, trashOutline, closeOutline 
+  chevronDownOutline, chevronUpOutline
 } from 'ionicons/icons';
-import { ref, computed, onMounted, onUnmounted, reactive } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
@@ -548,30 +404,7 @@ const gradeScale = ref('20');
 const bonuses = ref<any[]>([]);
 const disciplineSemester = ref('all');
 const selectedCategoryFilter = ref('all');
-const showBonusModal = ref(false);
-const savingBonus = ref(false);
-const showDeleteAlert = ref(false);
-const bonusToDelete = ref<any>(null);
-
 const currentStudentId = ref<number | null>(null);
-
-const bonusForm = reactive({
-  category: 'participation',
-  points: 1.0,
-  semester: 'S1',
-  subject_name: '',
-  teacher_name: '',
-  comment: '',
-});
-
-const categoriesList = [
-  { id: 'participation', icon: '🙋‍♂️', label: 'Participation active' },
-  { id: 'assiduite', icon: '⏰', label: 'Assiduité & Ponctualité' },
-  { id: 'discipline', icon: '📜', label: 'Discipline & Respect' },
-  { id: 'travail', icon: '📚', label: 'Soin du travail & Devoirs' },
-  { id: 'entraide', icon: '🤝', label: 'Entraide & Camaraderie' },
-  { id: 'autre', icon: '⭐', label: 'Autre distinction' },
-];
 
 const categoryFilters = computed(() => {
   const list = [
@@ -588,14 +421,6 @@ const categoryFilters = computed(() => {
 // Academic Computed
 const filteredNotes = computed(() => {
   return notes.value.filter(n => n.semester === selectedSemester.value);
-});
-
-const uniqueSubjectNames = computed(() => {
-  const set = new Set<string>();
-  notes.value.forEach(n => {
-    if (n.subject) set.add(n.subject);
-  });
-  return Array.from(set);
 });
 
 const totalSubSectionsCount = computed(() => {
@@ -741,72 +566,6 @@ const getSubjectColor = (subjectName = '') => {
   return { bg: '#f1f5f9', color: '#475569' };
 };
 
-// Modal handlers
-const openBonusModal = () => {
-  const savedUser = localStorage.getItem('parent_user');
-  let teacherName = 'Enseignant';
-  if (savedUser) {
-    try {
-      const u = JSON.parse(savedUser);
-      if (u.name) teacherName = u.name;
-    } catch (e) {}
-  }
-  bonusForm.teacher_name = teacherName;
-  bonusForm.category = 'participation';
-  bonusForm.points = 1.0;
-  bonusForm.semester = selectedSemester.value || 'S1';
-  bonusForm.comment = '';
-  bonusForm.subject_name = uniqueSubjectNames.value.length > 0 ? uniqueSubjectNames.value[0] : '';
-  showBonusModal.value = true;
-};
-
-const closeBonusModal = () => {
-  showBonusModal.value = false;
-};
-
-const submitBonusForm = async () => {
-  if (!currentStudentId.value) return;
-  savingBonus.value = true;
-  try {
-    await apiRequest('/api/school/discipline-bonuses/create', {
-      student_id: currentStudentId.value,
-      category: bonusForm.category,
-      points: bonusForm.points,
-      semester: bonusForm.semester,
-      subject_name: bonusForm.subject_name,
-      teacher_name: bonusForm.teacher_name,
-      comment: bonusForm.comment
-    });
-    closeBonusModal();
-    // Refresh bonuses
-    await fetchBonuses(currentStudentId.value);
-  } catch (e) {
-    console.error('Erreur ajout bonus:', e);
-  } finally {
-    savingBonus.value = false;
-  }
-};
-
-const confirmDeleteBonus = (item: any) => {
-  bonusToDelete.value = item;
-  showDeleteAlert.value = true;
-};
-
-const executeDeleteBonus = async () => {
-  if (!bonusToDelete.value) return;
-  try {
-    await apiRequest('/api/school/discipline-bonuses/delete', { id: bonusToDelete.value.id });
-    if (currentStudentId.value) {
-      await fetchBonuses(currentStudentId.value);
-    }
-  } catch (e) {
-    console.error('Erreur suppression bonus:', e);
-  } finally {
-    showDeleteAlert.value = false;
-    bonusToDelete.value = null;
-  }
-};
-
 const fetchBonuses = async (studentId: number) => {
   try {
     const res = await apiRequest('/api/school/discipline-bonuses', { student_id: studentId });
@@ -881,11 +640,6 @@ onUnmounted(() => {
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.02em;
-}
-
-.header-action-btn {
-  font-size: 1.4rem;
-  --color: #4f46e5;
 }
 
 /* Subnav Segment */
@@ -1087,7 +841,7 @@ onUnmounted(() => {
 }
 
 /* ========================================================
-   DISCIPLINE & KPI CARDS
+   DISCIPLINE & KPI CARDS (READ-ONLY)
    ======================================================== */
 .discipline-kpi-card {
   position: relative;
@@ -1203,37 +957,6 @@ onUnmounted(() => {
   opacity: 0.9;
 }
 
-/* Action Bar */
-.discipline-actions-bar {
-  margin-bottom: 14px;
-}
-
-.award-bonus-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  color: #ffffff;
-  border: none;
-  padding: 14px 20px;
-  border-radius: 14px;
-  font-size: 0.95rem;
-  font-weight: 800;
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.award-bonus-btn:active {
-  transform: scale(0.98);
-}
-
-.btn-icon {
-  font-size: 1.2rem;
-}
-
 /* Category Filter Chips */
 .category-chips-scroll {
   display: flex;
@@ -1347,8 +1070,6 @@ onUnmounted(() => {
   padding: 4px 10px;
   border-radius: 12px;
   font-weight: 900;
-  margin-left: auto;
-  margin-right: 8px;
 }
 
 .plus-sign {
@@ -1362,22 +1083,6 @@ onUnmounted(() => {
 .points-unit {
   font-size: 0.72rem;
   font-weight: 700;
-}
-
-.bonus-delete-btn {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  font-size: 1.15rem;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  transition: color 0.2s ease;
-}
-
-.bonus-delete-btn:hover {
-  color: #ef4444;
 }
 
 .bonus-card-meta {
@@ -1461,21 +1166,6 @@ onUnmounted(() => {
   margin: 0;
   color: #64748b;
   font-size: 0.9rem;
-}
-
-.empty-action-btn {
-  margin-top: 18px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #4f46e5;
-  color: #ffffff;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
 }
 
 /* Subjects Section */
@@ -1831,213 +1521,6 @@ onUnmounted(() => {
 .summary-detail-sub {
   color: #64748b;
   font-size: 0.78rem;
-}
-
-/* ========================================================
-   MODAL STYLES
-   ======================================================== */
-.modal-wrapper-custom {
-  background: #ffffff;
-  border-radius: 20px 20px 0 0;
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 20px;
-}
-
-.modal-header-custom {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.modal-header-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.modal-icon-badge {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: #eef2ff;
-  color: #4f46e5;
-  font-size: 1.4rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-title {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.modal-subtitle {
-  margin: 2px 0 0 0;
-  font-size: 0.78rem;
-  color: #64748b;
-}
-
-.modal-close-btn {
-  background: #f1f5f9;
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  color: #64748b;
-  cursor: pointer;
-}
-
-.modal-body-custom {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-row-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.form-label {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #334155;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.category-picker-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.cat-picker-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #475569;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.cat-picker-btn.selected {
-  background: #eef2ff;
-  border-color: #4f46e5;
-  color: #4f46e5;
-}
-
-.points-picker-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.points-quick-pill {
-  flex: 1;
-  min-width: 55px;
-  padding: 8px 10px;
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 10px;
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: #334155;
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.2s ease;
-}
-
-.points-quick-pill.selected {
-  background: #10b981;
-  border-color: #10b981;
-  color: #ffffff;
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
-}
-
-.custom-select, .custom-input, .custom-textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #e2e8f0;
-  background: #f8fafc;
-  font-size: 0.9rem;
-  color: #0f172a;
-  font-weight: 600;
-  outline: none;
-  font-family: inherit;
-}
-
-.custom-select:focus, .custom-input:focus, .custom-textarea:focus {
-  border-color: #4f46e5;
-  background: #ffffff;
-}
-
-.modal-footer-custom {
-  display: flex;
-  gap: 12px;
-  margin-top: 20px;
-  padding-top: 14px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.btn-cancel {
-  flex: 1;
-  padding: 12px;
-  border-radius: 12px;
-  background: #f1f5f9;
-  color: #475569;
-  border: none;
-  font-weight: 700;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.btn-submit {
-  flex: 2;
-  padding: 12px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  color: #ffffff;
-  border: none;
-  font-weight: 800;
-  font-size: 0.9rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-spinner {
-  width: 20px;
-  height: 20px;
 }
 
 /* Grade Classes */
