@@ -31,6 +31,9 @@ with tarfile.open(bundle_name, "w:gz") as tar:
     if os.path.exists("server/vapid_keys.json"):
         tar.add("server/vapid_keys.json", arcname="server/vapid_keys.json")
         print("  Added server/vapid_keys.json")
+    if os.path.exists("school_mobile_v2"):
+        tar.add("school_mobile_v2", arcname="school_mobile_v2", filter=exclude_git)
+        print("  Added school_mobile_v2/")
 
 print(f"Bundle {bundle_name} created successfully. Size: {os.path.getsize(bundle_name)} bytes.")
 
@@ -58,7 +61,16 @@ echo "=== 1. Extracting bundle into /root/School_Mobile ==="
 mkdir -p /root/School_Mobile
 tar -xzf /root/deploy_bundle.tar.gz -C /root/School_Mobile/
 
-echo "=== 2. Verifying .env configuration ==="
+echo "=== 2. Updating Odoo Addon school_mobile_v2 ==="
+if [ -d "/root/School_Mobile/school_mobile_v2" ]; then
+    mkdir -p /opt/odoo19/odoo/addons/school_mobile_v2
+    cp -r /root/School_Mobile/school_mobile_v2/* /opt/odoo19/odoo/addons/school_mobile_v2/
+    chown -R odoo19:odoo19 /opt/odoo19/odoo/addons/school_mobile_v2/
+    su - odoo19 -s /bin/bash -c "/opt/odoo19/venv/bin/python3 /opt/odoo19/odoo/odoo-bin -c /etc/odoo19.conf -u school_mobile_v2 -d alibdaealamia --stop-after-init" || true
+    systemctl restart odoo19.service || true
+fi
+
+echo "=== 3. Verifying .env configuration ==="
 cat << 'EOF' > /root/School_Mobile/.env
 ODOO_URL=http://68.183.19.16:8069
 ODOO_DB=alibdaealamia
@@ -70,15 +82,15 @@ EOF
 
 cp /root/School_Mobile/.env /root/School_Mobile/server/.env
 
-echo "=== 3. Ensuring dependencies in server ==="
+echo "=== 4. Ensuring dependencies in server ==="
 cd /root/School_Mobile/server
 npm install web-push dotenv --save || true
 
-echo "=== 4. Restarting pm2 school-app and Nginx ==="
+echo "=== 5. Restarting pm2 school-app and Nginx ==="
 pm2 restart school-app || pm2 start /root/School_Mobile/server/index.js --name school-app
 systemctl reload nginx
 
-echo "=== 5. Verification ==="
+echo "=== 6. Verification ==="
 pm2 list
 ls -ld /root/School_Mobile/dist
 echo "DEPLOYMENT COMPLETE!"

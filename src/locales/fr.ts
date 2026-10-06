@@ -223,5 +223,27 @@ export const fr: any = {
     adminRejectTitle: "Refuser le rendez-vous",
     adminRejectDesc: "Indiquez le motif du refus (sera communiqué au parent) :",
     adminReasonPlaceholder: "Ex: Direction indisponible, réunion pédagogique..."
+  },
+  suivi: {
+    title: "Suivi Pédagogique",
+    subtitle: "Progression scolaire et comportement en classe",
+    loading: "Chargement du suivi pédagogique...",
+    behaviourTitle: "Comportement & Assiduité",
+    behaviourDesc: "Évaluation continue du comportement et de la participation",
+    participation: "Participation active en classe",
+    rules: "Respect des règles & discipline",
+    groupWork: "Travail en équipe & entraide",
+    punctuality: "Ponctualité & assiduité",
+    care: "Soin du travail & du matériel",
+    progressTitle: "Progression par Matière",
+    progressDesc: "Moyennes actuelles et évolution par discipline",
+    emptyProgress: "Aucune note disponible pour le moment.",
+    commentsTitle: "Remarques & Appréciations des Enseignants",
+    commentsDesc: "Conseils pédagogiques et observations des professeurs",
+    emptyComments: "Aucun commentaire pédagogique récent pour cet élève.",
+    positive: "Très satisfaisant",
+    negative: "À surveiller / À améliorer",
+    neutral: "Régulier",
+    points: "pts"
   }
 };
