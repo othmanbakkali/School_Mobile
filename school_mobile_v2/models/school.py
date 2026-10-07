@@ -410,6 +410,8 @@ class SchoolStudent(models.Model):
     use_wallet = fields.Boolean(string='Utiliser Portefeuille', default=True)
     has_wallet = fields.Boolean(string='Possède un Portefeuille', default=True)
     wallet_transaction_ids = fields.One2many('school.wallet.transaction', 'student_id', string='Transactions Portefeuille')
+    ludic_points = fields.Integer(string='Points XP / Réussite', default=100)
+    revision_submission_ids = fields.One2many('school.revision.submission', 'student_id', string='Activités Réussite Réalisées')
 
     @api.depends('wallet_transaction_ids.amount', 'wallet_transaction_ids.type')
     def _compute_wallet_balance(self):
@@ -2328,5 +2330,101 @@ class SchoolAppointment(models.Model):
     def action_reset_pending(self):
         for rec in self:
             rec.state = 'pending'
+
+
+class SchoolRevision(models.Model):
+    _name = 'school.revision'
+    _description = 'Espace Réussite - Révisions & Défis'
+    _order = 'create_date desc, id desc'
+
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    def _default_teacher_id(self):
+        teacher = self.env['school.teacher'].search([
+            '|', ('user_id', '=', self.env.uid), ('employee_id.user_id', '=', self.env.uid)
+        ], limit=1)
+        return teacher.id if teacher else False
+
+    name = fields.Char(string='Titre de l\'activité / Défi', required=True)
+    activity_type = fields.Selection([
+        ('revision', 'Fiche de Révision & Quiz'),
+        ('daily_challenge', '⚡ Défi Journalier'),
+    ], string="Type d'activité", default='revision', required=True)
+    subject_id = fields.Many2one('school.subject', string='Matière', required=True)
+    level_ids = fields.Many2many('school.level', string='Niveaux / Classes ciblés')
+    teacher_id = fields.Many2one('school.teacher', string='Enseignant / Professeur', default=_default_teacher_id)
+    challenge_date = fields.Date(string='Date du Défi', default=fields.Date.today)
+    difficulty = fields.Selection([
+        ('easy', 'Facile (+15 XP)'),
+        ('medium', 'Moyen (+30 XP)'),
+        ('hard', 'Avancé (+50 XP)'),
+    ], string='Difficulté', default='medium', required=True)
+    xp_reward = fields.Integer(string='Gain de Points XP', default=30)
+    description = fields.Text(string='Consignes & Objectifs pédagogiques')
+    state = fields.Selection([
+        ('draft', 'Brouillon'),
+        ('published', 'Publié aux Élèves'),
+        ('archived', 'Archivé'),
+    ], string='Statut', default='published', required=True)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id)
+    question_ids = fields.One2many('school.revision.question', 'revision_id', string='Questions & Épreuves')
+    submission_ids = fields.One2many('school.revision.submission', 'revision_id', string='Participations des Élèves')
+    question_count = fields.Integer(string='Nb Questions', compute='_compute_counts')
+    submission_count = fields.Integer(string='Nb Participations', compute='_compute_counts')
+
+    def _compute_counts(self):
+        for rec in self:
+            rec.question_count = len(rec.question_ids)
+            rec.submission_count = len(rec.submission_ids)
+
+    def action_publish(self):
+        self.write({'state': 'published'})
+
+    def action_draft(self):
+        self.write({'state': 'draft'})
+
+    def action_archive(self):
+        self.write({'state': 'archived'})
+
+
+class SchoolRevisionQuestion(models.Model):
+    _name = 'school.revision.question'
+    _description = 'Question de Révision / Défi'
+    _order = 'sequence, id'
+
+    revision_id = fields.Many2one('school.revision', string='Révision / Défi', required=True, ondelete='cascade')
+    sequence = fields.Integer(string='Ordre', default=10)
+    question = fields.Text(string='Question / Énoncé', required=True)
+    option_a = fields.Char(string='Option A', required=True)
+    option_b = fields.Char(string='Option B', required=True)
+    option_c = fields.Char(string='Option C')
+    option_d = fields.Char(string='Option D')
+    correct_option = fields.Selection([
+        ('A', 'Option A'),
+        ('B', 'Option B'),
+        ('C', 'Option C'),
+        ('D', 'Option D'),
+    ], string='Bonne Réponse', default='A', required=True)
+    explanation = fields.Text(string='Explication Pédagogique (Correction affichée à l\'élève)')
+    xp_points = fields.Integer(string='Points par bonne réponse', default=5)
+
+
+class SchoolRevisionSubmission(models.Model):
+    _name = 'school.revision.submission'
+    _description = 'Résultats & Évaluations Élèves'
+    _order = 'date desc, id desc'
+
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade')
+    revision_id = fields.Many2one('school.revision', string='Activité / Défi', required=True, ondelete='cascade')
+    subject_id = fields.Many2one('school.subject', related='revision_id.subject_id', string='Matière', store=True, readonly=True)
+    activity_type = fields.Selection(related='revision_id.activity_type', string="Type d'activité", store=True, readonly=True)
+    date = fields.Datetime(string='Date & Heure', default=fields.Datetime.now, required=True)
+    score = fields.Float(string='Score Obtenu (%)', default=0.0)
+    correct_count = fields.Integer(string='Bonnes Réponses', default=0)
+    total_questions = fields.Integer(string='Total Questions', default=0)
+    xp_earned = fields.Integer(string='Points XP Gagnés', default=0)
+    answers_summary = fields.Text(string='Détail des Réponses')
 
 

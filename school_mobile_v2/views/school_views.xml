@@ -203,6 +203,43 @@
         </field>
     </record>
 
+    <record id="action_school_revision" model="ir.actions.act_window">
+        <field name="name">📚 Espace Réussite - Révisions</field>
+        <field name="res_model">school.revision</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('activity_type', '=', 'revision')]</field>
+        <field name="context">{'default_activity_type': 'revision'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Créez une fiche de révision interactive avec des questions/quiz par matière pour vos élèves.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_school_daily_challenge" model="ir.actions.act_window">
+        <field name="name">⚡ Défis Journaliers</field>
+        <field name="res_model">school.revision</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('activity_type', '=', 'daily_challenge')]</field>
+        <field name="context">{'default_activity_type': 'daily_challenge'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Créez des défis quotidiens pour stimuler l'apprentissage et faire gagner des points XP aux élèves !
+            </p>
+        </field>
+    </record>
+
+    <record id="action_school_revision_submission" model="ir.actions.act_window">
+        <field name="name">🏆 Résultats &amp; Scores des Élèves</field>
+        <field name="res_model">school.revision.submission</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Consultez les résultats, scores et points XP gagnés par les élèves aux révisions et défis.
+            </p>
+        </field>
+    </record>
+
     <!-- MENUS -->
     <!-- Menu Racine -->
     <menuitem id="menu_mobile_v2_root" 
@@ -300,8 +337,29 @@
               name="Devoirs" 
               parent="menu_mobile_v2_root" 
               action="action_homework_v2" 
-              groups="group_school_teacher"
+              groups="group_school_teacher" 
               sequence="65"/>
+
+    <menuitem id="menu_mobile_v2_revision" 
+              name="📚 Révisions par Matière" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_revision" 
+              groups="group_school_teacher" 
+              sequence="66"/>
+
+    <menuitem id="menu_mobile_v2_daily_challenge" 
+              name="⚡ Défis Journaliers" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_daily_challenge" 
+              groups="group_school_teacher" 
+              sequence="67"/>
+
+    <menuitem id="menu_mobile_v2_revision_submission" 
+              name="🏆 Résultats &amp; Scores Élèves" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_revision_submission" 
+              groups="group_school_teacher" 
+              sequence="68"/>
 
     <menuitem id="menu_mobile_v2_announcement" 
               name="Messages" 
@@ -2321,6 +2379,151 @@ records.action_reset_mobile_password()
                 <filter name="group_by_date" string="Date" context="{'group_by': 'date'}"/>
                 <filter name="group_by_type" string="Type" context="{'group_by': 'appointment_type'}"/>
             </search>
+        </field>
+    </record>
+
+    <!-- =================================================== -->
+    <!-- ESPACE RÉUSSITE : RÉVISIONS & DÉFIS                 -->
+    <!-- =================================================== -->
+    <record id="view_school_revision_tree" model="ir.ui.view">
+        <field name="name">school.revision.tree</field>
+        <field name="model">school.revision</field>
+        <field name="arch" type="xml">
+            <list string="Révisions &amp; Défis" decoration-muted="state == 'archived'">
+                <field name="name" string="Titre de l'activité / Défi"/>
+                <field name="activity_type" widget="badge" decoration-info="activity_type == 'revision'" decoration-warning="activity_type == 'daily_challenge'"/>
+                <field name="subject_id" string="Matière"/>
+                <field name="level_ids" widget="many2many_tags" string="Classes"/>
+                <field name="teacher_id" string="Professeur"/>
+                <field name="challenge_date" string="Date" optional="show"/>
+                <field name="difficulty" widget="badge" decoration-success="difficulty == 'easy'" decoration-warning="difficulty == 'medium'" decoration-danger="difficulty == 'hard'"/>
+                <field name="xp_reward" string="Points XP" decoration-bf="1"/>
+                <field name="question_count" string="Nb Questions"/>
+                <field name="submission_count" string="Participations"/>
+                <field name="state" widget="badge" decoration-success="state == 'published'" decoration-muted="state == 'draft'" decoration-danger="state == 'archived'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_revision_form" model="ir.ui.view">
+        <field name="name">school.revision.form</field>
+        <field name="model">school.revision</field>
+        <field name="arch" type="xml">
+            <form string="Révision / Défi Pédagogique">
+                <header>
+                    <button name="action_publish" string="Publier aux Élèves" type="object" class="oe_highlight" invisible="state == 'published'"/>
+                    <button name="action_draft" string="Remettre en Brouillon" type="object" invisible="state == 'draft'"/>
+                    <button name="action_archive" string="Archiver" type="object" invisible="state == 'archived'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,published,archived"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Titre de la Révision ou du Défi"/>
+                        <h1>
+                            <field name="name" placeholder="Ex: Révision Grammaire : Les accords du participe passé..."/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Configuration Pédagogique">
+                            <field name="activity_type" widget="radio" options="{'horizontal': true}"/>
+                            <field name="subject_id" options="{'no_create': True}"/>
+                            <field name="level_ids" widget="many2many_tags" options="{'no_create': True}" placeholder="Toutes les classes ou sélection..."/>
+                            <field name="teacher_id" options="{'no_create': True}"/>
+                        </group>
+                        <group string="Difficulté &amp; Récompenses Ludiques">
+                            <field name="challenge_date" invisible="activity_type != 'daily_challenge'"/>
+                            <field name="difficulty"/>
+                            <field name="xp_reward"/>
+                            <field name="year_id" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Questions du Quiz &amp; Épreuves" name="questions">
+                            <field name="question_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="question" string="Question / Énoncé"/>
+                                    <field name="option_a" string="Option A"/>
+                                    <field name="option_b" string="Option B"/>
+                                    <field name="option_c" string="Option C (Optionnel)"/>
+                                    <field name="option_d" string="Option D (Optionnel)"/>
+                                    <field name="correct_option" widget="badge" string="Bonne Réponse"/>
+                                    <field name="explanation" string="Explication (Correction Élève)"/>
+                                    <field name="xp_points" string="XP" sum="Total XP"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Consignes &amp; Objectifs" name="description">
+                            <field name="description" placeholder="Instructions et objectifs pédagogiques détaillés pour les élèves..."/>
+                        </page>
+                        <page string="Participations des Élèves" name="submissions">
+                            <field name="submission_ids" readonly="1">
+                                <list>
+                                    <field name="date" string="Date"/>
+                                    <field name="student_id" string="Élève"/>
+                                    <field name="correct_count" string="Bonnes Réponses"/>
+                                    <field name="total_questions" string="Total Questions"/>
+                                    <field name="score" string="Score (%)" widget="progressbar"/>
+                                    <field name="xp_earned" string="XP Gagnés" decoration-bf="1" decoration-success="xp_earned &gt; 0"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- VUES SOUMISSIONS & RÉSULTATS ÉLÈVES -->
+    <record id="view_school_revision_submission_tree" model="ir.ui.view">
+        <field name="name">school.revision.submission.tree</field>
+        <field name="model">school.revision.submission</field>
+        <field name="arch" type="xml">
+            <list string="Résultats des Élèves" create="false" edit="false">
+                <field name="date" string="Date &amp; Heure"/>
+                <field name="student_id" string="Élève"/>
+                <field name="revision_id" string="Activité / Défi"/>
+                <field name="subject_id" string="Matière"/>
+                <field name="activity_type" widget="badge"/>
+                <field name="correct_count" string="Bonnes Réponses"/>
+                <field name="total_questions" string="Questions"/>
+                <field name="score" string="Score (%)" decoration-bf="1" decoration-success="score &gt;= 70" decoration-warning="score &gt;= 50 and score &lt; 70" decoration-danger="score &lt; 50"/>
+                <field name="xp_earned" string="XP Gagnés" decoration-bf="1" decoration-success="xp_earned &gt; 0"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_revision_submission_form" model="ir.ui.view">
+        <field name="name">school.revision.submission.form</field>
+        <field name="model">school.revision.submission</field>
+        <field name="arch" type="xml">
+            <form string="Résultat Élève" create="false" edit="false">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="student_id" string="Élève"/>
+                        <h1>
+                            <field name="student_id" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Détails de l'Activité">
+                            <field name="revision_id" readonly="1"/>
+                            <field name="subject_id" readonly="1"/>
+                            <field name="activity_type" readonly="1"/>
+                        </group>
+                        <group string="Score &amp; Points Ludiques">
+                            <field name="date" readonly="1"/>
+                            <field name="correct_count" readonly="1"/>
+                            <field name="total_questions" readonly="1"/>
+                            <field name="score" readonly="1" widget="progressbar"/>
+                            <field name="xp_earned" readonly="1" decoration-bf="1" decoration-success="xp_earned &gt; 0"/>
+                        </group>
+                    </group>
+                    <separator string="Détail des Réponses et Évaluation"/>
+                    <field name="answers_summary" readonly="1"/>
+                </sheet>
+            </form>
         </field>
     </record>
 

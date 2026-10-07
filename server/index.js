@@ -990,7 +990,7 @@ app.post('/api/school/student', async (req, res) => {
             domain = [['parent_id.email', '=ilike', cleanEmail]];
         }
 
-        const studentFields = ['name', 'full_name', 'display_name', 'massar_number', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id'];
+        const studentFields = ['name', 'full_name', 'display_name', 'massar_number', 'level_id', 'parent_id', 'average_grade', 'photo', 'wallet_balance', 'transport_id', 'ludic_points'];
 
         let result = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read', 
@@ -3662,6 +3662,478 @@ app.post('/api/school/parent/update', async (req, res) => {
         res.json({ success: true, updated });
     } catch (error) {
         console.error('Erreur /api/school/parent/update:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// =========================================================================
+// Espace Réussite & Défis Ludiques (school.revision, school.revision.question, school.revision.submission)
+// =========================================================================
+
+// 1. Liste des Révisions par Matière (Créées & Publiées par les Professeurs dans Odoo)
+app.post('/api/school/revisions', async (req, res) => {
+    const { student_id, level_id, subject_id, activity_type = 'revision' } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const domain = [
+            ['activity_type', '=', activity_type],
+            ['state', '=', 'published']
+        ];
+
+        if (subject_id) {
+            domain.push(['subject_id', '=', parseInt(subject_id)]);
+        }
+
+        const revisions = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.revision', 'search_read',
+            [domain],
+            {
+                fields: [
+                    'id', 'name', 'activity_type', 'subject_id', 'level_ids',
+                    'teacher_id', 'difficulty', 'xp_reward', 'description',
+                    'challenge_date', 'question_ids'
+                ],
+                order: 'id desc'
+            }
+        ]);
+
+        if (!Array.isArray(revisions) || revisions.length === 0) {
+            return res.json({ success: true, revisions: [], subjects: [] });
+        }
+
+        // Filtrage par niveau si spécifié (si la révision a des niveaux définis et que le niveau de l'élève n'y figure pas)
+        let filteredRevisions = revisions;
+        const parsedLevelId = level_id ? parseInt(level_id) : null;
+        if (parsedLevelId) {
+            filteredRevisions = revisions.filter(r => {
+                if (!r.level_ids || r.level_ids.length === 0) return true; // Ouvert à tous
+                return r.level_ids.includes(parsedLevelId);
+            });
+        }
+
+        // Récupérer toutes les questions pour ces révisions
+        const allQuestionIds = [];
+        filteredRevisions.forEach(r => {
+            if (Array.isArray(r.question_ids)) {
+                r.question_ids.forEach(qid => allQuestionIds.push(qid));
+            }
+        });
+
+        let questionsMap = new Map();
+        if (allQuestionIds.length > 0) {
+            const questions = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.revision.question', 'search_read',
+                [[['id', 'in', allQuestionIds]]],
+                {
+                    fields: [
+                        'id', 'revision_id', 'sequence', 'question',
+                        'option_a', 'option_b', 'option_c', 'option_d',
+                        'xp_points'
+                    ],
+                    order: 'sequence asc, id asc'
+                }
+            ]);
+            if (Array.isArray(questions)) {
+                questions.forEach(q => {
+                    const revId = q.revision_id ? q.revision_id[0] : null;
+                    if (revId) {
+                        if (!questionsMap.has(revId)) questionsMap.set(revId, []);
+                        questionsMap.get(revId).push(q);
+                    }
+                });
+            }
+        }
+
+        // Récupérer l'historique des soumissions de l'élève pour marquer les révisions complétées
+        let submissionsMap = new Map();
+        const parsedStudentId = student_id ? parseInt(student_id) : null;
+        if (parsedStudentId) {
+            const revIds = filteredRevisions.map(r => r.id);
+            if (revIds.length > 0) {
+                const subs = await callOdoo('object', 'execute_kw', [
+                    ODOO_DB, adminUid, ADMIN_PASS, 'school.revision.submission', 'search_read',
+                    [[['student_id', '=', parsedStudentId], ['revision_id', 'in', revIds]]],
+                    { fields: ['revision_id', 'score', 'xp_earned', 'date'], order: 'score desc, id desc' }
+                ]);
+                if (Array.isArray(subs)) {
+                    subs.forEach(s => {
+                        const revId = s.revision_id ? s.revision_id[0] : null;
+                        if (revId && (!submissionsMap.has(revId) || submissionsMap.get(revId).score < s.score)) {
+                            submissionsMap.set(revId, s);
+                        }
+                    });
+                }
+            }
+        }
+
+        // Assembler les révisions avec leurs questions et statut
+        const resultRevisions = filteredRevisions.map(r => {
+            const revQuestions = questionsMap.get(r.id) || [];
+            const sub = submissionsMap.get(r.id);
+            return {
+                ...r,
+                questions_count: revQuestions.length,
+                questions: revQuestions,
+                is_completed: !!sub,
+                best_score: sub ? sub.score : null,
+                xp_earned: sub ? sub.xp_earned : null,
+                last_completed_at: sub ? sub.date : null
+            };
+        });
+
+        // Extraire la liste unique des matières disponibles
+        const subjectsMap = new Map();
+        resultRevisions.forEach(r => {
+            if (r.subject_id) {
+                const subId = r.subject_id[0];
+                const subName = r.subject_id[1];
+                if (!subjectsMap.has(subId)) {
+                    subjectsMap.set(subId, { id: subId, name: subName, count: 0 });
+                }
+                subjectsMap.get(subId).count++;
+            }
+        });
+
+        res.json({
+            success: true,
+            revisions: resultRevisions,
+            subjects: Array.from(subjectsMap.values())
+        });
+    } catch (error) {
+        console.error('Erreur /api/school/revisions:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 2. Liste des Défis Journaliers (activity_type = 'daily_challenge')
+app.post('/api/school/daily-challenges', async (req, res) => {
+    const { student_id, level_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const challenges = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.revision', 'search_read',
+            [[['activity_type', '=', 'daily_challenge'], ['state', '=', 'published']]],
+            {
+                fields: [
+                    'id', 'name', 'activity_type', 'subject_id', 'level_ids',
+                    'teacher_id', 'difficulty', 'xp_reward', 'description',
+                    'challenge_date', 'question_ids'
+                ],
+                order: 'challenge_date desc, id desc'
+            }
+        ]);
+
+        if (!Array.isArray(challenges) || challenges.length === 0) {
+            return res.json({ success: true, challenges: [] });
+        }
+
+        // Filtrer par niveau si spécifié
+        let filtered = challenges;
+        const parsedLevelId = level_id ? parseInt(level_id) : null;
+        if (parsedLevelId) {
+            filtered = challenges.filter(c => {
+                if (!c.level_ids || c.level_ids.length === 0) return true;
+                return c.level_ids.includes(parsedLevelId);
+            });
+        }
+
+        // Questions
+        const allQIds = [];
+        filtered.forEach(c => {
+            if (Array.isArray(c.question_ids)) {
+                c.question_ids.forEach(qid => allQIds.push(qid));
+            }
+        });
+
+        let questionsMap = new Map();
+        if (allQIds.length > 0) {
+            const questions = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.revision.question', 'search_read',
+                [[['id', 'in', allQIds]]],
+                {
+                    fields: [
+                        'id', 'revision_id', 'sequence', 'question',
+                        'option_a', 'option_b', 'option_c', 'option_d',
+                        'xp_points'
+                    ],
+                    order: 'sequence asc, id asc'
+                }
+            ]);
+            if (Array.isArray(questions)) {
+                questions.forEach(q => {
+                    const revId = q.revision_id ? q.revision_id[0] : null;
+                    if (revId) {
+                        if (!questionsMap.has(revId)) questionsMap.set(revId, []);
+                        questionsMap.get(revId).push(q);
+                    }
+                });
+            }
+        }
+
+        // Statut de complétion pour l'élève aujourd'hui
+        const parsedStudentId = student_id ? parseInt(student_id) : null;
+        let todayCompletedMap = new Map();
+        if (parsedStudentId && filtered.length > 0) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const chIds = filtered.map(c => c.id);
+            const subs = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.revision.submission', 'search_read',
+                [[['student_id', '=', parsedStudentId], ['revision_id', 'in', chIds], ['date', '=', todayStr]]],
+                { fields: ['revision_id', 'score', 'xp_earned', 'date'] }
+            ]);
+            if (Array.isArray(subs)) {
+                subs.forEach(s => {
+                    const rId = s.revision_id ? s.revision_id[0] : null;
+                    if (rId) todayCompletedMap.set(rId, s);
+                });
+            }
+        }
+
+        const results = filtered.map(c => {
+            const cQuestions = questionsMap.get(c.id) || [];
+            const sub = todayCompletedMap.get(c.id);
+            return {
+                ...c,
+                questions_count: cQuestions.length,
+                questions: cQuestions,
+                completed: !!sub,
+                xp_earned: sub ? sub.xp_earned : null,
+                score: sub ? sub.score : null
+            };
+        });
+
+        res.json({ success: true, challenges: results });
+    } catch (error) {
+        console.error('Erreur /api/school/daily-challenges:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 3. Soumission et Évaluation Automatique du Quiz / Défi avec Gain de Points Ludiques
+app.post('/api/school/revisions/submit', async (req, res) => {
+    const { student_id, revision_id, answers } = req.body;
+    try {
+        const parsedStudentId = parseInt(student_id);
+        const parsedRevisionId = parseInt(revision_id);
+
+        if (!parsedStudentId || !parsedRevisionId) {
+            return res.status(400).json({ success: false, message: "student_id et revision_id sont requis." });
+        }
+
+        const adminUid = await getAdminUid();
+
+        // 1. Charger la révision / défi
+        const revList = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.revision', 'search_read',
+            [[['id', '=', parsedRevisionId]]],
+            { fields: ['id', 'name', 'activity_type', 'subject_id', 'xp_reward', 'question_ids'] }
+        ]);
+
+        if (!Array.isArray(revList) || revList.length === 0) {
+            return res.status(404).json({ success: false, message: "Révision ou défi introuvable." });
+        }
+        const revision = revList[0];
+
+        // 2. Charger les questions avec les bonnes réponses (correct_option) et explications
+        const questionIds = revision.question_ids || [];
+        if (questionIds.length === 0) {
+            return res.status(400).json({ success: false, message: "Cette activité ne contient aucune question." });
+        }
+
+        const questions = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.revision.question', 'search_read',
+            [[['id', 'in', questionIds]]],
+            {
+                fields: [
+                    'id', 'sequence', 'question', 'option_a', 'option_b', 'option_c', 'option_d',
+                    'correct_option', 'explanation', 'xp_points'
+                ],
+                order: 'sequence asc, id asc'
+            }
+        ]);
+
+        // 3. Évaluation automatique
+        const safeAnswers = answers || {};
+        let correctCount = 0;
+        const totalQuestions = questions.length;
+        const corrections = [];
+
+        for (const q of questions) {
+            const userAns = (safeAnswers[q.id] || safeAnswers[String(q.id)] || '').trim().toUpperCase();
+            const correctAns = (q.correct_option || 'A').trim().toUpperCase();
+            const isCorrect = userAns === correctAns;
+
+            if (isCorrect) {
+                correctCount++;
+            }
+
+            corrections.push({
+                question_id: q.id,
+                question: q.question,
+                user_answer: userAns || 'Non répondu',
+                correct_option: correctAns,
+                is_correct: isCorrect,
+                explanation: q.explanation || ''
+            });
+        }
+
+        // Calcul de la note sur 20 et des points XP gagnés
+        const score = totalQuestions > 0 ? Number(((correctCount / totalQuestions) * 20).toFixed(1)) : 0;
+        const baseReward = revision.xp_reward || 30;
+        const xpEarned = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * baseReward) : 0;
+
+        // 4. Enregistrer la soumission dans school.revision.submission
+        const submissionData = {
+            student_id: parsedStudentId,
+            revision_id: parsedRevisionId,
+            subject_id: revision.subject_id ? revision.subject_id[0] : false,
+            activity_type: revision.activity_type || 'revision',
+            date: new Date().toISOString().split('T')[0],
+            score: score,
+            correct_count: correctCount,
+            total_questions: totalQuestions,
+            xp_earned: xpEarned,
+            answers_summary: JSON.stringify(corrections)
+        };
+
+        const subId = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.revision.submission', 'create',
+            [submissionData]
+        ]);
+
+        // 5. Créditer les points ludiques (XP) à l'élève
+        const studentData = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read',
+            [[['id', '=', parsedStudentId]]],
+            { fields: ['id', 'name', 'ludic_points'] }
+        ]);
+
+        let currentXp = 100;
+        if (Array.isArray(studentData) && studentData.length > 0) {
+            currentXp = studentData[0].ludic_points || 0;
+        }
+
+        const newTotalXp = currentXp + xpEarned;
+
+        await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'write',
+            [[parsedStudentId], { ludic_points: newTotalXp }]
+        ]);
+
+        console.log(`🎮 [Espace Réussite] Soumission #${subId} évaluée pour élève #${parsedStudentId} : ${correctCount}/${totalQuestions} correctes (Score: ${score}/20) -> +${xpEarned} XP (Nouveau Total: ${newTotalXp} XP)`);
+
+        res.json({
+            success: true,
+            submission_id: subId,
+            score: score,
+            correct_count: correctCount,
+            total_questions: totalQuestions,
+            xp_earned: xpEarned,
+            total_xp: newTotalXp,
+            corrections: corrections
+        });
+    } catch (error) {
+        console.error('Erreur /api/school/revisions/submit:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 4. Statistiques & Progression Ludique de l'Élève (XP, Badges, Récapitulatif)
+app.post('/api/school/student/ludic-stats', async (req, res) => {
+    const { student_id } = req.body;
+    try {
+        const parsedStudentId = parseInt(student_id);
+        if (!parsedStudentId) {
+            return res.status(400).json({ success: false, message: "student_id requis." });
+        }
+
+        const adminUid = await getAdminUid();
+
+        const students = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'search_read',
+            [[['id', '=', parsedStudentId]]],
+            { fields: ['id', 'name', 'ludic_points', 'level_id'] }
+        ]);
+
+        if (!Array.isArray(students) || students.length === 0) {
+            return res.status(404).json({ success: false, message: "Élève introuvable." });
+        }
+        const st = students[0];
+        const totalXp = st.ludic_points !== undefined ? st.ludic_points : 100;
+
+        // Récupérer l'historique des soumissions
+        const submissions = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.revision.submission', 'search_read',
+            [[['student_id', '=', parsedStudentId]]],
+            {
+                fields: ['id', 'revision_id', 'activity_type', 'subject_id', 'date', 'score', 'xp_earned', 'correct_count', 'total_questions'],
+                order: 'id desc',
+                limit: 20
+            }
+        ]);
+
+        const completedRevisions = new Set();
+        const completedChallenges = new Set();
+        let totalScoreSum = 0;
+
+        if (Array.isArray(submissions)) {
+            submissions.forEach(s => {
+                const rId = s.revision_id ? s.revision_id[0] : null;
+                if (rId) {
+                    if (s.activity_type === 'daily_challenge') completedChallenges.add(rId);
+                    else completedRevisions.add(rId);
+                }
+                totalScoreSum += (s.score || 0);
+            });
+        }
+
+        const avgScore = submissions.length > 0 ? Number((totalScoreSum / submissions.length).toFixed(1)) : null;
+
+        // Calcul du Niveau / Titre selon les points
+        let levelTitle = 'Apprenti Novice';
+        let levelBadge = '🥉';
+        let nextLevelXp = 200;
+        let progressPct = 50;
+
+        if (totalXp >= 1000) {
+            levelTitle = 'Légende de l\'École';
+            levelBadge = '👑';
+            nextLevelXp = 2000;
+            progressPct = Math.min(100, Math.round((totalXp / 2000) * 100));
+        } else if (totalXp >= 500) {
+            levelTitle = 'Champion d\'Or';
+            levelBadge = '🥇';
+            nextLevelXp = 1000;
+            progressPct = Math.min(100, Math.round(((totalXp - 500) / 500) * 100));
+        } else if (totalXp >= 250) {
+            levelTitle = 'Érudit d\'Argent';
+            levelBadge = '🥈';
+            nextLevelXp = 500;
+            progressPct = Math.min(100, Math.round(((totalXp - 250) / 250) * 100));
+        } else if (totalXp >= 100) {
+            levelTitle = 'Explorateur de Bronze';
+            levelBadge = '🥉';
+            nextLevelXp = 250;
+            progressPct = Math.min(100, Math.round(((totalXp - 100) / 150) * 100));
+        }
+
+        res.json({
+            success: true,
+            student_id: parsedStudentId,
+            student_name: st.name,
+            total_xp: totalXp,
+            level_title: levelTitle,
+            level_badge: levelBadge,
+            next_level_xp: nextLevelXp,
+            progress_pct: progressPct,
+            completed_revisions_count: completedRevisions.size,
+            completed_challenges_count: completedChallenges.size,
+            total_quizzes_played: submissions.length,
+            average_score: avgScore,
+            recent_submissions: submissions
+        });
+    } catch (error) {
+        console.error('Erreur /api/school/student/ludic-stats:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
