@@ -6,12 +6,45 @@
           <ion-menu-button color="dark"></ion-menu-button>
         </ion-buttons>
         <ion-title>Emploi du Temps</ion-title>
+        <ion-buttons slot="end">
+          <ion-button 
+            v-if="currentLevelId"
+            class="header-pdf-btn"
+            fill="clear" 
+            :disabled="generatingPdf"
+            @click="downloadSchedulePdf" 
+            title="Télécharger l'emploi du temps officiel en PDF">
+            <ion-spinner v-if="generatingPdf" name="crescent" color="primary" style="width: 20px; height: 20px;"></ion-spinner>
+            <ion-icon v-else slot="icon-only" :icon="documentTextOutline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content class="ion-padding gray-bg">
       <!-- Student Header Badge -->
       <StudentHeaderBadge />
+
+      <!-- Quick Action Card for Formal PDF Schedule -->
+      <div v-if="!loading && currentLevelId" class="pdf-action-banner premium-card">
+        <div class="banner-icon-box">
+          <ion-icon :icon="calendarOutline"></ion-icon>
+        </div>
+        <div class="banner-info">
+          <h3>Emploi du Temps Officiel</h3>
+          <p>{{ currentLevelName || 'Planning de la classe' }}</p>
+        </div>
+        <button 
+          class="pdf-download-action-btn" 
+          :disabled="generatingPdf"
+          @click="downloadSchedulePdf">
+          <ion-spinner v-if="generatingPdf" name="crescent" color="light" style="width: 18px; height: 18px;"></ion-spinner>
+          <template v-else>
+            <ion-icon :icon="downloadOutline"></ion-icon>
+            <span>PDF Officiel</span>
+          </template>
+        </button>
+      </div>
 
       <!-- Loading State -->
       <div v-if="loading" class="loading-center">
@@ -57,18 +90,22 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonIcon, IonSpinner, IonButtons, IonMenuButton
+  IonIcon, IonSpinner, IonButtons, IonMenuButton, IonButton, toastController
 } from '@ionic/vue';
-import { personOutline } from 'ionicons/icons';
+import { personOutline, documentTextOutline, downloadOutline, calendarOutline } from 'ionicons/icons';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
+import { downloadFileFromUrl } from '@/services/fileDownloader';
 import { useRouter } from 'vue-router';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const router = useRouter();
 const schedule = ref<any[]>([]);
 const loading = ref(true);
+const generatingPdf = ref(false);
+const currentLevelId = ref<number | null>(null);
+const currentLevelName = ref<string>('');
 const activeScheduleDay = ref((new Date().getDay() === 0 ? 6 : new Date().getDay() - 1).toString());
 
 const groupedSchedule = computed(() => {
@@ -95,6 +132,37 @@ const formatTime = (floatTime: number) => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
+const downloadSchedulePdf = async () => {
+  if (!currentLevelId.value) {
+    const toast = await toastController.create({
+      message: 'Aucun niveau / classe associé à cet élève.',
+      duration: 2500,
+      color: 'warning',
+      position: 'bottom'
+    });
+    await toast.present();
+    return;
+  }
+
+  generatingPdf.value = true;
+  try {
+    const safeName = (currentLevelName.value || `Niveau_${currentLevelId.value}`).replace(/[\/\\]/g, '_');
+    const fileName = `Emploi_du_Temps_${safeName}.pdf`;
+    await downloadFileFromUrl(`/api/school/schedule/download/${currentLevelId.value}`, fileName);
+  } catch (error: any) {
+    console.error('Erreur téléchargement emploi du temps PDF:', error);
+    const toast = await toastController.create({
+      message: 'Erreur lors de la génération du PDF.',
+      duration: 2500,
+      color: 'danger',
+      position: 'bottom'
+    });
+    await toast.present();
+  } finally {
+    generatingPdf.value = false;
+  }
+};
+
 const fetchData = async () => {
   const config = odoo.userConfig;
   if (!config) {
@@ -109,6 +177,8 @@ const fetchData = async () => {
       const selectedId = odoo.selectedStudentId;
       const student = students.find((s: any) => s.id === selectedId) || students[0];
       const levelId = student.level_id?.[0];
+      currentLevelId.value = levelId || null;
+      currentLevelName.value = student.level_id?.[1] || '';
       
       if (levelId) {
         schedule.value = await odoo.getSchedule(levelId);
@@ -205,5 +275,78 @@ onUnmounted(() => {
   border-color: #6366f1;
   box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
   transform: translateY(-2px);
+}
+
+/* PDF Action Banner */
+.pdf-action-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #fdf4ff 100%);
+  border: 1.5px solid #f0abfc;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(217, 70, 239, 0.08);
+}
+.banner-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #a21caf 0%, #701a75 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(112, 26, 117, 0.25);
+}
+.banner-info {
+  flex: 1;
+  min-width: 0;
+}
+.banner-info h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+.banner-info p {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #701a75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pdf-download-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #a21caf 0%, #701a75 100%);
+  color: white;
+  border: none;
+  outline: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(112, 26, 117, 0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+.pdf-download-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(112, 26, 117, 0.4);
+}
+.pdf-download-action-btn:active {
+  transform: scale(0.96);
+}
+.header-pdf-btn ion-icon {
+  font-size: 1.4rem;
+  color: #701a75;
 }
 </style>

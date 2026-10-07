@@ -2687,6 +2687,47 @@ app.post('/api/school/schedule', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
+// Téléchargement / Consultation PDF de l'Emploi du Temps officiel par Niveau / Classe
+app.get(['/api/school/schedule/pdf/:level_id', '/api/school/schedule/download/:level_id', '/api/school/schedule/view/:level_id'], async (req, res) => {
+    const levelId = parseInt(req.params.level_id);
+    const isDownload = req.path.includes('/download') || req.query.download === '1';
+    if (!levelId) return res.status(400).send('ID de niveau invalide');
+    try {
+        const adminUid = await getAdminUid();
+        // Récupérer les informations du niveau
+        const levels = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.level', 'read',
+            [[levelId]],
+            { fields: ['id', 'name'] }
+        ]);
+
+        if (!levels || levels.length === 0) {
+            return res.status(404).send('Niveau / Classe introuvable');
+        }
+
+        const levelName = (levels[0].name || `Classe_${levelId}`).replace(/[^a-zA-Z0-9_\u0600-\u06FF-]/g, '_');
+
+        const base64Pdf = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.level', 'get_schedule_pdf',
+            [[levelId]]
+        ]);
+
+        if (!base64Pdf) {
+            return res.status(404).send("Impossible de générer l'emploi du temps PDF");
+        }
+
+        const pdfBuffer = Buffer.from(base64Pdf, 'base64');
+        const disposition = isDownload ? 'attachment' : 'inline';
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `${disposition}; filename="Emploi_du_Temps_${encodeURIComponent(levelName)}.pdf"`);
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Type, Content-Length');
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Erreur génération emploi du temps PDF:', error);
+        res.status(500).send(`Erreur lors de la génération de l'emploi du temps PDF: ${error.message}`);
+    }
+});
+
 app.post('/api/school/announcements', async (req, res) => {
     const { level_id } = req.body;
     try {

@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Paper Format for Schedule (A4 Landscape) -->
+        <record id="paperformat_school_level_schedule" model="report.paperformat">
+            <field name="name">Format Emploi du Temps A4 Paysage</field>
+            <field name="default" eval="True"/>
+            <field name="format">A4</field>
+            <field name="page_width">0</field>
+            <field name="page_height">0</field>
+            <field name="margin_top">6</field>
+            <field name="margin_bottom">6</field>
+            <field name="margin_left">8</field>
+            <field name="margin_right">8</field>
+            <field name="header_spacing">4</field>
+            <field name="orientation">Landscape</field>
+            <field name="header_line" eval="False"/>
+            <field name="dpi">96</field>
+        </record>
+
+        <!-- Report Action -->
+        <record id="action_report_school_level_schedule" model="ir.actions.report">
+            <field name="name">Emploi du Temps Officiel</field>
+            <field name="model">school.level</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">school_mobile_v2.report_school_level_schedule_template</field>
+            <field name="report_file">school_mobile_v2.report_school_level_schedule_template</field>
+            <field name="print_report_name">'Emploi_du_Temps_%s' % ((object.name or 'Classe').replace(' ', '_'))</field>
+            <field name="paperformat_id" ref="paperformat_school_level_schedule"/>
+            <field name="binding_model_id" ref="model_school_level"/>
+            <field name="binding_type">report</field>
+        </record>
+
+        <!-- Main Template for Level Timetable -->
+        <template id="report_school_level_schedule_template">
+            <t t-call="web.html_container">
+                <t t-foreach="docs" t-as="doc">
+                    <t t-set="data" t-value="doc.get_schedule_data()"/>
+                    <div class="page" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; background: #ffffff; padding: 4px 6px; box-sizing: border-box;">
+                        
+                        <!-- Main Outer Card -->
+                        <div style="border: 2px solid #5c2d54; border-radius: 10px; padding: 10px 14px; background: #ffffff;">
+                            
+                            <!-- Top Header -->
+                            <table style="width: 100%; border-bottom: 2px solid #5c2d54; padding-bottom: 6px; margin-bottom: 8px; border-collapse: collapse;">
+                                <tr>
+                                    <!-- School Logo -->
+                                    <td style="width: 18%; vertical-align: middle;">
+                                        <t t-if="res_company.logo">
+                                            <img t-att-src="image_data_uri(res_company.logo)" style="max-height: 46px; max-width: 120px;" alt="Logo"/>
+                                        </t>
+                                        <t t-else="">
+                                            <div style="font-size: 16px; font-weight: bold; color: #5c2d54;">AL IBDAE</div>
+                                        </t>
+                                    </td>
+
+                                    <!-- School Identification & Title -->
+                                    <td style="width: 58%; text-align: center; vertical-align: middle;">
+                                        <div style="font-size: 14px; font-weight: 800; color: #5c2d54; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            Groupe Scolaire Al Ibdae Al Alamiya
+                                        </div>
+                                        <div style="font-size: 13px; font-weight: bold; color: #334155; margin-top: 1px; direction: rtl;">
+                                            مجموعة مدارس الإبداع العالمية
+                                        </div>
+                                        <div style="font-size: 11px; font-weight: 700; color: #701a75; margin-top: 2px; text-transform: uppercase;">
+                                            EMPLOI DU TEMPS OFFICIEL / استعمال الزمن الأسبوعي
+                                        </div>
+                                    </td>
+
+                                    <!-- Class & Year Badge -->
+                                    <td style="width: 24%; text-align: right; vertical-align: middle;">
+                                        <div style="background: #fdf2f8; border: 1.5px solid #f472b6; border-radius: 8px; padding: 5px 8px; text-align: center;">
+                                            <div style="font-size: 9px; font-weight: bold; color: #9d174d; text-transform: uppercase;">
+                                                Niveau / Classe
+                                            </div>
+                                            <div style="font-size: 13px; font-weight: 800; color: #831843;">
+                                                <t t-esc="doc.name"/>
+                                            </div>
+                                            <div style="font-size: 9px; font-weight: bold; color: #475569; margin-top: 2px;">
+                                                Année : <strong style="color: #0f172a;"><t t-esc="data['year_name']"/></strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Timetable Grid Table -->
+                            <t t-if="data['grid']">
+                                <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 10px;">
+                                    <thead>
+                                        <tr style="background: linear-gradient(135deg, #5c2d54 0%, #3b1735 100%); color: #ffffff;">
+                                            <th style="width: 13%; padding: 6px 4px; text-align: center; border: 1px solid #5c2d54; font-weight: bold; font-size: 10.5px;">
+                                                HORAIRES
+                                            </th>
+                                            <t t-foreach="data['days']" t-as="d">
+                                                <th style="width: 14.5%; padding: 6px 4px; text-align: center; border: 1px solid #5c2d54; font-weight: bold; font-size: 10.5px;">
+                                                    <div><t t-esc="d[1]"/></div>
+                                                    <div style="font-size: 9.5px; opacity: 0.9; font-weight: normal; direction: rtl;"><t t-esc="d[2]"/></div>
+                                                </th>
+                                            </t>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="data['grid']" t-as="row">
+                                            <tr>
+                                                <!-- Time slot header -->
+                                                <td style="padding: 5px 4px; text-align: center; font-weight: bold; background: #f8fafc; border: 1px solid #cbd5e1; color: #334155;">
+                                                    <div style="font-size: 10px; color: #0f172a;"><t t-esc="row['time_label']"/></div>
+                                                </td>
+
+                                                <!-- Days cells -->
+                                                <t t-foreach="data['days']" t-as="d">
+                                                    <t t-set="lesson" t-value="row['days'].get(d[0])"/>
+                                                    <td style="padding: 4px; border: 1px solid #e2e8f0; vertical-align: middle; text-align: center; height: 38px;">
+                                                        <t t-if="lesson">
+                                                            <div style="background: #fdf4ff; border: 1px solid #f0abfc; border-radius: 6px; padding: 3px 4px; min-height: 30px;">
+                                                                <div style="font-weight: 800; font-size: 10px; color: #701a75; line-height: 1.2;">
+                                                                    <t t-esc="lesson.subject_id.name if lesson.subject_id else (lesson.subject or 'Cours')"/>
+                                                                </div>
+                                                                <t t-if="lesson.sub_subject_id">
+                                                                    <div style="font-size: 8px; color: #9333ea; font-style: italic;">
+                                                                        <t t-esc="lesson.sub_subject_id.name"/>
+                                                                    </div>
+                                                                </t>
+                                                                <t t-if="lesson.teacher_id or lesson.teacher">
+                                                                    <div style="font-size: 8.5px; color: #475569; font-weight: 600; margin-top: 1px;">
+                                                                        <t t-esc="lesson.teacher_id.name if lesson.teacher_id else lesson.teacher"/>
+                                                                    </div>
+                                                                </t>
+                                                            </div>
+                                                        </t>
+                                                        <t t-else="">
+                                                            <div style="color: #cbd5e1; font-size: 8.5px;">—</div>
+                                                        </t>
+                                                    </td>
+                                                </t>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </t>
+                            <t t-else="">
+                                <div style="text-align: center; padding: 40px; color: #64748b; font-size: 12px; border: 1px dashed #cbd5e1; border-radius: 8px; margin-bottom: 10px;">
+                                    Aucun cours planifié pour cette classe pour le moment.
+                                </div>
+                            </t>
+
+                            <!-- Bottom Section: Teachers Legend & Signatures -->
+                            <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
+                                <tr>
+                                    <!-- Teachers List Summary -->
+                                    <td style="width: 60%; vertical-align: top; padding-right: 10px;">
+                                        <div style="font-size: 9px; font-weight: 800; color: #5c2d54; text-transform: uppercase; margin-bottom: 3px;">
+                                            Équipe Pédagogique du Niveau
+                                        </div>
+                                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 6px;">
+                                            <table style="width: 100%; font-size: 8.5px; border-collapse: collapse;">
+                                                <t t-set="t_chunks" t-value="[data['teachers_summary'][i:i+2] for i in range(0, len(data['teachers_summary']), 2)]"/>
+                                                <t t-foreach="t_chunks" t-as="chunk">
+                                                    <tr>
+                                                        <t t-foreach="chunk" t-as="item">
+                                                            <td style="width: 50%; padding: 1.5px 3px;">
+                                                                <span style="font-weight: 700; color: #701a75;"><t t-esc="item['subject']"/> :</span>
+                                                                <span style="color: #334155;"><t t-esc="item['teacher'] or 'Non assigné'"/></span>
+                                                            </td>
+                                                        </t>
+                                                    </tr>
+                                                </t>
+                                            </table>
+                                        </div>
+                                        <div style="font-size: 7.5px; color: #94a3b8; margin-top: 3px; font-style: italic;">
+                                            * Cet emploi du temps est susceptible d'être ajusté par la direction pédagogique selon les impératifs scolaires.
+                                        </div>
+                                    </td>
+
+                                    <!-- Direction Signature Box -->
+                                    <td style="width: 40%; vertical-align: top; text-align: center;">
+                                        <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; background: #fafaf9; height: 58px;">
+                                            <div style="font-size: 9px; font-weight: 800; color: #1e293b; text-transform: uppercase;">
+                                                Cachet &amp; Signature de la Direction
+                                            </div>
+                                            <div style="font-size: 7.5px; color: #64748b; margin-top: 1px;">
+                                                Groupe Scolaire Al Ibdae Al Alamiya
+                                            </div>
+                                            <div style="height: 25px;"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+
+                        </div>
+
+                    </div>
+                </t>
+            </t>
+        </template>
+    </data>
+</odoo>

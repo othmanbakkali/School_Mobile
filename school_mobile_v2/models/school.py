@@ -85,6 +85,81 @@ class SchoolLevel(models.Model):
                 domain.append(('year_id', '=', curr_year_id))
             level.current_student_ids = self.env['school.student'].search(domain)
 
+    @api.model
+    def _format_time(self, float_time):
+        hours = int(float_time or 0)
+        minutes = int(round(((float_time or 0) - hours) * 60))
+        return '%02d:%02d' % (hours, minutes)
+
+    def get_schedule_data(self):
+        """ Retourne les créneaux et la grille d'emploi du temps structurée pour le rapport """
+        self.ensure_one()
+        curr_year = _get_current_year_record(self.env)
+        curr_year_id = _clean_id(curr_year)
+        domain = [('level_id', '=', self.id)]
+        if curr_year_id:
+            domain = ['|', ('year_id', '=', curr_year_id), ('year_id', '=', False)] + domain
+        
+        records = self.env['school.schedule'].search(domain, order='day_of_week, start_time')
+        
+        # Jours
+        days = [
+            ('0', 'Lundi', 'الإثنين'),
+            ('1', 'Mardi', 'الثلاثاء'),
+            ('2', 'Mercredi', 'الأربعاء'),
+            ('3', 'Jeudi', 'الخميس'),
+            ('4', 'Vendredi', 'الجمعة'),
+            ('5', 'Samedi', 'السبت'),
+        ]
+        
+        # Collect distinct time slots
+        time_slots = sorted(list(set((r.start_time, r.end_time) for r in records if r.start_time is not False and r.end_time is not False)), key=lambda x: x[0])
+        
+        # Grid: time_slot -> day_key -> record/None
+        grid = []
+        for start_t, end_t in time_slots:
+            slot_days = {}
+            for d_key, _, _ in days:
+                lesson = records.filtered(lambda r: r.day_of_week == d_key and abs(r.start_time - start_t) < 0.01 and abs(r.end_time - end_t) < 0.01)
+                slot_days[d_key] = lesson[0] if lesson else False
+            grid.append({
+                'start_time': start_t,
+                'end_time': end_t,
+                'time_label': '%s - %s' % (self._format_time(start_t), self._format_time(end_t)),
+                'days': slot_days
+            })
+            
+        # Teachers & subjects summary
+        teachers_summary = []
+        seen_subj = set()
+        for r in records:
+            s_name = r.subject_id.name if r.subject_id else (r.subject or '')
+            t_name = r.teacher_id.name if r.teacher_id else (r.teacher or '')
+            if s_name and (s_name, t_name) not in seen_subj:
+                seen_subj.add((s_name, t_name))
+                teachers_summary.append({'subject': s_name, 'teacher': t_name})
+                
+        return {
+            'days': days,
+            'grid': grid,
+            'records': records,
+            'teachers_summary': teachers_summary,
+            'year_name': curr_year.name if curr_year else '2026-2027'
+        }
+
+    def action_print_schedule(self):
+        self.ensure_one()
+        return self.env.ref('school_mobile_v2.action_report_school_level_schedule').report_action(self)
+
+    def get_schedule_pdf(self):
+        """ Retourne le PDF de l'emploi du temps encodé en base64 pour l'API mobile """
+        self.ensure_one()
+        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
+            'school_mobile_v2.action_report_school_level_schedule', self.ids
+        )
+        import base64
+        return base64.b64encode(pdf_content).decode('utf-8')
+
 
 class SchoolParent(models.Model):
     _name = 'school.parent'

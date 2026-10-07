@@ -15,6 +15,7 @@
         'reports/school_payment_receipt_report.xml',
         'reports/school_wallet_transaction_receipt_report.xml',
         'reports/school_shop_order_reports.xml',
+        'reports/school_level_schedule_report.xml',
         'views/school_views.xml',
         'views/mobile_tab_views.xml',
     ],
