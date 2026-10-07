@@ -499,23 +499,36 @@ class SchoolStudent(models.Model):
 
     def _compute_album_count(self):
         for student in self:
-            student.album_count = self.env['ir.attachment'].search_count([
+            count_photos = self.env['school.album.photo'].search_count([
+                '|', '|',
+                ('student_id', '=', student.id),
+                ('student_ids', 'in', [student.id]),
+                '&', ('level_id', '=', student.level_id.id if student.level_id else False), ('target_type', '=', 'level')
+            ])
+            count_att = self.env['ir.attachment'].search_count([
                 ('res_model', '=', 'school.student'),
                 ('res_id', '=', student.id),
                 ('mimetype', 'ilike', 'image')
             ])
+            student.album_count = count_photos + count_att
 
     def action_view_album(self):
         self.ensure_one()
         return {
-            'name': 'Album Photo',
+            'name': f'Album Photo - {self.name}',
             'type': 'ir.actions.act_window',
-            'res_model': 'ir.attachment',
+            'res_model': 'school.album.photo',
             'view_mode': 'kanban,list,form',
-            'domain': [('res_model', '=', 'school.student'), ('res_id', '=', self.id), ('mimetype', 'ilike', 'image')],
+            'domain': [
+                '|', '|',
+                ('student_id', '=', self.id),
+                ('student_ids', 'in', [self.id]),
+                '&', ('level_id', '=', self.level_id.id if self.level_id else False), ('target_type', '=', 'level')
+            ],
             'context': {
-                'default_res_model': 'school.student',
-                'default_res_id': self.id,
+                'default_student_id': self.id,
+                'default_level_id': self.level_id.id if self.level_id else False,
+                'default_target_type': 'student',
             },
             'target': 'current',
         }
@@ -2647,5 +2660,131 @@ class SchoolRevisionSubmission(models.Model):
     total_questions = fields.Integer(string='Total Questions', default=0)
     xp_earned = fields.Integer(string='Points XP Gagnés', default=0)
     answers_summary = fields.Text(string='Détail des Réponses')
+
+
+class SchoolAlbumPhoto(models.Model):
+    _name = 'school.album.photo'
+    _description = 'Album Photo Scolaire'
+    _order = 'date desc, id desc'
+
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    name = fields.Char(string='Titre / Légende', required=True)
+    image = fields.Binary(string='Photo', required=True, attachment=True)
+    date = fields.Date(string='Date de la photo', default=fields.Date.context_today, required=True)
+    target_type = fields.Selection([
+        ('all', 'Toute l\'école (Public)'),
+        ('level', 'Classe / Niveau spécifique'),
+        ('student', 'Élève(s) spécifique(s)')
+    ], string='Destinataire(s)', default='all', required=True)
+    level_id = fields.Many2one('school.level', string='Classe / Niveau')
+    student_id = fields.Many2one('school.student', string='Élève concerné', domain="[('level_id', '=', level_id)] if level_id else []")
+    student_ids = fields.Many2many('school.student', 'school_album_student_rel', 'photo_id', 'student_id', string='Élèves concernés', domain="[('level_id', '=', level_id)] if level_id else []")
+    description = fields.Text(string='Description / Contexte')
+    author = fields.Char(string='Auteur / Photographe', default='Direction / École')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+    target_display = fields.Char(string='Cible', compute='_compute_target_display', store=True)
+
+    @api.depends('target_type', 'level_id', 'student_id', 'student_ids')
+    def _compute_target_display(self):
+        for rec in self:
+            if rec.target_type == 'student':
+                if rec.student_id:
+                    rec.target_display = f"👤 {rec.student_id.name}"
+                elif rec.student_ids:
+                    if len(rec.student_ids) == 1:
+                        rec.target_display = f"👤 {rec.student_ids[0].name}"
+                    else:
+                        rec.target_display = f"👥 {len(rec.student_ids)} élèves"
+                else:
+                    rec.target_display = "Élève(s)"
+            elif rec.target_type == 'level':
+                rec.target_display = f"🏫 Classe {rec.level_id.name}" if rec.level_id else "Classe"
+            else:
+                rec.target_display = "🌍 Toute l'école"
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+        return super(SchoolAlbumPhoto, self).create(vals_list)
+
+    @api.onchange('target_type')
+    def _onchange_target_type(self):
+        if self.target_type == 'all':
+            self.level_id = False
+            self.student_id = False
+            self.student_ids = self.env['school.student']
+        elif self.target_type == 'level':
+            self.student_id = False
+            self.student_ids = self.env['school.student']
+
+    @api.onchange('level_id')
+    def _onchange_level_id(self):
+        if self.level_id:
+            if self.student_id and self.student_id.level_id != self.level_id:
+                self.student_id = False
+            if self.student_ids:
+                self.student_ids = self.student_ids.filtered(lambda s: s.level_id == self.level_id)
+            return {'domain': {'student_id': [('level_id', '=', self.level_id.id)], 'student_ids': [('level_id', '=', self.level_id.id)]}}
+        return {'domain': {'student_id': [], 'student_ids': []}}
+
+
+class SchoolHoliday(models.Model):
+    _name = 'school.holiday'
+    _description = 'Calendrier Scolaire & Jours Fériés'
+    _order = 'date_start asc, id asc'
+
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    name = fields.Char(string='Intitulé', required=True)
+    type = fields.Selection([
+        ('holiday', 'Jour férié (Fête nationale / religieuse)'),
+        ('vacation', 'Vacances scolaires / Période de repos'),
+        ('pedagogical', 'Journée pédagogique / Événement scolaire')
+    ], string='Type d\'événement', default='holiday', required=True)
+    date_start = fields.Date(string='Date de début', required=True, default=fields.Date.context_today)
+    date_end = fields.Date(string='Date de fin', required=True, default=fields.Date.context_today)
+    duration_days = fields.Integer(string='Durée (Jours)', compute='_compute_duration_days', store=True)
+    description = fields.Text(string='Détails & Informations')
+    level_ids = fields.Many2many('school.level', string='Classes concernées (Optionnel, vide = Toute l\'école)')
+    attachment = fields.Binary(string='Circulaire / Document officiel', attachment=True)
+    attachment_name = fields.Char(string='Nom de la pièce jointe')
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+    active = fields.Boolean(string='Actif', default=True)
+    color = fields.Integer(string='Couleur', default=10)
+
+    @api.depends('date_start', 'date_end')
+    def _compute_duration_days(self):
+        for rec in self:
+            if rec.date_start and rec.date_end:
+                try:
+                    delta = (rec.date_end - rec.date_start).days + 1
+                    rec.duration_days = max(1, delta)
+                except Exception:
+                    rec.duration_days = 1
+            elif rec.date_start or rec.date_end:
+                rec.duration_days = 1
+            else:
+                rec.duration_days = 0
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+        return super(SchoolHoliday, self).create(vals_list)
+
+    @api.onchange('date_start')
+    def _onchange_date_start(self):
+        if self.date_start and (not self.date_end or self.date_end < self.date_start):
+            self.date_end = self.date_start
 
 

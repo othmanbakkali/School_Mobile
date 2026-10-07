@@ -186,6 +186,35 @@
     </record>
 
 
+    <record id="action_school_album_photo" model="ir.actions.act_window">
+        <field name="name">📸 Album Photo &amp; Souvenirs</field>
+        <field name="res_model">school.album.photo</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Ajoutez des photos et souvenirs de classe ou d'événements
+            </p>
+            <p>
+                Ces photos apparaîtront dans l'Album Photo de l'application mobile des élèves et parents concernés.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_school_holiday" model="ir.actions.act_window">
+        <field name="name">🗓️ Calendrier Scolaire &amp; Jours Fériés</field>
+        <field name="res_model">school.holiday</field>
+        <field name="view_mode">list,kanban,calendar,form</field>
+        <field name="context">{'search_default_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Définissez les vacances scolaires et les jours fériés officiels
+            </p>
+            <p>
+                Ces événements sont automatiquement synchronisés dans la section Vacances &amp; Calendrier de l'application mobile.
+            </p>
+        </field>
+    </record>
+
     <record id="action_school_massar_import_wizard" model="ir.actions.act_window">
         <field name="name">Importer Fichier Excel MASSAR</field>
         <field name="res_model">school.massar.import.wizard</field>
@@ -411,12 +440,26 @@
               groups="group_school_teacher"
               sequence="92"/>
 
+    <menuitem id="menu_mobile_v2_album" 
+              name="📸 Album Photo &amp; Galerie" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_album_photo" 
+              groups="group_school_teacher"
+              sequence="92"/>
+
+    <menuitem id="menu_mobile_v2_holiday" 
+              name="🗓️ Calendrier &amp; Jours Fériés" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_holiday" 
+              groups="group_school_teacher"
+              sequence="93"/>
+
     <menuitem id="menu_mobile_v2_regulation" 
               name="📜 Règlement Intérieur &amp; Lois" 
               parent="menu_mobile_v2_root" 
               action="action_school_regulation" 
               groups="group_school_teacher"
-              sequence="93"/>
+              sequence="94"/>
 
     <menuitem id="menu_mobile_v2_contact_info" 
               name="📞 Contacts &amp; Réseaux Sociaux" 
@@ -2723,6 +2766,227 @@ records.action_reset_mobile_password()
                     </group>
                     <separator string="Détail des Réponses et Évaluation"/>
                     <field name="answers_summary" readonly="1"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- =================================================== -->
+    <!-- ALBUM PHOTO & SOUVENIRS VIEWS                       -->
+    <!-- =================================================== -->
+    <record id="view_school_album_photo_tree" model="ir.ui.view">
+        <field name="name">school.album.photo.tree</field>
+        <field name="model">school.album.photo</field>
+        <field name="arch" type="xml">
+            <list string="Photos Album">
+                <field name="image" widget="image" options="{'size': [40, 40]}" string="Aperçu"/>
+                <field name="date"/>
+                <field name="name" string="Titre / Légende"/>
+                <field name="target_display" string="Destinataire"/>
+                <field name="level_id" optional="show"/>
+                <field name="student_id" optional="hide"/>
+                <field name="author" optional="show"/>
+                <field name="year_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_album_photo_kanban" model="ir.ui.view">
+        <field name="name">school.album.photo.kanban</field>
+        <field name="model">school.album.photo</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile" default_group_by="target_type">
+                <field name="id"/>
+                <field name="name"/>
+                <field name="image"/>
+                <field name="date"/>
+                <field name="target_display"/>
+                <field name="target_type"/>
+                <field name="author"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="mb-2 text-center" style="max-height: 160px; overflow: hidden; border-radius: 8px; background: #f1f5f9;">
+                                <field name="image" widget="image" options="{'size': [260, 160]}" class="img-fluid"/>
+                            </div>
+                            <div class="fw-bold fs-6 text-dark mb-1"><field name="name"/></div>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge text-bg-primary"><field name="target_display"/></span>
+                                <span class="text-muted small"><field name="date"/></span>
+                            </div>
+                            <div class="text-muted small text-truncate" t-if="record.author.value">
+                                <i class="fa fa-camera me-1"/> <field name="author"/>
+                            </div>
+                        </div>
+                    </t>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="mb-2 text-center" style="max-height: 160px; overflow: hidden; border-radius: 8px; background: #f1f5f9;">
+                                <field name="image" widget="image" options="{'size': [260, 160]}" class="img-fluid"/>
+                            </div>
+                            <div class="fw-bold fs-6 text-dark mb-1"><field name="name"/></div>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="badge text-bg-primary"><field name="target_display"/></span>
+                                <span class="text-muted small"><field name="date"/></span>
+                            </div>
+                            <div class="text-muted small text-truncate" t-if="record.author.value">
+                                <i class="fa fa-camera me-1"/> <field name="author"/>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_school_album_photo_form" model="ir.ui.view">
+        <field name="name">school.album.photo.form</field>
+        <field name="model">school.album.photo</field>
+        <field name="arch" type="xml">
+            <form string="Photo Album">
+                <sheet>
+                    <div class="d-flex gap-4 align-items-start">
+                        <field name="image" widget="image" class="oe_avatar" options="{'preview_image': 'image', 'size': [150, 150]}"/>
+                        <div class="oe_title flex-grow-1">
+                            <label for="name" string="Titre / Légende de la photo"/>
+                            <h1>
+                                <field name="name" placeholder="Ex: Sortie au musée, Fête de fin d'année, Portrait..."/>
+                            </h1>
+                        </div>
+                    </div>
+                    <group>
+                        <group string="Destinataire &amp; Visibilité">
+                            <field name="target_type" widget="radio" options="{'horizontal': true}"/>
+                            <field name="level_id" invisible="target_type == 'all'" required="target_type in ['level', 'student']" placeholder="Sélectionnez la classe"/>
+                            <field name="student_id" invisible="target_type != 'student'" options="{'no_create': True}" placeholder="👤 Élève spécifique"/>
+                            <field name="student_ids" widget="many2many_tags" invisible="target_type != 'student' or student_id" options="{'no_create': True}" placeholder="👥 Ou plusieurs élèves"/>
+                            <field name="target_display" readonly="1" string="Cible actuelle"/>
+                        </group>
+                        <group string="Date &amp; Photographe">
+                            <field name="date"/>
+                            <field name="author" placeholder="Direction / Professeur..."/>
+                            <field name="year_id" readonly="1" options="{'no_open': True}"/>
+                        </group>
+                    </group>
+                    <separator string="Description / Contexte"/>
+                    <field name="description" placeholder="Ajoutez des détails sur la photo ou l'événement..."/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- =================================================== -->
+    <!-- CALENDRIER SCOLAIRE & JOURS FÉRIÉS VIEWS             -->
+    <!-- =================================================== -->
+    <record id="view_school_holiday_tree" model="ir.ui.view">
+        <field name="name">school.holiday.tree</field>
+        <field name="model">school.holiday</field>
+        <field name="arch" type="xml">
+            <list string="Calendrier &amp; Jours Fériés" decoration-info="type == 'vacation'" decoration-warning="type == 'holiday'" decoration-success="type == 'pedagogical'">
+                <field name="date_start" string="Date Début"/>
+                <field name="date_end" string="Date Fin"/>
+                <field name="duration_days" string="Durée (Jours)"/>
+                <field name="name" string="Intitulé"/>
+                <field name="type" widget="badge" decoration-warning="type == 'holiday'" decoration-info="type == 'vacation'" decoration-success="type == 'pedagogical'"/>
+                <field name="level_ids" widget="many2many_tags" optional="show"/>
+                <field name="attachment_name" string="Pièce Jointe" optional="show"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_holiday_calendar" model="ir.ui.view">
+        <field name="name">school.holiday.calendar</field>
+        <field name="model">school.holiday</field>
+        <field name="arch" type="xml">
+            <calendar string="Calendrier Scolaire &amp; Jours Fériés" date_start="date_start" date_stop="date_end" color="color" mode="month" event_open_popup="true" quick_create="false">
+                <field name="name"/>
+                <field name="type"/>
+                <field name="duration_days"/>
+            </calendar>
+        </field>
+    </record>
+
+    <record id="view_school_holiday_kanban" model="ir.ui.view">
+        <field name="name">school.holiday.kanban</field>
+        <field name="model">school.holiday</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="type" class="o_kanban_mobile">
+                <field name="name"/>
+                <field name="type"/>
+                <field name="date_start"/>
+                <field name="date_end"/>
+                <field name="duration_days"/>
+                <field name="description"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-bold fs-6 text-dark"><field name="name"/></span>
+                                <field name="type" widget="badge" decoration-warning="type == 'holiday'" decoration-info="type == 'vacation'" decoration-success="type == 'pedagogical'"/>
+                            </div>
+                            <div class="text-primary small mb-1">
+                                <i class="fa fa-calendar me-1"/> <field name="date_start"/> <t t-if="record.date_end.raw_value != record.date_start.raw_value"> ➔ <field name="date_end"/></t>
+                                <span class="badge text-bg-light ms-1"><field name="duration_days"/> j</span>
+                            </div>
+                            <div class="text-muted small text-truncate" t-if="record.description.value">
+                                <field name="description"/>
+                            </div>
+                        </div>
+                    </t>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-bold fs-6 text-dark"><field name="name"/></span>
+                                <field name="type" widget="badge" decoration-warning="type == 'holiday'" decoration-info="type == 'vacation'" decoration-success="type == 'pedagogical'"/>
+                            </div>
+                            <div class="text-primary small mb-1">
+                                <i class="fa fa-calendar me-1"/> <field name="date_start"/> <t t-if="record.date_end.raw_value != record.date_start.raw_value"> ➔ <field name="date_end"/></t>
+                                <span class="badge text-bg-light ms-1"><field name="duration_days"/> j</span>
+                            </div>
+                            <div class="text-muted small text-truncate" t-if="record.description.value">
+                                <field name="description"/>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_school_holiday_form" model="ir.ui.view">
+        <field name="name">school.holiday.form</field>
+        <field name="model">school.holiday</field>
+        <field name="arch" type="xml">
+            <form string="Calendrier &amp; Jour Férié">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Intitulé du Jour Férié / Période de Vacances"/>
+                        <h1>
+                            <field name="name" placeholder="Ex: Fête de l'Indépendance, Vacances d'Hiver, Aïd Al Fitr..."/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Période &amp; Type">
+                            <field name="type" widget="radio" options="{'horizontal': true}"/>
+                            <label for="date_start" string="Dates"/>
+                            <div class="d-flex align-items-center gap-2">
+                                <field name="date_start"/>
+                                <span>au</span>
+                                <field name="date_end"/>
+                            </div>
+                            <field name="duration_days" readonly="1" string="Durée calculée (Jours)"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group string="Cible &amp; Document">
+                            <field name="level_ids" widget="many2many_tags" placeholder="Toute l'école (laisser vide) ou classes ciblées"/>
+                            <field name="attachment" filename="attachment_name"/>
+                            <field name="attachment_name" invisible="1"/>
+                            <field name="year_id" readonly="1" options="{'no_open': True}"/>
+                        </group>
+                    </group>
+                    <separator string="Détails &amp; Informations aux Parents"/>
+                    <field name="description" placeholder="Informations complémentaires, rappels ou précisions officielles..."/>
                 </sheet>
             </form>
         </field>

@@ -67,17 +67,22 @@
           </button>
           <button 
             class="seg-btn" 
+            :class="{ active: activeFilter === 'holiday' }"
+            @click="activeFilter = 'holiday'">
+            <span>🇲🇦 {{ t('vacances.filterHolidays', { n: String(holidayCount) }) }}</span>
+          </button>
+          <button 
+            class="seg-btn" 
+            :class="{ active: activeFilter === 'vacation' }"
+            @click="activeFilter = 'vacation'">
+            <span>🏖️ {{ t('vacances.filterVacations', { n: String(vacationCount) }) }}</span>
+          </button>
+          <button 
+            class="seg-btn" 
             :class="{ active: activeFilter === 'all' }"
             @click="activeFilter = 'all'">
             <ion-icon :icon="listOutline"></ion-icon>
             <span>{{ t('vacances.filterAll', { n: String(allCount) }) }}</span>
-          </button>
-          <button 
-            class="seg-btn" 
-            :class="{ active: activeFilter === 'past' }"
-            @click="activeFilter = 'past'">
-            <ion-icon :icon="checkmarkDoneOutline"></ion-icon>
-            <span>{{ t('vacances.filterPast', { n: String(pastCount) }) }}</span>
           </button>
         </div>
 
@@ -99,12 +104,12 @@
             v-for="item in filteredHolidays" 
             :key="item.id" 
             class="holiday-card"
-            :class="item.status">
+            :class="[item.status, item.type || 'holiday']">
             
             <!-- Date block -->
-            <div class="date-block" :class="item.status">
-              <span class="date-day">{{ extractDay(item.date) }}</span>
-              <span class="date-month">{{ extractMonth(item.date) }}</span>
+            <div class="date-block" :class="[item.status, item.type || 'holiday']">
+              <span class="date-day">{{ extractDay(item.date_start || item.date) }}</span>
+              <span class="date-month">{{ extractMonth(item.date_start || item.date) }}</span>
             </div>
 
             <!-- Content block -->
@@ -114,18 +119,25 @@
                   <span class="status-dot"></span>
                   {{ getStatusLabel(item.status) }}
                 </span>
-                <span class="source-tag" :class="item.source">
-                  {{ item.source === 'transmission' ? t('vacances.originTransmission') : t('vacances.originAnnouncement') }}
+                <span class="type-tag" :class="item.type || 'holiday'">
+                  {{ getTypeLabel(item.type) }}
                 </span>
               </div>
 
-              <h3 class="holiday-title">{{ item.title }}</h3>
-              <p class="holiday-text" v-if="item.content">{{ item.content }}</p>
+              <h3 class="holiday-title">{{ item.title || item.name }}</h3>
+              
+              <!-- Date range display -->
+              <div class="date-range-row">
+                <ion-icon :icon="calendarOutline"></ion-icon>
+                <span>{{ formatDateRange(item) }}</span>
+              </div>
+
+              <p class="holiday-text" v-if="item.content || item.description">{{ item.content || item.description }}</p>
 
               <!-- Attachment Section -->
               <div v-if="item.attachment" class="attachment-box" @click.stop="downloadAttachment(item)">
                 <ion-icon :icon="documentAttachOutline"></ion-icon>
-                <span>{{ item.attachment_name || 'Pièce jointe' }}</span>
+                <span>{{ item.attachment_name || 'Circulaire / Document officiel' }}</span>
               </div>
 
               <!-- Footer with duration / countdown -->
@@ -174,7 +186,7 @@ const router = useRouter();
 
 const loading = ref(true);
 const holidays = ref<any[]>([]);
-const activeFilter = ref<'upcoming' | 'all' | 'past'>('upcoming');
+const activeFilter = ref<'upcoming' | 'all' | 'holiday' | 'vacation' | 'past'>('upcoming');
 
 // Robust date parsing (cross-browser / iOS Safari / node / mobile WebView)
 const parseDateSafe = (d: any): number => {
@@ -217,6 +229,23 @@ const formatHolidayDate = (d: string) => {
   });
 };
 
+const formatDateRange = (item: any): string => {
+  const startTs = parseDateSafe(item.date_start || item.date);
+  const endTs = parseDateSafe(item.date_end || item.date);
+  if (!startTs) return '';
+
+  const lang = locale.value === 'ar' ? 'ar-MA' : 'fr-FR';
+  const startStr = new Date(startTs).toLocaleDateString(lang, { day: 'numeric', month: 'long', year: 'numeric' });
+  if (!endTs || startTs === endTs) {
+    return startStr;
+  }
+  const endStr = new Date(endTs).toLocaleDateString(lang, { day: 'numeric', month: 'long', year: 'numeric' });
+  if (locale.value === 'ar') {
+    return `من ${startStr} إلى ${endStr}`;
+  }
+  return `Du ${startStr} au ${endStr}`;
+};
+
 const extractDay = (d: string) => {
   const ts = parseDateSafe(d);
   if (!ts) return '--';
@@ -230,9 +259,19 @@ const extractMonth = (d: string) => {
   return new Date(ts).toLocaleDateString(lang, { month: 'short' }).toUpperCase();
 };
 
-// Extract duration mention if present in title (e.g. "(8 jours)" or "(8 أيام)")
+const getTypeLabel = (type: string) => {
+  if (type === 'holiday') return t('vacances.typeHoliday');
+  if (type === 'vacation') return t('vacances.typeVacation');
+  if (type === 'pedagogical') return t('vacances.typePedagogical');
+  return t('vacances.typeHoliday');
+};
+
+// Extract duration mention if present
 const getDurationBadge = (item: any) => {
-  const text = `${item.title || ''} ${item.content || ''}`;
+  if (item.duration_days) {
+    return `${item.duration_days} ${item.duration_days > 1 ? (locale.value === 'ar' ? 'أيام' : 'jours') : (locale.value === 'ar' ? 'يوم' : 'jour')}`;
+  }
+  const text = `${item.title || ''} ${item.name || ''} ${item.content || ''}`;
   const matchDaysAr = text.match(/(\d+)\s*(?:أيام|ايام|يوم)/);
   if (matchDaysAr) {
     return `${matchDaysAr[1]} ${locale.value === 'ar' ? 'أيام' : 'jours'}`;
@@ -246,7 +285,7 @@ const getDurationBadge = (item: any) => {
 
 // Compute days difference to now
 const getDaysDifference = (item: any): number => {
-  const ts = parseDateSafe(item.date);
+  const ts = parseDateSafe(item.date_start || item.date);
   if (!ts) return 0;
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -280,7 +319,7 @@ const getStatusLabel = (status: string): string => {
 
 const downloadAttachment = (item: any) => {
   if (!item || !item.attachment) return;
-  downloadBase64File(item.attachment, item.attachment_name || 'vacances_info.pdf');
+  downloadBase64File(item.attachment, item.attachment_name || 'calendrier_vacances.pdf');
 };
 
 const fetchData = async () => {
@@ -297,7 +336,15 @@ const fetchData = async () => {
     const student = students.find((s: any) => s.id === selectedId) || students[0];
 
     if (student) {
-      // 1. Fetch transmission entries to extract any vacation messages
+      // 1. Fetch official calendar from /api/school/holidays
+      let officialHolidays: any[] = [];
+      try {
+        officialHolidays = await apiRequest('/api/school/holidays', { student_id: student.id });
+      } catch (e) {
+        console.warn('Erreur chargement /api/school/holidays:', e);
+      }
+
+      // 2. Fetch transmission entries to extract any extra vacation notices
       let transmissionEntries: any[] = [];
       try {
         transmissionEntries = await apiRequest('/api/school/cahier-transmission', { student_id: student.id });
@@ -305,7 +352,7 @@ const fetchData = async () => {
         console.warn('Erreur transmission entries:', e);
       }
 
-      // 2. Fetch announcements (vacation calendar published by school)
+      // 3. Fetch announcements
       let announcementsData: any[] = [];
       try {
         announcementsData = await odoo.getAnnouncements(student.level_id?.[0]);
@@ -313,41 +360,71 @@ const fetchData = async () => {
         console.warn('Erreur announcements:', e);
       }
 
-      // 3. Keep transmission entries that are holiday/vacation notices
+      // Format official holidays
+      const formattedOfficial = (Array.isArray(officialHolidays) ? officialHolidays : []).map(item => ({
+        id: `hol-${item.id}`,
+        title: item.name,
+        name: item.name,
+        type: item.type || 'holiday',
+        date_start: item.date_start,
+        date_end: item.date_end,
+        date: item.date_start,
+        duration_days: item.duration_days,
+        content: item.description,
+        description: item.description,
+        attachment: item.attachment,
+        attachment_name: item.attachment_name,
+        source: 'official'
+      }));
+
+      // Keep transmission entries that are holiday/vacation notices
       const vacTransmissions = (Array.isArray(transmissionEntries) ? transmissionEntries : [])
         .filter(item => isVacanceItem(item))
         .map(item => ({
           ...item,
+          type: 'vacation',
+          date_start: item.date,
+          date_end: item.date,
           source: 'transmission'
         }));
 
-      // 4. Keep announcements that are holiday/vacation notices
+      // Keep announcements that are holiday/vacation notices
       const vacAnnouncements = (Array.isArray(announcementsData) ? announcementsData : [])
         .filter(item => isVacanceItem(item))
         .map(item => ({
           ...item,
+          type: 'vacation',
+          date_start: item.date,
+          date_end: item.date,
           source: 'announcement'
         }));
 
-      // 5. Combine and compute status
-      const combined = [...vacTransmissions, ...vacAnnouncements];
+      // Combine
+      const combined = [...formattedOfficial, ...vacTransmissions, ...vacAnnouncements];
 
-      // Deduplicate by title & date if duplicate exists in both tables
+      // Deduplicate by title & date
       const seen = new Set();
       const uniqueHolidays: any[] = [];
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+
       for (const item of combined) {
-        const key = `${item.title}_${item.date}`;
+        const key = `${item.title || item.name}_${item.date_start || item.date}`;
         if (!seen.has(key)) {
           seen.add(key);
+          const startTs = parseDateSafe(item.date_start || item.date);
+          const endTs = parseDateSafe(item.date_end || item.date) || startTs;
           const diff = getDaysDifference(item);
+          
           let status: 'upcoming' | 'ongoing' | 'past' = 'past';
-          if (diff > 0) {
+          if (startTs > now.getTime()) {
             status = 'upcoming';
-          } else if (diff === 0 || diff >= -1) {
+          } else if (startTs <= now.getTime() && endTs >= now.getTime()) {
             status = 'ongoing';
           } else {
             status = 'past';
           }
+
           uniqueHolidays.push({
             ...item,
             status,
@@ -356,19 +433,16 @@ const fetchData = async () => {
         }
       }
 
-      // Sort: upcoming items chronologically (nearest to now first), then past items descending
+      // Sort: upcoming & ongoing items chronologically first, then past items descending
       uniqueHolidays.sort((a, b) => {
-        const timeA = parseDateSafe(a.date);
-        const timeB = parseDateSafe(b.date);
-        // If both upcoming: ascending order (nearest holiday first)
+        const timeA = parseDateSafe(a.date_start || a.date);
+        const timeB = parseDateSafe(b.date_start || b.date);
         if (a.diff >= 0 && b.diff >= 0) {
           return timeA - timeB;
         }
-        // If both past: descending order (most recently passed first)
         if (a.diff < 0 && b.diff < 0) {
           return timeB - timeA;
         }
-        // Upcoming before past
         return a.diff >= 0 ? -1 : 1;
       });
 
@@ -383,11 +457,13 @@ const fetchData = async () => {
 
 // Next upcoming holiday
 const nextHoliday = computed(() => {
-  return holidays.value.find(h => h.diff >= 0) || null;
+  return holidays.value.find(h => h.status === 'upcoming' || h.status === 'ongoing') || null;
 });
 
 // Counts for filter pills
 const upcomingCount = computed(() => holidays.value.filter(h => h.status === 'upcoming' || h.status === 'ongoing').length);
+const holidayCount = computed(() => holidays.value.filter(h => h.type === 'holiday').length);
+const vacationCount = computed(() => holidays.value.filter(h => h.type === 'vacation').length);
 const allCount = computed(() => holidays.value.length);
 const pastCount = computed(() => holidays.value.filter(h => h.status === 'past').length);
 
@@ -395,6 +471,12 @@ const pastCount = computed(() => holidays.value.filter(h => h.status === 'past')
 const filteredHolidays = computed(() => {
   if (activeFilter.value === 'upcoming') {
     return holidays.value.filter(h => h.status === 'upcoming' || h.status === 'ongoing');
+  }
+  if (activeFilter.value === 'holiday') {
+    return holidays.value.filter(h => h.type === 'holiday');
+  }
+  if (activeFilter.value === 'vacation') {
+    return holidays.value.filter(h => h.type === 'vacation');
   }
   if (activeFilter.value === 'past') {
     return holidays.value.filter(h => h.status === 'past');
@@ -740,6 +822,42 @@ onUnmounted(() => {
   font-size: 0.65rem;
   font-weight: 700;
   color: #94a3b8;
+}
+
+.type-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.type-tag.holiday {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.type-tag.vacation {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.type-tag.pedagogical {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.date-range-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0369a1;
+  margin-bottom: 6px;
+}
+
+.date-range-row ion-icon {
+  font-size: 0.9rem;
 }
 
 .holiday-title {

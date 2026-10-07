@@ -3062,6 +3062,225 @@ app.post('/api/school/regulations', async (req, res) => {
     }
 });
 
+// =========================================================================
+// ALBUM PHOTO & SOUVENIRS API
+// =========================================================================
+app.post('/api/school/student/album', async (req, res) => {
+    const { student_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const parsedStudentId = parseInt(student_id);
+
+        let studentLevelId = null;
+        if (!isNaN(parsedStudentId)) {
+            try {
+                const sData = await callOdoo('object', 'execute_kw', [
+                    ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
+                    [[parsedStudentId]],
+                    { fields: ['id', 'level_id'] }
+                ]);
+                if (sData && sData[0] && sData[0].level_id) {
+                    studentLevelId = sData[0].level_id[0];
+                }
+            } catch (err) {
+                console.warn('Erreur lecture level pour album:', err.message);
+            }
+        }
+
+        // 1. Lire depuis school.album.photo
+        let albumDomain = [['target_type', '=', 'all']];
+        if (!isNaN(parsedStudentId)) {
+            if (studentLevelId) {
+                albumDomain = [
+                    '|', '|', '|',
+                    ['target_type', '=', 'all'],
+                    ['student_id', '=', parsedStudentId],
+                    ['student_ids', 'in', [parsedStudentId]],
+                    '&',
+                    ['target_type', '=', 'level'],
+                    ['level_id', '=', studentLevelId]
+                ];
+            } else {
+                albumDomain = [
+                    '|', '|',
+                    ['target_type', '=', 'all'],
+                    ['student_id', '=', parsedStudentId],
+                    ['student_ids', 'in', [parsedStudentId]]
+                ];
+            }
+        }
+
+        let photos = [];
+        try {
+            const rawPhotos = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.album.photo', 'search_read',
+                [albumDomain],
+                {
+                    fields: ['id', 'name', 'image', 'date', 'target_type', 'target_display', 'description', 'author', 'level_id', 'student_id'],
+                    order: 'date desc, id desc'
+                }
+            ]);
+            if (Array.isArray(rawPhotos)) {
+                photos = rawPhotos.map(p => {
+                    let imgUrl = '';
+                    if (p.image) {
+                        imgUrl = p.image.startsWith('data:') ? p.image : `data:image/jpeg;base64,${p.image}`;
+                    }
+                    return {
+                        id: p.id,
+                        name: p.name,
+                        date: p.date,
+                        image_url: imgUrl,
+                        description: p.description,
+                        author: p.author || 'École',
+                        target_display: p.target_display,
+                        target_type: p.target_type
+                    };
+                });
+            }
+        } catch (photoErr) {
+            console.warn('Erreur lecture school.album.photo:', photoErr.message);
+        }
+
+        // 2. Lire également les attachements ir.attachment pour rétrocompatibilité
+        if (!isNaN(parsedStudentId)) {
+            try {
+                const attachments = await callOdoo('object', 'execute_kw', [
+                    ODOO_DB, adminUid, ADMIN_PASS, 'ir.attachment', 'search_read',
+                    [[['res_model', '=', 'school.student'], ['res_id', '=', parsedStudentId], ['mimetype', 'ilike', 'image']]],
+                    { fields: ['id', 'name', 'datas', 'create_date'], order: 'create_date desc' }
+                ]);
+                if (Array.isArray(attachments)) {
+                    for (const att of attachments) {
+                        if (att.datas) {
+                            const imgUrl = att.datas.startsWith('data:') ? att.datas : `data:image/jpeg;base64,${att.datas}`;
+                            photos.push({
+                                id: `att_${att.id}`,
+                                name: att.name || 'Photo élève',
+                                date: att.create_date ? att.create_date.split(' ')[0] : new Date().toISOString().split('T')[0],
+                                image_url: imgUrl,
+                                description: 'Photo de profil / archive',
+                                author: 'Administration',
+                                target_display: '👤 Personnel'
+                            });
+                        }
+                    }
+                }
+            } catch (attErr) {
+                console.warn('Erreur lecture ir.attachment:', attErr.message);
+            }
+        }
+
+        res.json(photos);
+    } catch (error) {
+        console.error('Erreur API album:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/school/admin/album/upload', async (req, res) => {
+    const { student_id, level_id, target_type, name, filedata, description, author, date } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const vals = {
+            name: name || 'Photo Souvenir',
+            image: filedata,
+            date: date || new Date().toISOString().split('T')[0],
+            target_type: target_type || (student_id ? 'student' : (level_id ? 'level' : 'all')),
+            description: description || '',
+            author: author || 'Administration'
+        };
+        if (level_id) vals.level_id = parseInt(level_id);
+        if (student_id) vals.student_id = parseInt(student_id);
+
+        const newId = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.album.photo', 'create',
+            [vals]
+        ]);
+        res.json({ success: true, id: newId });
+    } catch (error) {
+        console.error('Erreur upload album:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/school/admin/album/delete', async (req, res) => {
+    const { attachment_id, photo_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        const idToDelete = parseInt(photo_id || attachment_id);
+        if (idToDelete) {
+            await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.album.photo', 'unlink',
+                [[idToDelete]]
+            ]);
+        }
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Erreur suppression photo album:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// =========================================================================
+// CALENDRIER SCOLAIRE & JOURS FÉRIÉS API
+// =========================================================================
+app.post('/api/school/holidays', async (req, res) => {
+    const { student_id } = req.body;
+    try {
+        const adminUid = await getAdminUid();
+        let domain = [['active', '=', true]];
+
+        if (student_id) {
+            const parsedStudentId = parseInt(student_id);
+            if (!isNaN(parsedStudentId)) {
+                try {
+                    const sData = await callOdoo('object', 'execute_kw', [
+                        ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
+                        [[parsedStudentId]],
+                        { fields: ['id', 'level_id'] }
+                    ]);
+                    const levelId = (sData && sData[0] && sData[0].level_id) ? sData[0].level_id[0] : null;
+                    if (levelId) {
+                        domain.push('|');
+                        domain.push(['level_ids', '=', false]);
+                        domain.push(['level_ids', 'in', [levelId]]);
+                    }
+                } catch (sErr) {
+                    console.warn('Erreur lecture level pour vacances:', sErr.message);
+                }
+            }
+        }
+
+        const holidays = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.holiday', 'search_read',
+            [domain],
+            {
+                fields: ['id', 'name', 'type', 'date_start', 'date_end', 'duration_days', 'description', 'attachment', 'attachment_name'],
+                order: 'date_start asc, id asc'
+            }
+        ]);
+        res.json(holidays || []);
+    } catch (error) {
+        console.warn('Erreur lecture school.holiday, fallback mock vacances:', error.message);
+        res.json([
+            { id: 1, name: "Aïd Al Mawlid Annabawi", type: "holiday", date_start: "2026-09-16", date_end: "2026-09-17", duration_days: 2, description: "Fête du Mawlid Annabawi Asharif" },
+            { id: 2, name: "1ère Période Intermédiaire", type: "vacation", date_start: "2026-10-20", date_end: "2026-10-27", duration_days: 8, description: "Vacances d'automne" },
+            { id: 3, name: "Fête de la Marche Verte", type: "holiday", date_start: "2026-11-06", date_end: "2026-11-06", duration_days: 1, description: "Anniversaire de la glorieuse Marche Verte" },
+            { id: 4, name: "Fête de l'Indépendance", type: "holiday", date_start: "2026-11-18", date_end: "2026-11-18", duration_days: 1, description: "Fête Nationale de l'Indépendance" },
+            { id: 5, name: "2ème Période Intermédiaire", type: "vacation", date_start: "2026-12-08", date_end: "2026-12-15", duration_days: 8, description: "Vacances d'hiver" },
+            { id: 6, name: "Manifeste de l'Indépendance", type: "holiday", date_start: "2027-01-11", date_end: "2027-01-11", duration_days: 1, description: "Présentation du Manifeste de l'Indépendance" },
+            { id: 7, name: "Nouvel An Amazigh", type: "holiday", date_start: "2027-01-14", date_end: "2027-01-14", duration_days: 1, description: "Jour de l'An Amazigh (Yennayer)" },
+            { id: 8, name: "Vacances de Mi-Année Scolaire", type: "vacation", date_start: "2027-01-26", date_end: "2027-02-02", duration_days: 8, description: "Fin du premier semestre" },
+            { id: 9, name: "3ème Période Intermédiaire", type: "vacation", date_start: "2027-03-16", date_end: "2027-03-23", duration_days: 8, description: "Vacances du printemps" },
+            { id: 10, name: "Aïd Al Fitr", type: "holiday", date_start: "2027-03-30", date_end: "2027-04-02", duration_days: 4, description: "Fête sacrée de la rupture du jeûne" },
+            { id: 11, name: "Fête du Travail", type: "holiday", date_start: "2027-05-01", date_end: "2027-05-01", duration_days: 1, description: "Fête Internationale du Travail" },
+            { id: 12, name: "4ème Période Intermédiaire", type: "vacation", date_start: "2027-05-04", date_end: "2027-05-11", duration_days: 8, description: "Dernière période de repos avant examens" },
+            { id: 13, name: "Aïd Al Adha", type: "holiday", date_start: "2027-06-06", date_end: "2027-06-09", duration_days: 4, description: "Fête du Grand Sacrifice" }
+        ]);
+    }
+});
+
 const getSchoolContactInfo = async (req, res) => {
     try {
         const adminUid = await getAdminUid();
