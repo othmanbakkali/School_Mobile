@@ -40,8 +40,19 @@
                 <span v-if="pay.date"> • {{ formatDate(pay.date) }}</span>
               </p>
             </div>
-            <div class="pay-status" :class="pay.state">
-              {{ pay.state === 'paid' ? 'Payé' : (pay.state === 'partial' ? 'Partiel' : 'À régler') }}
+            <div class="pay-right-box">
+              <div class="pay-status" :class="pay.state">
+                {{ pay.state === 'paid' ? 'Payé' : (pay.state === 'partial' ? 'Partiel' : 'À régler') }}
+              </div>
+              <button 
+                v-if="pay.state === 'paid'" 
+                class="pay-receipt-btn" 
+                @click.stop="downloadPaymentReceipt(pay)" 
+                title="Télécharger le reçu officiel de paiement"
+              >
+                <ion-icon :icon="receiptOutline"></ion-icon>
+                <span>Reçu PDF</span>
+              </button>
             </div>
           </div>
         </div>
@@ -53,11 +64,12 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
-  IonSpinner, IonButtons, IonMenuButton, onIonViewWillEnter
+  IonSpinner, IonButtons, IonMenuButton, IonIcon, onIonViewWillEnter
 } from '@ionic/vue';
+import { receiptOutline } from 'ionicons/icons';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
-import { apiRequest } from '@/services/api';
+import { apiRequest, getApiBaseUrl } from '@/services/api';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const payments = ref<any[]>([]);
@@ -128,6 +140,13 @@ const sortPayments = (list: any[]) => {
 
     return (a.id || 0) - (b.id || 0);
   });
+};
+
+const downloadPaymentReceipt = (pay: any) => {
+  if (!pay || !pay.id) return;
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}/api/school/payment/receipt/${pay.id}`;
+  window.open(url, '_blank');
 };
 
 const fetchPayments = async () => {
@@ -201,10 +220,45 @@ onUnmounted(() => {
 .pay-info h4 { margin: 0; font-size: 1.25rem; font-weight: 800; color: #1e293b; }
 .pay-info p { margin: 4px 0 0; font-size: 0.85rem; color: #94a3b8; }
 .pay-type-label { font-weight: 600; color: #475569; }
-.pay-status { padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
+
+.pay-right-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.pay-status { padding: 5px 12px; border-radius: 50px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
 .pay-status.paid { background: #dcfce7; color: #16a34a; }
 .pay-status.partial { background: #fef9c3; color: #a16207; }
 .pay-status.unpaid { background: #fee2e2; color: #ef4444; }
+
+.pay-receipt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+}
+
+.pay-receipt-btn:hover, .pay-receipt-btn:active {
+  background: #dbeafe;
+  color: #1e3a8a;
+  transform: translateY(-1px);
+}
+
+.pay-receipt-btn ion-icon {
+  font-size: 0.85rem;
+  color: #2563eb;
+}
 
 .empty-state-card { background: white; padding: 30px; border-radius: 20px; text-align: center; color: #94a3b8; }
 </style>

@@ -3459,6 +3459,31 @@ app.get('/api/school/wallet/receipt/:id', async (req, res) => {
     }
 });
 
+// Téléchargement PDF du Reçu Officiel de Paiement Scolarité
+app.get('/api/school/payment/receipt/:id', async (req, res) => {
+    const payId = parseInt(req.params.id);
+    if (!payId) return res.status(400).send('ID de paiement invalide');
+    try {
+        const adminUid = await getAdminUid();
+        const base64Pdf = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.payment', 'get_receipt_pdf',
+            [[payId]]
+        ]);
+        
+        if (!base64Pdf) {
+            return res.status(404).send('Impossible de générer le reçu de paiement');
+        }
+
+        const pdfBuffer = Buffer.from(base64Pdf, 'base64');
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="Recu_Paiement_${payId}.pdf"`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Erreur génération reçu paiement PDF:', error);
+        res.status(500).send(`Erreur lors de la génération du reçu: ${error.message}`);
+    }
+});
+
 app.post('/api/school/wallet/refill', async (req, res) => {
     const { student_id, amount } = req.body;
     const parseAmount = parseFloat(amount);

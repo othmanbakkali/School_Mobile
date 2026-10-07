@@ -22,13 +22,7 @@
               <ion-icon :icon="cardOutline"></ion-icon>
             </div>
             <h1 class="balance-amount">{{ formatPrice(balance) }}</h1>
-            <p class="balance-status">Actif • Utilisable à la cantine et boutique</p>
-            <div class="balance-actions">
-              <ion-button expand="block" fill="light" class="refill-btn" @click="openRefillModal" aria-label="Recharger le solde du portefeuille">
-                <ion-icon :icon="addOutline" slot="start"></ion-icon>
-                Recharger le solde
-              </ion-button>
-            </div>
+            <p class="balance-status">Actif • Rechargé à l'administration de l'école • Utilisable pour les achats boutique &amp; cantine</p>
           </div>
         </div>
 
@@ -65,61 +59,12 @@
               </div>
               <button class="tx-receipt-btn" @click.stop="downloadReceipt(t)" title="Télécharger le reçu officiel">
                 <ion-icon :icon="receiptOutline"></ion-icon>
-                <span>Reçu</span>
+                <span>Reçu PDF</span>
               </button>
             </div>
           </div>
         </div>
       </div>
-
-      <!-- Refill Simulation Modal -->
-      <ion-modal :is-open="refillModalOpen" @didDismiss="closeRefillModal" class="refill-modal">
-        <ion-header class="ion-no-border">
-          <ion-toolbar mode="md">
-            <ion-title>Recharger le solde</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="closeRefillModal" color="medium">Fermer</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-
-        <ion-content class="ion-padding modal-bg">
-          <div class="modal-wrapper">
-            <h3>Choisissez le montant</h3>
-            <div class="amount-presets">
-              <div 
-                v-for="amt in [50, 100, 200, 500]" 
-                :key="amt" 
-                class="amount-bubble" 
-                :class="{ active: selectedAmount === amt }"
-                @click="selectedAmount = amt"
-              >
-                {{ amt }} MAD
-              </div>
-            </div>
-
-            <div class="custom-amount-box">
-              <label>Autre montant (MAD)</label>
-              <input type="number" v-model.number="selectedAmount" class="custom-input" placeholder="Montant personnalisé" />
-            </div>
-
-            <!-- Fake Credit Card View -->
-            <div class="payment-card-visual">
-              <div class="card-chip"></div>
-              <div class="card-number">•••• •••• •••• 1234</div>
-              <div class="card-bottom">
-                <div class="card-holder">PARENT DE L'ÉLÈVE</div>
-                <div class="card-expiry">12/28</div>
-              </div>
-            </div>
-
-            <ion-button expand="block" color="primary" class="submit-refill-btn" @click="handleRefill" :disabled="refilling || !selectedAmount">
-              <span v-if="!refilling">Payer {{ selectedAmount || 0 }} MAD</span>
-              <ion-spinner name="crescent" color="light" v-else></ion-spinner>
-            </ion-button>
-          </div>
-        </ion-content>
-      </ion-modal>
     </ion-content>
   </ion-page>
 </template>
@@ -127,11 +72,10 @@
 <script setup lang="ts">
 import { 
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent, 
-  IonButtons, IonMenuButton, IonIcon, IonSpinner, IonButton,
-  IonModal, toastController 
+  IonButtons, IonMenuButton, IonIcon, IonSpinner 
 } from '@ionic/vue';
 import { 
-  cardOutline, addOutline, swapHorizontalOutline, arrowDownOutline, arrowUpOutline, receiptOutline 
+  cardOutline, swapHorizontalOutline, arrowDownOutline, arrowUpOutline, receiptOutline 
 } from 'ionicons/icons';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
@@ -139,11 +83,8 @@ import { apiRequest, getApiBaseUrl } from '@/services/api';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const loading = ref(true);
-const refilling = ref(false);
-const balance = ref(150.00);
+const balance = ref(0.00);
 const transactions = ref<any[]>([]);
-const refillModalOpen = ref(false);
-const selectedAmount = ref(100);
 
 const formatPrice = (price: number) => {
   return price.toFixed(2) + ' MAD';
@@ -191,45 +132,6 @@ const fetchWalletData = async () => {
   }
 };
 
-const handleRefill = async () => {
-  const studentId = odoo.selectedStudentId;
-  if (!studentId || !selectedAmount.value || selectedAmount.value <= 0) return;
-  
-  refilling.value = true;
-  try {
-    const res = await apiRequest('/api/school/wallet/refill', { 
-      student_id: studentId, 
-      amount: selectedAmount.value 
-    });
-    
-    if (res && res.success) {
-      balance.value = res.balance;
-      
-      const toast = await toastController.create({
-        message: `Votre rechargement de ${selectedAmount.value} MAD a été effectué !`,
-        duration: 3000,
-        color: 'success',
-        position: 'bottom'
-      });
-      await toast.present();
-      
-      closeRefillModal();
-      fetchWalletData();
-    }
-  } catch (error) {
-    console.error('Refill error', error);
-    const toast = await toastController.create({
-      message: "Erreur lors du traitement du paiement.",
-      duration: 3000,
-      color: 'danger',
-      position: 'bottom'
-    });
-    await toast.present();
-  } finally {
-    refilling.value = false;
-  }
-};
-
 const downloadReceipt = (t: any) => {
   if (!t || !t.id) return;
   const baseUrl = getApiBaseUrl();
@@ -254,10 +156,6 @@ onUnmounted(() => {
 <style scoped>
 .gray-bg {
   --background: #f8fafc;
-}
-
-.modal-bg {
-  --background: #ffffff;
 }
 
 .premium-card {
@@ -340,28 +238,12 @@ onUnmounted(() => {
 
 .balance-status {
   font-size: 0.78rem;
-  opacity: 0.7;
-  margin: 0 0 22px 0;
+  opacity: 0.8;
+  margin: 0 0 10px 0;
   font-weight: 600;
   position: relative;
   z-index: 2;
-}
-
-.refill-btn {
-  --background: #ffffff;
-  --color: #5c2d54;
-  --border-radius: 16px;
-  font-weight: 800;
-  height: 50px;
-  margin: 0;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
-  transition: transform 0.2s;
-  position: relative;
-  z-index: 2;
-}
-
-.refill-btn:active {
-  transform: scale(0.97);
+  line-height: 1.4;
 }
 
 .section-header {
@@ -474,170 +356,26 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   background: #f1f5f9;
-  color: #334155;
-  border: 1px solid #cbd5e1;
+  color: #1e3a8a;
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
-  padding: 3px 8px;
-  font-size: 0.72rem;
-  font-weight: 700;
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  font-weight: 750;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
 }
 
 .tx-receipt-btn:hover, .tx-receipt-btn:active {
-  background: #e2e8f0;
-  color: #1e293b;
+  background: #dbeafe;
+  color: #1e40af;
   transform: translateY(-1px);
 }
 
 .tx-receipt-btn ion-icon {
-  font-size: 0.85rem;
-  color: #1e3a8a;
-}
-
-/* Modal styling with glass elements */
-.refill-modal {
-  --height: 560px;
-  --border-radius: 32px;
-  --align-items: flex-end;
-}
-
-.modal-wrapper {
-  padding: 15px 5px;
-}
-
-.modal-wrapper h3 {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 16px 0;
-}
-
-.amount-presets {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 22px;
-}
-
-.amount-bubble {
-  background: #f1f5f9;
-  border: 2px solid transparent;
-  padding: 15px;
-  border-radius: 18px;
-  text-align: center;
-  font-weight: 800;
-  color: #475569;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  cursor: pointer;
-}
-
-.amount-bubble:active {
-  transform: scale(0.95);
-}
-
-.amount-bubble.active {
-  border-color: #5c2d54;
-  background: rgba(92, 45, 84, 0.08);
-  color: #5c2d54;
-  box-shadow: 0 6px 14px rgba(92, 45, 84, 0.1);
-}
-
-.custom-amount-box {
-  margin-bottom: 25px;
-}
-
-.custom-amount-box label {
-  display: block;
-  font-size: 0.78rem;
-  font-weight: 800;
-  color: #5c2d54;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.custom-input {
-  width: 100%;
-  border: 2px solid #e2e8f0;
-  padding: 14px 18px;
-  border-radius: 16px;
-  outline: none;
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #1e293b;
-  transition: border-color 0.25s;
-}
-
-.custom-input:focus {
-  border-color: #5c2d54;
-}
-
-.payment-card-visual {
-  background: linear-gradient(135deg, #1e293b 0%, #475569 55%, #64748b 100%);
-  color: white;
-  padding: 24px;
-  border-radius: 22px;
-  height: 140px;
-  margin-bottom: 25px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  position: relative;
-  overflow: hidden;
-}
-
-.payment-card-visual::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0) 100%);
-  transform: skewX(-25deg);
-  animation: shine 4s infinite;
-}
-
-@keyframes shine {
-  0% { left: -100%; }
-  100% { left: 200%; }
-}
-
-.card-chip {
-  width: 36px;
-  height: 26px;
-  background: #f1f5f9;
-  border-radius: 6px;
-  opacity: 0.85;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);
-}
-
-.card-number {
-  font-size: 1.1rem;
-  letter-spacing: 2px;
-  font-weight: 700;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-}
-
-.card-bottom {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  opacity: 0.85;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.submit-refill-btn {
-  --border-radius: 18px;
-  height: 52px;
-  font-weight: 800;
-  --background: #5c2d54;
-  margin: 0;
-  box-shadow: 0 8px 20px rgba(92, 45, 84, 0.2);
+  font-size: 0.9rem;
+  color: #2563eb;
 }
 
 .empty-state-card {
