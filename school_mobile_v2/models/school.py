@@ -1346,8 +1346,9 @@ class SchoolPayment(models.Model):
         self.ensure_one()
         if not self.receipt_number:
             self.action_print_receipt()
-        report = self.env.ref('school_mobile_v2.action_report_school_payment_receipt')
-        pdf_content, _ = report._render_qweb_pdf(self.ids)
+        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
+            'school_mobile_v2.action_report_school_payment_receipt', self.ids
+        )
         import base64
         return base64.b64encode(pdf_content).decode('utf-8')
 
@@ -1843,8 +1844,9 @@ class SchoolWalletTransaction(models.Model):
         self.ensure_one()
         if not self.receipt_number:
             self.action_print_receipt()
-        report = self.env.ref('school_mobile_v2.action_report_school_wallet_transaction_receipt')
-        pdf_content, _ = report._render_qweb_pdf(self.ids)
+        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
+            'school_mobile_v2.action_report_school_wallet_transaction_receipt', self.ids
+        )
         import base64
         return base64.b64encode(pdf_content).decode('utf-8')
 
