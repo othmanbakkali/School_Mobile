@@ -160,6 +160,7 @@ import {
 import { ref, onMounted, nextTick, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { notificationService } from '@/services/notificationService';
+import { downloadBase64File, downloadFileFromUrl } from '@/services/fileDownloader';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const messages = ref<any[]>([]);
@@ -237,13 +238,13 @@ const formatFileSize = (bytes?: number) => {
 };
 
 const downloadOrOpen = (att: any) => {
-  if (!att.url) return;
-  const link = document.createElement('a');
-  link.href = att.url;
-  link.download = att.name || 'piece_jointe';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  if (!att || !att.url) return;
+  if (att.url.startsWith('data:')) {
+    const base64Data = att.url.split(',')[1] || '';
+    downloadBase64File(base64Data, att.name || 'piece_jointe', att.mimetype || 'application/octet-stream');
+  } else {
+    downloadFileFromUrl(att.url, att.name || 'piece_jointe');
+  }
 };
 
 const fetchData = async (silent = false) => {

@@ -239,7 +239,8 @@ import {
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { odoo } from '@/services/odoo';
-import { apiRequest, getApiBaseUrl } from '@/services/api';
+import { apiRequest } from '@/services/api';
+import { downloadFileFromUrl } from '@/services/fileDownloader';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const router = useRouter();
@@ -396,16 +397,18 @@ const handlePurchase = async () => {
   }
 };
 
-const downloadDeliverySlip = (ord: any) => {
-  const baseUrl = getApiBaseUrl();
-  const url = `${baseUrl}/api/school/shop/delivery-slip/${ord.id}`;
-  window.open(url, '_blank');
+const downloadDeliverySlip = async (ord: any) => {
+  if (!ord || !ord.id) return;
+  const safeNumber = ord.delivery_slip_number ? ord.delivery_slip_number.replace(/[\/\\]/g, '_') : ord.id;
+  const fileName = `Bon_Livraison_${safeNumber}.pdf`;
+  await downloadFileFromUrl(`/api/school/shop/delivery-slip/download/${ord.id}`, fileName);
 };
 
-const downloadWalletReceipt = (ord: any) => {
-  const baseUrl = getApiBaseUrl();
-  const url = `${baseUrl}/api/school/shop/wallet-receipt/${ord.id}`;
-  window.open(url, '_blank');
+const downloadWalletReceipt = async (ord: any) => {
+  if (!ord || !ord.id) return;
+  const safeName = ord.name ? ord.name.replace(/[\/\\]/g, '_') : ord.id;
+  const fileName = `Justificatif_Debit_Wallet_${safeName}.pdf`;
+  await downloadFileFromUrl(`/api/school/shop/wallet-receipt/download/${ord.id}`, fileName);
 };
 
 const handleStudentChanged = () => {

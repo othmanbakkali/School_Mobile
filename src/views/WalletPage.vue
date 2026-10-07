@@ -79,7 +79,8 @@ import {
 } from 'ionicons/icons';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
-import { apiRequest, getApiBaseUrl } from '@/services/api';
+import { apiRequest } from '@/services/api';
+import { downloadFileFromUrl } from '@/services/fileDownloader';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const loading = ref(true);
@@ -132,11 +133,11 @@ const fetchWalletData = async () => {
   }
 };
 
-const downloadReceipt = (t: any) => {
+const downloadReceipt = async (t: any) => {
   if (!t || !t.id) return;
-  const baseUrl = getApiBaseUrl();
-  const url = `${baseUrl}/api/school/wallet/receipt/${t.id}`;
-  window.open(url, '_blank');
+  const safeNumber = t.receipt_number ? t.receipt_number.replace(/[\/\\]/g, '_') : t.id;
+  const fileName = `Recu_Portefeuille_${safeNumber}.pdf`;
+  await downloadFileFromUrl(`/api/school/wallet/receipt/download/${t.id}`, fileName);
 };
 
 const handleStudentChanged = () => {

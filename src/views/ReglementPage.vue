@@ -155,6 +155,7 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
+import { downloadBase64File } from '@/services/fileDownloader';
 import { useI18n } from '@/services/translationService';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
@@ -217,11 +218,8 @@ const formatDate = (dateStr: string) => {
 };
 
 const downloadAttachment = (item: any) => {
-  if (!item.attachment) return;
-  const link = document.createElement('a');
-  link.href = `data:application/octet-stream;base64,${item.attachment}`;
-  link.download = item.attachment_name || 'reglement_interieur.pdf';
-  link.click();
+  if (!item || !item.attachment) return;
+  downloadBase64File(item.attachment, item.attachment_name || 'reglement_interieur.pdf');
 };
 
 const filteredRegulations = computed(() => {

@@ -3496,8 +3496,10 @@ app.post('/api/school/wallet/transactions', async (req, res) => {
     }
 });
 
-app.get('/api/school/wallet/receipt/:id', async (req, res) => {
+// Téléchargement / Consultation PDF du Reçu de Transaction Portefeuille
+app.get(['/api/school/wallet/receipt/:id', '/api/school/wallet/receipt/download/:id'], async (req, res) => {
     const txId = parseInt(req.params.id);
+    const isDownload = req.path.includes('/download') || req.query.download === '1';
     if (!txId) return res.status(400).send('ID de transaction invalide');
     try {
         const adminUid = await getAdminUid();
@@ -3511,8 +3513,10 @@ app.get('/api/school/wallet/receipt/:id', async (req, res) => {
         }
 
         const pdfBuffer = Buffer.from(base64Pdf, 'base64');
+        const disposition = isDownload ? 'attachment' : 'inline';
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="Recu_Portefeuille_${txId}.pdf"`);
+        res.setHeader('Content-Disposition', `${disposition}; filename="Recu_Portefeuille_${txId}.pdf"`);
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Type, Content-Length');
         res.send(pdfBuffer);
     } catch (error) {
         console.error('Failed to generate wallet receipt PDF:', error);
@@ -3520,9 +3524,10 @@ app.get('/api/school/wallet/receipt/:id', async (req, res) => {
     }
 });
 
-// Téléchargement PDF du Reçu Officiel de Paiement Scolarité
-app.get('/api/school/payment/receipt/:id', async (req, res) => {
+// Téléchargement / Consultation PDF du Reçu Officiel de Paiement Scolarité
+app.get(['/api/school/payment/receipt/:id', '/api/school/payment/receipt/download/:id'], async (req, res) => {
     const payId = parseInt(req.params.id);
+    const isDownload = req.path.includes('/download') || req.query.download === '1';
     if (!payId) return res.status(400).send('ID de paiement invalide');
     try {
         const adminUid = await getAdminUid();
@@ -3536,8 +3541,10 @@ app.get('/api/school/payment/receipt/:id', async (req, res) => {
         }
 
         const pdfBuffer = Buffer.from(base64Pdf, 'base64');
+        const disposition = isDownload ? 'attachment' : 'inline';
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="Recu_Paiement_${payId}.pdf"`);
+        res.setHeader('Content-Disposition', `${disposition}; filename="Recu_Paiement_${payId}.pdf"`);
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Type, Content-Length');
         res.send(pdfBuffer);
     } catch (error) {
         console.error('Erreur génération reçu paiement PDF:', error);
@@ -3723,9 +3730,10 @@ app.post('/api/school/shop/orders', async (req, res) => {
     }
 });
 
-// Téléchargement PDF du Bon de Livraison officiel
-app.get('/api/school/shop/delivery-slip/:id', async (req, res) => {
+// Téléchargement / Consultation PDF du Bon de Livraison officiel
+app.get(['/api/school/shop/delivery-slip/:id', '/api/school/shop/delivery-slip/download/:id'], async (req, res) => {
     const orderId = parseInt(req.params.id);
+    const isDownload = req.path.includes('/download') || req.query.download === '1';
     if (!orderId) return res.status(400).send('ID de commande invalide');
     try {
         const adminUid = await getAdminUid();
@@ -3739,8 +3747,10 @@ app.get('/api/school/shop/delivery-slip/:id', async (req, res) => {
         }
 
         const pdfBuffer = Buffer.from(base64Pdf, 'base64');
+        const disposition = isDownload ? 'attachment' : 'inline';
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="Bon_Livraison_${orderId}.pdf"`);
+        res.setHeader('Content-Disposition', `${disposition}; filename="Bon_Livraison_${orderId}.pdf"`);
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Type, Content-Length');
         res.send(pdfBuffer);
     } catch (error) {
         console.error('Erreur delivery slip PDF:', error.message);
@@ -3748,9 +3758,10 @@ app.get('/api/school/shop/delivery-slip/:id', async (req, res) => {
     }
 });
 
-// Téléchargement PDF du Justificatif Débit Portefeuille (Achat Boutique)
-app.get('/api/school/shop/wallet-receipt/:id', async (req, res) => {
+// Téléchargement / Consultation PDF du Justificatif Débit Portefeuille (Achat Boutique)
+app.get(['/api/school/shop/wallet-receipt/:id', '/api/school/shop/wallet-receipt/download/:id'], async (req, res) => {
     const orderId = parseInt(req.params.id);
+    const isDownload = req.path.includes('/download') || req.query.download === '1';
     if (!orderId) return res.status(400).send('ID de commande invalide');
     try {
         const adminUid = await getAdminUid();
@@ -3764,8 +3775,10 @@ app.get('/api/school/shop/wallet-receipt/:id', async (req, res) => {
         }
 
         const pdfBuffer = Buffer.from(base64Pdf, 'base64');
+        const disposition = isDownload ? 'attachment' : 'inline';
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="Justificatif_Debit_Wallet_${orderId}.pdf"`);
+        res.setHeader('Content-Disposition', `${disposition}; filename="Justificatif_Debit_Wallet_${orderId}.pdf"`);
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Type, Content-Length');
         res.send(pdfBuffer);
     } catch (error) {
         console.error('Erreur wallet debit receipt PDF:', error.message);

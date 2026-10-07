@@ -69,7 +69,8 @@ import {
 import { receiptOutline } from 'ionicons/icons';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
-import { apiRequest, getApiBaseUrl } from '@/services/api';
+import { apiRequest } from '@/services/api';
+import { downloadFileFromUrl } from '@/services/fileDownloader';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const payments = ref<any[]>([]);
@@ -142,11 +143,11 @@ const sortPayments = (list: any[]) => {
   });
 };
 
-const downloadPaymentReceipt = (pay: any) => {
+const downloadPaymentReceipt = async (pay: any) => {
   if (!pay || !pay.id) return;
-  const baseUrl = getApiBaseUrl();
-  const url = `${baseUrl}/api/school/payment/receipt/${pay.id}`;
-  window.open(url, '_blank');
+  const safeNumber = pay.receipt_number ? pay.receipt_number.replace(/[\/\\]/g, '_') : pay.id;
+  const fileName = `Recu_Paiement_${safeNumber}.pdf`;
+  await downloadFileFromUrl(`/api/school/payment/receipt/download/${pay.id}`, fileName);
 };
 
 const fetchPayments = async () => {

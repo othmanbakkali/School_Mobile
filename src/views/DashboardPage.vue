@@ -420,6 +420,7 @@ import { useRouter } from 'vue-router';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { notificationService } from '@/services/notificationService';
+import { downloadBase64File } from '@/services/fileDownloader';
 import { onMounted, ref, computed, onUnmounted } from 'vue';
 
 const router = useRouter();
@@ -695,10 +696,8 @@ const formatDatetime = (dateStr: string) => {
 };
 
 const downloadAttachment = (ann: any) => {
-  const link = document.createElement('a');
-  link.href = `data:application/octet-stream;base64,${ann.attachment}`;
-  link.download = ann.attachment_name || 'piece_jointe';
-  link.click();
+  if (!ann || !ann.attachment) return;
+  downloadBase64File(ann.attachment, ann.attachment_name || 'piece_jointe.pdf');
 };
 
 const loadReadNotifIds = (studentId: number) => {

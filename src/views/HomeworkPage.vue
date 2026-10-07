@@ -92,6 +92,7 @@ import { timeOutline, documentAttachOutline } from 'ionicons/icons';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
+import { downloadBase64File } from '@/services/fileDownloader';
 import { useRouter } from 'vue-router';
 import { useI18n } from '@/services/translationService';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
@@ -170,11 +171,8 @@ const toggleStatus = async (item: any) => {
 };
 
 const downloadAttachment = (item: any) => {
-  if (!item.attachment) return;
-  const link = document.createElement('a');
-  link.href = `data:application/octet-stream;base64,${item.attachment}`;
-  link.download = item.attachment_name || 'devoir_piece_jointe';
-  link.click();
+  if (!item || !item.attachment) return;
+  downloadBase64File(item.attachment, item.attachment_name || 'devoir_piece_jointe.pdf');
 };
 
 const handleStudentChanged = () => {
