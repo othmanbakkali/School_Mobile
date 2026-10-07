@@ -1932,7 +1932,15 @@ app.post('/api/school/chat/history', async (req, res) => {
             ]);
             const levelId = (studentData && studentData[0] && studentData[0].level_id) ? studentData[0].level_id[0] : null;
             const transDomain = levelId
-                ? ['|', '|', ['student_id', '=', parsedStudentId], ['student_ids', 'in', [parsedStudentId]], ['level_id', '=', levelId]]
+                ? [
+                    '|', '|',
+                    ['student_id', '=', parsedStudentId],
+                    ['student_ids', 'in', [parsedStudentId]],
+                    '&', '&',
+                    ['level_id', '=', levelId],
+                    ['student_id', '=', false],
+                    ['student_ids', '=', false]
+                  ]
                 : ['|', ['student_id', '=', parsedStudentId], ['student_ids', 'in', [parsedStudentId]]];
 
             const transmissions = await callOdoo('object', 'execute_kw', [

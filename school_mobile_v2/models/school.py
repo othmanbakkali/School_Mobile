@@ -1575,8 +1575,9 @@ class SchoolCahierTransmission(models.Model):
         return y.id if y else False
 
     level_id = fields.Many2one('school.level', string='Niveau / Classe', required=True)
-    student_ids = fields.Many2many('school.student', 'school_transmission_student_rel', 'transmission_id', 'student_id', string='Élèves concernés', domain="[('level_id', '=', level_id)]")
-    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade', domain="[('level_id', '=', level_id)]")
+    student_id = fields.Many2one('school.student', string='Élève concerné', required=False, ondelete='cascade', domain="[('level_id', '=', level_id)]")
+    student_ids = fields.Many2many('school.student', 'school_transmission_student_rel', 'transmission_id', 'student_id', string='Élèves concernés (Groupe spécifique)', domain="[('level_id', '=', level_id)]")
+    target_display = fields.Char(string='Destinataire', compute='_compute_target_display', store=True)
     type = fields.Selection([
         ('info', 'Information'),
         ('warning', 'Avertissement'),
@@ -1591,6 +1592,21 @@ class SchoolCahierTransmission(models.Model):
     requires_signature = fields.Boolean(string='Signature requise', default=False)
     signed = fields.Boolean(string='Signé', default=False)
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+
+    @api.depends('level_id', 'student_id', 'student_ids')
+    def _compute_target_display(self):
+        for rec in self:
+            if rec.student_id:
+                rec.target_display = f"👤 {rec.student_id.name}"
+            elif rec.student_ids:
+                if len(rec.student_ids) == 1:
+                    rec.target_display = f"👤 {rec.student_ids[0].name}"
+                else:
+                    rec.target_display = f"👥 {len(rec.student_ids)} élèves"
+            elif rec.level_id:
+                rec.target_display = f"🏫 Classe {rec.level_id.name} (Tous)"
+            else:
+                rec.target_display = "Tous"
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1608,10 +1624,12 @@ class SchoolCahierTransmission(models.Model):
             domain = [('level_id', '=', level_id)]
             if year_id:
                 domain.append(('year_id', '=', year_id))
-            students = self.env['school.student'].search(domain)
-            self.student_ids = students
-            if students and (not self.student_id or self.student_id not in students):
-                self.student_id = students[0]
+            
+            # Ne pas forcer la sélection d'un élève : par défaut, le message s'adresse à toute la classe
+            if self.student_id and self.student_id.level_id.id != level_id:
+                self.student_id = False
+            if self.student_ids:
+                self.student_ids = self.student_ids.filtered(lambda s: s.level_id.id == level_id)
             return {'domain': {'student_id': domain, 'student_ids': domain}}
         else:
             self.student_ids = self.env['school.student']
@@ -1625,6 +1643,13 @@ class SchoolCahierTransmission(models.Model):
                 self.level_id = self.student_id.level_id
             if self.student_id.year_id and not self.year_id:
                 self.year_id = self.student_id.year_id
+            # Si un élève précis est sélectionné, vider la sélection de groupe pour cibler uniquement cet élève
+            self.student_ids = self.env['school.student']
+
+    @api.onchange('student_ids')
+    def _onchange_student_ids(self):
+        if self.student_ids and self.student_id:
+            self.student_id = False
 
 
 class SchoolResource(models.Model):

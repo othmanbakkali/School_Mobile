@@ -1266,7 +1266,7 @@ records.action_reset_mobile_password()
             <list>
                 <field name="date"/>
                 <field name="level_id"/>
-                <field name="student_id"/>
+                <field name="target_display" string="Destinataire"/>
                 <field name="type"/>
                 <field name="title"/>
                 <field name="author"/>
@@ -1285,8 +1285,9 @@ records.action_reset_mobile_password()
                     <group>
                         <group string="Destinataire(s)">
                             <field name="level_id" placeholder="Sélectionnez une classe"/>
-                            <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" domain="[('level_id', '=', level_id)]" placeholder="Tous les élèves de la classe"/>
-                            <field name="student_id" options="{'no_create': True}" domain="[('level_id', '=', level_id)]"/>
+                            <field name="student_id" options="{'no_create': True}" domain="[('level_id', '=', level_id)]" placeholder="👤 Laisser vide pour TOUTE la classe, ou choisir un élève"/>
+                            <field name="student_ids" widget="many2many_tags" options="{'no_create': True}" domain="[('level_id', '=', level_id)]" invisible="student_id" placeholder="👥 Ou sélectionner plusieurs élèves spécifiques"/>
+                            <field name="target_display" readonly="1" string="Cible actuelle"/>
                             <field name="type"/>
                             <field name="title"/>
                             <field name="author"/>
@@ -2074,7 +2075,9 @@ records.action_reset_mobile_password()
         <field name="model">school.cahier.transmission</field>
         <field name="arch" type="xml">
             <kanban default_group_by="type" class="o_kanban_mobile">
+                <field name="target_display"/>
                 <field name="student_id"/>
+                <field name="level_id"/>
                 <field name="title"/>
                 <field name="content"/>
                 <field name="type"/>
@@ -2087,7 +2090,7 @@ records.action_reset_mobile_password()
                         <div class="oe_kanban_card oe_kanban_global_click p-2">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span class="fw-bold fs-5 text-primary">
-                                    <i class="fa fa-user me-1"/> <field name="student_id"/>
+                                    <field name="target_display"/>
                                 </span>
                                 <field name="type" widget="badge" decoration-info="type == 'info'" decoration-warning="type == 'warning'" decoration-danger="type == 'urgent'" decoration-success="type == 'event'"/>
                             </div>
@@ -2111,7 +2114,7 @@ records.action_reset_mobile_password()
                         <div class="oe_kanban_card oe_kanban_global_click p-2">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span class="fw-bold fs-5 text-primary">
-                                    <i class="fa fa-user me-1"/> <field name="student_id"/>
+                                    <field name="target_display"/>
                                 </span>
                                 <field name="type" widget="badge" decoration-info="type == 'info'" decoration-warning="type == 'warning'" decoration-danger="type == 'urgent'" decoration-success="type == 'event'"/>
                             </div>
