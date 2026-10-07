@@ -769,12 +769,21 @@ records.action_reset_mobile_password()
                             </field>
                         </page>
                         <page string="Transactions Wallet" name="wallet_transactions">
+                            <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3 p-2">
+                                <div>
+                                    <span class="text-muted fw-bold text-uppercase">Solde Portefeuille : </span>
+                                    <strong class="fs-5 text-success"><field name="wallet_balance" readonly="1" class="oe_inline font-monospace"/> MAD</strong>
+                                </div>
+                                <div class="text-muted small">
+                                    <span>(Cumul des Rechargements - Cumul des Achats Boutique)</span>
+                                </div>
+                            </div>
                             <field name="wallet_transaction_ids" mode="list">
-                                <list editable="bottom">
+                                <list editable="bottom" default_order="date desc">
                                     <field name="receipt_number" readonly="1" optional="show" string="N° Reçu"/>
                                     <field name="date"/>
-                                    <field name="amount" sum="Total"/>
                                     <field name="type" widget="badge" decoration-success="type == 'credit'" decoration-danger="type == 'debit'"/>
+                                    <field name="amount" sum="Total" decoration-bf="1" decoration-success="type == 'credit'" decoration-danger="type == 'debit'"/>
                                     <field name="description"/>
                                     <button name="action_print_receipt" string="Reçu" type="object" icon="fa-print" class="btn-link text-primary"/>
                                 </list>
@@ -1551,6 +1560,7 @@ records.action_reset_mobile_password()
                 <field name="level_id" optional="show" string="Classe"/>
                 <field name="type" string="Type" widget="badge" decoration-success="type == 'credit'" decoration-danger="type == 'debit'"/>
                 <field name="amount" string="Montant (MAD)" sum="Total" decoration-bf="1" decoration-success="type == 'credit'" decoration-danger="type == 'debit'"/>
+                <field name="student_wallet_balance" string="Solde Élève (MAD)" decoration-bf="1" decoration-success="student_wallet_balance &gt; 0" decoration-danger="student_wallet_balance &lt; 0"/>
                 <field name="description" string="Description"/>
                 <field name="year_id" optional="hide"/>
                 <button name="action_print_receipt" string="Imprimer Reçu" type="object" icon="fa-print" class="btn-link text-primary"/>
@@ -1590,6 +1600,7 @@ records.action_reset_mobile_password()
                             <field name="year_id" readonly="1"/>
                             <field name="level_id" options="{'no_create': True}"/>
                             <field name="student_id" options="{'no_create': True}"/>
+                            <field name="student_wallet_balance" string="Solde Actuel Portefeuille" readonly="1" decoration-bf="1"/>
                         </group>
                         <group string="Détails de la Transaction">
                             <field name="type" widget="radio" options="{'horizontal': true}"/>

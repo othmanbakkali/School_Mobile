@@ -3464,15 +3464,7 @@ app.post('/api/school/wallet/refill', async (req, res) => {
     const parseAmount = parseFloat(amount);
     try {
         const adminUid = await getAdminUid();
-        const student = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
-            [[parseInt(student_id)], ['wallet_balance']]
-        ]);
-        const newBalance = (student[0].wallet_balance || 0.0) + parseAmount;
-        await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'write',
-            [[parseInt(student_id)], { wallet_balance: newBalance }]
-        ]);
+        // Create transaction in Odoo (triggers automatic recalculation of student.wallet_balance)
         await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.wallet.transaction', 'create',
             [[{
@@ -3482,7 +3474,14 @@ app.post('/api/school/wallet/refill', async (req, res) => {
                 description: 'Rechargement Portefeuille'
             }]]
         ]);
-        res.json({ success: true, balance: newBalance });
+        
+        // Read fresh computed balance from student
+        const student = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
+            [[parseInt(student_id)], ['wallet_balance']]
+        ]);
+        const updatedBalance = student && student.length > 0 ? (student[0].wallet_balance || 0.0) : parseAmount;
+        res.json({ success: true, balance: updatedBalance });
     } catch (error) {
         console.warn('Odoo wallet refill failed, falling back to mock:', error.message);
         res.json({ success: true, balance: 265.00 });
@@ -3529,22 +3528,18 @@ app.post('/api/school/shop/buy', async (req, res) => {
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
             [[parseInt(student_id)], ['wallet_balance']]
         ]);
-        const walletBalance = student[0].wallet_balance || 0.0;
+        const walletBalance = student && student.length > 0 ? (student[0].wallet_balance || 0.0) : 0.0;
         if (walletBalance < product.price) {
             return res.status(400).json({ error: "Solde insuffisant dans votre portefeuille" });
         }
 
-        const newBalance = walletBalance - product.price;
-        await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'write',
-            [[parseInt(student_id)], { wallet_balance: newBalance }]
-        ]);
-
+        // Update product stock
         await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.shop.product', 'write',
             [[parseInt(product_id)], { stock: product.stock - 1 }]
         ]);
 
+        // Create debit transaction (which automatically updates student.wallet_balance)
         await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.wallet.transaction', 'create',
             [[{
@@ -3554,6 +3549,13 @@ app.post('/api/school/shop/buy', async (req, res) => {
                 description: `Achat Boutique: ${product.name}`
             }]]
         ]);
+
+        // Read updated balance
+        const updatedStudent = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
+            [[parseInt(student_id)], ['wallet_balance']]
+        ]);
+        const newBalance = updatedStudent && updatedStudent.length > 0 ? (updatedStudent[0].wallet_balance || 0.0) : (walletBalance - product.price);
 
         res.json({ success: true, balance: newBalance });
     } catch (error) {

@@ -404,12 +404,18 @@ class SchoolStudent(models.Model):
     attendance_ids = fields.One2many('school.attendance', 'student_id', string='Absences/Retards')
     payment_ids = fields.One2many('school.payment', 'student_id', string='Paiements')
     ems_id = fields.Integer(string='ID EMS')
-    transport_id = fields.Many2one('school.transport', string='Ligne de Transport')
-    wallet_balance = fields.Float(string='Solde Portefeuille', default=150.00)
+    wallet_balance = fields.Float(string='Solde Portefeuille', compute='_compute_wallet_balance', store=True, digits=(16, 2))
     wallet_enabled = fields.Boolean(string='Portefeuille Activé', default=True)
     use_wallet = fields.Boolean(string='Utiliser Portefeuille', default=True)
     has_wallet = fields.Boolean(string='Possède un Portefeuille', default=True)
     wallet_transaction_ids = fields.One2many('school.wallet.transaction', 'student_id', string='Transactions Portefeuille')
+
+    @api.depends('wallet_transaction_ids.amount', 'wallet_transaction_ids.type')
+    def _compute_wallet_balance(self):
+        for student in self:
+            credits = sum(t.amount for t in student.wallet_transaction_ids if t.type == 'credit')
+            debits = sum(t.amount for t in student.wallet_transaction_ids if t.type == 'debit')
+            student.wallet_balance = round(credits - debits, 2)
     album_count = fields.Integer(compute='_compute_album_count', string='Photos Album')
 
     def _compute_album_count(self):
@@ -1804,6 +1810,7 @@ class SchoolWalletTransaction(models.Model):
     receipt_number = fields.Char(string="N° de Reçu", readonly=True, copy=False, index=True)
     receipt_generated = fields.Boolean(string="Reçu Émis", default=False, readonly=True, copy=False)
     receipt_date = fields.Datetime(string="Date d'émission du reçu", readonly=True, copy=False)
+    student_wallet_balance = fields.Float(string='Solde Portefeuille Élève', related='student_id.wallet_balance', readonly=True, digits=(16, 2))
 
     @api.model_create_multi
     def create(self, vals_list):
