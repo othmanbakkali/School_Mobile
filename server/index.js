@@ -3422,16 +3422,64 @@ app.post('/api/school/wallet/transactions', async (req, res) => {
         const transactions = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.wallet.transaction', 'search_read',
             [[['student_id', '=', parseInt(student_id)]]],
-            { fields: ['id', 'date', 'amount', 'type', 'description'] }
+            { fields: ['id', 'date', 'amount', 'type', 'description', 'receipt_number', 'receipt_date', 'receipt_generated'], order: 'date desc' }
         ]);
         res.json(transactions);
     } catch (error) {
         console.warn('Odoo query failed, falling back to mock transactions:', error.message);
         res.json([
-            { id: 1, date: new Date().toISOString(), amount: 35.00, type: 'debit', description: 'Repas Cantine (Supplément)' },
-            { id: 2, date: new Date(Date.now() - 2 * 86400000).toISOString(), amount: 150.00, type: 'credit', description: 'Rechargement en ligne' },
-            { id: 3, date: new Date(Date.now() - 5 * 86400000).toISOString(), amount: 75.00, type: 'debit', description: 'Achat Manuel de Français' },
+            { id: 1, date: new Date().toISOString(), amount: 35.00, type: 'debit', description: 'Repas Cantine (Supplément)', receipt_number: 'WLT/2026/00001' },
+            { id: 2, date: new Date(Date.now() - 2 * 86400000).toISOString(), amount: 150.00, type: 'credit', description: 'Rechargement en ligne', receipt_number: 'WLT/2026/00002' },
+            { id: 3, date: new Date(Date.now() - 5 * 86400000).toISOString(), amount: 75.00, type: 'debit', description: 'Achat Manuel de Français', receipt_number: 'WLT/2026/00003' },
         ]);
+    }
+});
+
+app.get('/api/school/wallet/receipt/:id', async (req, res) => {
+    const txId = parseInt(req.params.id);
+    if (!txId) return res.status(400).send('ID de transaction invalide');
+    try {
+        const adminUid = await getAdminUid();
+        // Check transaction and ensure receipt_number is set
+        const txs = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.wallet.transaction', 'read',
+            [[txId], ['receipt_number', 'student_id']]
+        ]);
+        if (!txs || txs.length === 0) {
+            return res.status(404).send('Transaction non trouvée');
+        }
+        if (!txs[0].receipt_number) {
+            await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.wallet.transaction', 'action_print_receipt',
+                [[txId]]
+            ]);
+        }
+        // Render PDF from Odoo QWeb Report
+        const reportRes = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'ir.actions.report', '_render_qweb_pdf',
+            ['school_mobile_v2.action_report_school_wallet_transaction_receipt', [txId]]
+        ]);
+        
+        let pdfBuffer;
+        if (Array.isArray(reportRes) && reportRes.length > 0) {
+            const rawContent = reportRes[0];
+            if (Buffer.isBuffer(rawContent)) {
+                pdfBuffer = rawContent;
+            } else if (typeof rawContent === 'string') {
+                pdfBuffer = Buffer.from(rawContent, 'base64');
+            } else {
+                pdfBuffer = Buffer.from(rawContent);
+            }
+        } else {
+            throw new Error('Format de rapport PDF invalide retourné par Odoo');
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="Recu_Portefeuille_${txId}.pdf"`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Failed to generate wallet receipt PDF:', error);
+        res.status(500).send(`Erreur lors de la génération du reçu PDF: ${error.message}`);
     }
 });
 

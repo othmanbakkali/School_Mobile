@@ -8,5 +8,12 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_school_wallet_transaction_receipt" model="ir.sequence">
+            <field name="name">Séquence Reçus Portefeuille Scolaire</field>
+            <field name="code">school.wallet.transaction.receipt</field>
+            <field name="prefix">WLT/%(range_year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

@@ -1790,6 +1790,9 @@ class SchoolWalletTransaction(models.Model):
     ], string='Type', required=True, default='debit')
     description = fields.Char(string='Description', required=True)
     year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+    receipt_number = fields.Char(string="N° de Reçu", readonly=True, copy=False, index=True)
+    receipt_generated = fields.Boolean(string="Reçu Émis", default=False, readonly=True, copy=False)
+    receipt_date = fields.Datetime(string="Date d'émission du reçu", readonly=True, copy=False)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1797,7 +1800,33 @@ class SchoolWalletTransaction(models.Model):
         for vals in vals_list:
             if not vals.get('year_id') and curr_year:
                 vals['year_id'] = curr_year.id
-        return super(SchoolWalletTransaction, self).create(vals_list)
+            if not vals.get('receipt_number'):
+                seq = self.env['ir.sequence'].next_by_code('school.wallet.transaction.receipt')
+                if seq:
+                    vals['receipt_number'] = seq
+                    vals['receipt_generated'] = True
+                    vals['receipt_date'] = fields.Datetime.now()
+        records = super(SchoolWalletTransaction, self).create(vals_list)
+        for r in records:
+            if not r.receipt_number:
+                yr = r.year_id.name or str(fields.Date.today().year)
+                r.receipt_number = f"WLT/{yr}/{r.id:05d}"
+                r.receipt_generated = True
+                r.receipt_date = fields.Datetime.now()
+        return records
+
+    def action_print_receipt(self):
+        """ Génère et télécharge le reçu officiel de la transaction portefeuille """
+        for tx in self:
+            if not tx.receipt_number:
+                seq = self.env['ir.sequence'].next_by_code('school.wallet.transaction.receipt')
+                if not seq:
+                    yr = tx.year_id.name or str(fields.Date.today().year)
+                    seq = f"WLT/{yr}/{tx.id:05d}"
+                tx.receipt_number = seq
+            tx.receipt_generated = True
+            tx.receipt_date = fields.Datetime.now()
+        return self.env.ref('school_mobile_v2.action_report_school_wallet_transaction_receipt').report_action(self)
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):

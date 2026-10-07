@@ -53,11 +53,20 @@
               <ion-icon :icon="t.type === 'credit' ? arrowDownOutline : arrowUpOutline"></ion-icon>
             </div>
             <div class="tx-info">
-              <h3>{{ t.description }}</h3>
+              <div class="tx-header-row">
+                <h3>{{ t.description }}</h3>
+                <span v-if="t.receipt_number" class="tx-receipt-badge">{{ t.receipt_number }}</span>
+              </div>
               <p>{{ formatDate(t.date) }}</p>
             </div>
-            <div class="tx-amount" :class="t.type">
-              {{ t.type === 'credit' ? '+' : '-' }}{{ t.amount.toFixed(2) }} MAD
+            <div class="tx-right-box">
+              <div class="tx-amount" :class="t.type">
+                {{ t.type === 'credit' ? '+' : '-' }}{{ t.amount.toFixed(2) }} MAD
+              </div>
+              <button class="tx-receipt-btn" @click.stop="downloadReceipt(t)" title="Télécharger le reçu officiel">
+                <ion-icon :icon="receiptOutline"></ion-icon>
+                <span>Reçu</span>
+              </button>
             </div>
           </div>
         </div>
@@ -122,11 +131,11 @@ import {
   IonModal, toastController 
 } from '@ionic/vue';
 import { 
-  cardOutline, addOutline, swapHorizontalOutline, arrowDownOutline, arrowUpOutline 
+  cardOutline, addOutline, swapHorizontalOutline, arrowDownOutline, arrowUpOutline, receiptOutline 
 } from 'ionicons/icons';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
-import { apiRequest } from '@/services/api';
+import { apiRequest, getApiBaseUrl } from '@/services/api';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
 const loading = ref(true);
@@ -219,6 +228,13 @@ const handleRefill = async () => {
   } finally {
     refilling.value = false;
   }
+};
+
+const downloadReceipt = (t: any) => {
+  if (!t || !t.id) return;
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}/api/school/wallet/receipt/${t.id}`;
+  window.open(url, '_blank');
 };
 
 const handleStudentChanged = () => {
@@ -400,6 +416,25 @@ onUnmounted(() => {
   flex: 1;
 }
 
+.tx-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tx-receipt-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: monospace;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  padding: 1px 6px;
+  border-radius: 6px;
+  letter-spacing: 0.2px;
+}
+
 .tx-info h3 {
   margin: 0;
   font-size: 0.95rem;
@@ -414,6 +449,13 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+.tx-right-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
 .tx-amount {
   font-weight: 850;
   font-size: 1rem;
@@ -425,6 +467,32 @@ onUnmounted(() => {
 
 .tx-amount.debit {
   color: #b91c1c;
+}
+
+.tx-receipt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tx-receipt-btn:hover, .tx-receipt-btn:active {
+  background: #e2e8f0;
+  color: #1e293b;
+  transform: translateY(-1px);
+}
+
+.tx-receipt-btn ion-icon {
+  font-size: 0.85rem;
+  color: #1e3a8a;
 }
 
 /* Modal styling with glass elements */

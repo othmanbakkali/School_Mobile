@@ -771,10 +771,12 @@ records.action_reset_mobile_password()
                         <page string="Transactions Wallet" name="wallet_transactions">
                             <field name="wallet_transaction_ids" mode="list">
                                 <list editable="bottom">
+                                    <field name="receipt_number" readonly="1" optional="show" string="N° Reçu"/>
                                     <field name="date"/>
-                                    <field name="amount"/>
-                                    <field name="type"/>
+                                    <field name="amount" sum="Total"/>
+                                    <field name="type" widget="badge" decoration-success="type == 'credit'" decoration-danger="type == 'debit'"/>
                                     <field name="description"/>
+                                    <button name="action_print_receipt" string="Reçu" type="object" icon="fa-print" class="btn-link text-primary"/>
                                 </list>
                             </field>
                         </page>
@@ -1542,13 +1544,93 @@ records.action_reset_mobile_password()
         <field name="name">school.wallet.transaction.tree</field>
         <field name="model">school.wallet.transaction</field>
         <field name="arch" type="xml">
-            <list>
-                <field name="date"/>
-                <field name="student_id"/>
-                <field name="amount"/>
-                <field name="type"/>
-                <field name="description"/>
+            <list string="Transactions Portefeuille" default_order="date desc">
+                <field name="receipt_number" optional="show" string="N° Reçu" decoration-bf="1"/>
+                <field name="date" string="Date &amp; Heure"/>
+                <field name="student_id" string="Élève"/>
+                <field name="level_id" optional="show" string="Classe"/>
+                <field name="type" string="Type" widget="badge" decoration-success="type == 'credit'" decoration-danger="type == 'debit'"/>
+                <field name="amount" string="Montant (MAD)" sum="Total" decoration-bf="1" decoration-success="type == 'credit'" decoration-danger="type == 'debit'"/>
+                <field name="description" string="Description"/>
+                <field name="year_id" optional="hide"/>
+                <button name="action_print_receipt" string="Imprimer Reçu" type="object" icon="fa-print" class="btn-link text-primary"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_wallet_transaction_form" model="ir.ui.view">
+        <field name="name">school.wallet.transaction.form</field>
+        <field name="model">school.wallet.transaction</field>
+        <field name="arch" type="xml">
+            <form string="Transaction Portefeuille">
+                <header>
+                    <button name="action_print_receipt" string="Imprimer le Reçu" type="object" class="oe_highlight" icon="fa-print"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info d-flex align-items-center justify-content-between p-2 mb-3" role="alert" invisible="not receipt_number">
+                        <div>
+                            <i class="fa fa-file-text-o fa-lg me-2"></i>
+                            <strong>Reçu Officiel Émis : <field name="receipt_number" readonly="1" class="oe_inline font-monospace"/></strong>
+                        </div>
+                        <div>
+                            <span class="text-muted">Émis le : </span>
+                            <field name="receipt_date" readonly="1" class="oe_inline text-muted"/>
+                        </div>
+                    </div>
+
+                    <div class="oe_title">
+                        <label for="description" string="Description / Motif"/>
+                        <h1>
+                            <field name="description" placeholder="Ex: Rechargement Portefeuille, Repas cantine..."/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group string="Informations de l'Élève">
+                            <field name="year_id" readonly="1"/>
+                            <field name="level_id" options="{'no_create': True}"/>
+                            <field name="student_id" options="{'no_create': True}"/>
+                        </group>
+                        <group string="Détails de la Transaction">
+                            <field name="type" widget="radio" options="{'horizontal': true}"/>
+                            <field name="amount"/>
+                            <field name="date"/>
+                        </group>
+                    </group>
+
+                    <group string="Traçabilité &amp; Reçu" groups="base.group_no_one,school_mobile_v2.group_school_manager">
+                        <group>
+                            <field name="receipt_number" readonly="1"/>
+                            <field name="receipt_generated" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="receipt_date" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_wallet_transaction_search" model="ir.ui.view">
+        <field name="name">school.wallet.transaction.search</field>
+        <field name="model">school.wallet.transaction</field>
+        <field name="arch" type="xml">
+            <search string="Recherche Transactions Portefeuille">
+                <field name="receipt_number" string="N° Reçu"/>
+                <field name="student_id" string="Élève"/>
+                <field name="level_id" string="Classe"/>
+                <field name="description" string="Description"/>
+                <separator/>
+                <filter name="filter_credit" string="Rechargements (Crédits)" domain="[('type', '=', 'credit')]"/>
+                <filter name="filter_debit" string="Achats / Débits" domain="[('type', '=', 'debit')]"/>
+                <group expand="0" string="Grouper par">
+                    <filter name="group_by_student" string="Élève" context="{'group_by': 'student_id'}"/>
+                    <filter name="group_by_level" string="Classe" context="{'group_by': 'level_id'}"/>
+                    <filter name="group_by_type" string="Type d'opération" context="{'group_by': 'type'}"/>
+                    <filter name="group_by_date" string="Date" context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
         </field>
     </record>
 
