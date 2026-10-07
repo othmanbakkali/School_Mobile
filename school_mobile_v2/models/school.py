@@ -1832,7 +1832,20 @@ class SchoolWalletTransaction(models.Model):
                 r.receipt_number = f"WLT/{yr}/{r.id:05d}"
                 r.receipt_generated = True
                 r.receipt_date = fields.Datetime.now()
+        records.mapped('student_id')._compute_wallet_balance()
         return records
+
+    def write(self, vals):
+        res = super(SchoolWalletTransaction, self).write(vals)
+        if any(k in vals for k in ['amount', 'type', 'student_id']):
+            self.mapped('student_id')._compute_wallet_balance()
+        return res
+
+    def unlink(self):
+        students = self.mapped('student_id')
+        res = super(SchoolWalletTransaction, self).unlink()
+        students._compute_wallet_balance()
+        return res
 
     def action_print_receipt(self):
         """ Génère et télécharge le reçu officiel de la transaction portefeuille """
