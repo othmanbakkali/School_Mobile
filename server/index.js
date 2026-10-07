@@ -3106,6 +3106,67 @@ app.post('/api/school/resources', async (req, res) => {
     }
 });
 
+// Téléchargement / Consultation de Ressource Pédagogique (Fichier binaire ou URL)
+app.get(['/api/school/resources/download/:id', '/api/school/resources/view/:id'], async (req, res) => {
+    const resId = parseInt(req.params.id);
+    const isDownload = req.path.includes('/download/');
+    if (!resId) return res.status(400).send('ID de ressource invalide');
+
+    try {
+        const adminUid = await getAdminUid();
+        const records = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.resources', 'read',
+            [[resId]],
+            { fields: ['id', 'name', 'type', 'mimetype', 'datas', 'url'] }
+        ]);
+
+        if (!records || records.length === 0) {
+            return res.status(404).send('Ressource introuvable');
+        }
+
+        const r = records[0];
+
+        // 1. Si fichier binaire présent dans Odoo
+        if (r.datas) {
+            const fileBuffer = Buffer.from(r.datas, 'base64');
+            let mime = r.mimetype || 'application/octet-stream';
+            let fileName = r.name || `ressource_${resId}.pdf`;
+            if (r.type === 'pdf' && !fileName.toLowerCase().endsWith('.pdf')) {
+                fileName += '.pdf';
+            }
+
+            if (fileName.toLowerCase().endsWith('.pdf') || r.type === 'pdf') {
+                mime = 'application/pdf';
+            } else if (fileName.toLowerCase().endsWith('.png')) {
+                mime = 'image/png';
+            } else if (fileName.toLowerCase().endsWith('.jpg') || fileName.toLowerCase().endsWith('.jpeg')) {
+                mime = 'image/jpeg';
+            } else if (fileName.toLowerCase().endsWith('.doc') || fileName.toLowerCase().endsWith('.docx')) {
+                mime = 'application/msword';
+            }
+
+            const disposition = isDownload ? 'attachment' : 'inline';
+            res.setHeader('Content-Type', mime);
+            res.setHeader('Content-Disposition', `${disposition}; filename="${encodeURIComponent(fileName)}"`);
+            return res.send(fileBuffer);
+        }
+
+        // 2. Si URL externe
+        if (r.url) {
+            let targetUrl = r.url.trim();
+            if (!/^https?:\/\//i.test(targetUrl)) {
+                targetUrl = `https://${targetUrl}`;
+            }
+            return res.redirect(targetUrl);
+        }
+
+        return res.status(404).send('Aucun fichier ni lien associé à cette ressource.');
+    } catch (error) {
+        console.error('Erreur téléchargement ressource:', error.message);
+        res.status(500).send(`Erreur serveur: ${error.message}`);
+    }
+});
+
 app.post('/api/school/pedagogical-comments', async (req, res) => {
     const { student_id } = req.body;
     try {

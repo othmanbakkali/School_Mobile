@@ -78,7 +78,7 @@ import {
 import { searchOutline, documentOutline, downloadOutline } from 'ionicons/icons';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
-import { apiRequest } from '@/services/api';
+import { apiRequest, getApiBaseUrl } from '@/services/api';
 import { useRouter } from 'vue-router';
 import StudentHeaderBadge from '@/components/StudentHeaderBadge.vue';
 
@@ -139,20 +139,70 @@ const getFileIcon = (type: string, mime: string) => {
 const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
 
 const openResource = (res: any) => {
-  if (res.url) window.open(res.url, '_blank');
+  if (res.id) {
+    const baseUrl = getApiBaseUrl();
+    const viewUrl = `${baseUrl}/api/school/resources/view/${res.id}`;
+    window.open(viewUrl, '_blank');
+  } else if (res.datas) {
+    try {
+      const byteCharacters = atob(res.datas);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: res.mimetype || 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch (e) {
+      console.error('Erreur ouverture ressource blob:', e);
+    }
+  } else if (res.url) {
+    const targetUrl = res.url.startsWith('http') ? res.url : `https://${res.url}`;
+    window.open(targetUrl, '_blank');
+  }
 };
 
 const downloadResource = (res: any) => {
-  if (res.url) {
+  if (res.id) {
+    const baseUrl = getApiBaseUrl();
+    const downloadUrl = `${baseUrl}/api/school/resources/download/${res.id}`;
     const link = document.createElement('a');
-    link.href = res.url;
-    link.download = res.name;
+    link.href = downloadUrl;
+    link.setAttribute('download', res.name || 'ressource.pdf');
+    link.target = '_blank';
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   } else if (res.datas) {
+    try {
+      const byteCharacters = atob(res.datas);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: res.mimetype || 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = res.name || 'ressource.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+    } catch (e) {
+      console.error('Erreur téléchargement ressource blob:', e);
+    }
+  } else if (res.url) {
+    const targetUrl = res.url.startsWith('http') ? res.url : `https://${res.url}`;
     const link = document.createElement('a');
-    link.href = `data:${res.mimetype || 'application/octet-stream'};base64,${res.datas}`;
-    link.download = res.name;
+    link.href = targetUrl;
+    link.target = '_blank';
+    link.download = res.name || 'ressource';
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   }
 };
 
