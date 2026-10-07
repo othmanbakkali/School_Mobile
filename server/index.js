@@ -3440,40 +3440,16 @@ app.get('/api/school/wallet/receipt/:id', async (req, res) => {
     if (!txId) return res.status(400).send('ID de transaction invalide');
     try {
         const adminUid = await getAdminUid();
-        // Check transaction and ensure receipt_number is set
-        const txs = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'school.wallet.transaction', 'read',
-            [[txId], ['receipt_number', 'student_id']]
-        ]);
-        if (!txs || txs.length === 0) {
-            return res.status(404).send('Transaction non trouvée');
-        }
-        if (!txs[0].receipt_number) {
-            await callOdoo('object', 'execute_kw', [
-                ODOO_DB, adminUid, ADMIN_PASS, 'school.wallet.transaction', 'action_print_receipt',
-                [[txId]]
-            ]);
-        }
-        // Render PDF from Odoo QWeb Report
-        const reportRes = await callOdoo('object', 'execute_kw', [
-            ODOO_DB, adminUid, ADMIN_PASS, 'ir.actions.report', '_render_qweb_pdf',
-            ['school_mobile_v2.action_report_school_wallet_transaction_receipt', [txId]]
+        const base64Pdf = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.wallet.transaction', 'get_receipt_pdf',
+            [[txId]]
         ]);
         
-        let pdfBuffer;
-        if (Array.isArray(reportRes) && reportRes.length > 0) {
-            const rawContent = reportRes[0];
-            if (Buffer.isBuffer(rawContent)) {
-                pdfBuffer = rawContent;
-            } else if (typeof rawContent === 'string') {
-                pdfBuffer = Buffer.from(rawContent, 'base64');
-            } else {
-                pdfBuffer = Buffer.from(rawContent);
-            }
-        } else {
-            throw new Error('Format de rapport PDF invalide retourné par Odoo');
+        if (!base64Pdf) {
+            return res.status(404).send('Impossible de générer le reçu');
         }
 
+        const pdfBuffer = Buffer.from(base64Pdf, 'base64');
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="Recu_Portefeuille_${txId}.pdf"`);
         res.send(pdfBuffer);

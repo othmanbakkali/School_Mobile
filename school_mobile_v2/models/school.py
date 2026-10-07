@@ -1341,6 +1341,16 @@ class SchoolPayment(models.Model):
             payment.receipt_date = fields.Datetime.now()
         return self.env.ref('school_mobile_v2.action_report_school_payment_receipt').report_action(self)
 
+    def get_receipt_pdf(self):
+        """ Retourne le PDF du reçu de paiement encodé en base64 pour l'API """
+        self.ensure_one()
+        if not self.receipt_number:
+            self.action_print_receipt()
+        report = self.env.ref('school_mobile_v2.action_report_school_payment_receipt')
+        pdf_content, _ = report._render_qweb_pdf(self.ids)
+        import base64
+        return base64.b64encode(pdf_content).decode('utf-8')
+
     def action_unlock_payment(self):
         """ Permet au Super Admin de déverrouiller le paiement """
         is_super_admin = (
@@ -1827,6 +1837,16 @@ class SchoolWalletTransaction(models.Model):
             tx.receipt_generated = True
             tx.receipt_date = fields.Datetime.now()
         return self.env.ref('school_mobile_v2.action_report_school_wallet_transaction_receipt').report_action(self)
+
+    def get_receipt_pdf(self):
+        """ Retourne le PDF du reçu portefeuille encodé en base64 pour l'API / App Mobile """
+        self.ensure_one()
+        if not self.receipt_number:
+            self.action_print_receipt()
+        report = self.env.ref('school_mobile_v2.action_report_school_wallet_transaction_receipt')
+        pdf_content, _ = report._render_qweb_pdf(self.ids)
+        import base64
+        return base64.b64encode(pdf_content).decode('utf-8')
 
     @api.onchange('level_id', 'year_id')
     def _onchange_level_id(self):
