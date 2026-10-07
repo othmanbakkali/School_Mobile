@@ -29,7 +29,7 @@
 
         <div v-else class="content-wrapper">
           <!-- ========================================== -->
-          <!-- 1. COMPORTEMENT & ASSIDUITÉ                -->
+          <!-- 1. COMPORTEMENT & ASSIDUITÉ (LECTURE)       -->
           <!-- ========================================== -->
           <div class="section-header">
             <div class="section-title-wrap">
@@ -39,11 +39,6 @@
                 <p class="section-subtitle">{{ t('suivi.behaviourDesc') }}</p>
               </div>
             </div>
-            <!-- Teacher Admin Button -->
-            <button class="admin-action-btn" @click="openEvalModal">
-              <ion-icon :icon="createOutline" />
-              <span>{{ t('suivi.evalBehaviourBtn') }}</span>
-            </button>
           </div>
 
           <div class="premium-card behaviour-card ion-padding">
@@ -155,7 +150,7 @@
           </div>
 
           <!-- ========================================== -->
-          <!-- 3. REMARQUES & APPRÉCIATIONS ENSEIGNANTS    -->
+          <!-- 3. REMARQUES & APPRÉCIATIONS (LECTURE)     -->
           <!-- ========================================== -->
           <div class="section-header" style="margin-top: 28px;">
             <div class="section-title-wrap">
@@ -165,12 +160,6 @@
                 <p class="section-subtitle">{{ t('suivi.commentsDesc') }}</p>
               </div>
             </div>
-
-            <!-- Add Remark Button -->
-            <button class="admin-action-btn secondary" @click="openCommentModal">
-              <ion-icon :icon="chatbubbleEllipsesOutline" />
-              <span>{{ t('suivi.addCommentBtn') }}</span>
-            </button>
           </div>
 
           <div v-if="comments.length === 0" class="empty-card">
@@ -198,9 +187,6 @@
                 <div class="sentiment-badge" :class="'sentiment-' + (c.sentiment || 'neutral')">
                   {{ getSentimentLabel(c.sentiment) }}
                 </div>
-                <button class="comment-delete-btn" @click="confirmDeleteComment(c)" title="Supprimer">
-                  <ion-icon :icon="trashOutline" />
-                </button>
               </div>
 
               <!-- Comment Body with high readability -->
@@ -215,182 +201,6 @@
           </div>
         </div>
       </div>
-
-      <!-- ========================================== -->
-      <!-- MODAL: ÉVALUER LE COMPORTEMENT             -->
-      <!-- ========================================== -->
-      <ion-modal :is-open="showEvalModal" @didDismiss="closeEvalModal" class="suivi-modal">
-        <div class="modal-wrapper-custom">
-          <div class="modal-header-custom">
-            <div class="modal-header-info">
-              <div class="modal-icon-badge">🌟</div>
-              <div>
-                <h2 class="modal-title">{{ t('suivi.evalModalTitle') }}</h2>
-                <p class="modal-subtitle">{{ t('suivi.evalModalDesc') }}</p>
-              </div>
-            </div>
-            <button class="modal-close-btn" @click="closeEvalModal">
-              <ion-icon :icon="closeOutline" />
-            </button>
-          </div>
-
-          <div class="modal-body-custom">
-            <!-- Semestre & Enseignant -->
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">Semestre</label>
-                <select v-model="evalForm.semester" class="custom-select">
-                  <option value="S1">Semestre 1</option>
-                  <option value="S2">Semestre 2</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Nom de l'Enseignant</label>
-                <input v-model="evalForm.teacher_name" type="text" class="custom-input" placeholder="Ex: Prof. Martin" />
-              </div>
-            </div>
-
-            <!-- Star Rating Criteria -->
-            <div class="criteria-eval-list">
-              <div class="criterion-eval-row" v-for="crit in evalCriteria" :key="crit.key">
-                <div class="crit-left">
-                  <span class="crit-icon">{{ crit.icon }}</span>
-                  <span class="crit-label">{{ crit.label }}</span>
-                </div>
-                <div class="crit-star-picker">
-                  <button 
-                    type="button" 
-                    v-for="s in 5" 
-                    :key="s" 
-                    class="picker-star" 
-                    :class="{ 'filled': s <= (evalForm as any)[crit.key] }"
-                    @click="(evalForm as any)[crit.key] = s"
-                  >
-                    ★
-                  </button>
-                  <span class="picker-val-badge">{{ (evalForm as any)[crit.key] }}/5</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Appreciation Globale -->
-            <div class="form-group">
-              <label class="form-label">Appréciation globale du comportement</label>
-              <textarea 
-                v-model="evalForm.general_appreciation" 
-                rows="3" 
-                class="custom-textarea" 
-                placeholder="Ex: Élève très discipliné, attentif et toujours ponctuel..."
-              ></textarea>
-            </div>
-          </div>
-
-          <div class="modal-footer-custom">
-            <button class="btn-cancel" @click="closeEvalModal">Annuler</button>
-            <button class="btn-submit" :disabled="savingEval" @click="submitEvalForm">
-              <ion-spinner v-if="savingEval" name="crescent" class="btn-spinner" />
-              <span v-else>{{ t('suivi.saveEvalBtn') }}</span>
-            </button>
-          </div>
-        </div>
-      </ion-modal>
-
-      <!-- ========================================== -->
-      <!-- MODAL: NOUVELLE REMARQUE PÉDAGOGIQUE       -->
-      <!-- ========================================== -->
-      <ion-modal :is-open="showCommentModal" @didDismiss="closeCommentModal" class="suivi-modal">
-        <div class="modal-wrapper-custom">
-          <div class="modal-header-custom">
-            <div class="modal-header-info">
-              <div class="modal-icon-badge">💬</div>
-              <div>
-                <h2 class="modal-title">{{ t('suivi.addCommentTitle') }}</h2>
-                <p class="modal-subtitle">{{ t('suivi.addCommentDesc') }}</p>
-              </div>
-            </div>
-            <button class="modal-close-btn" @click="closeCommentModal">
-              <ion-icon :icon="closeOutline" />
-            </button>
-          </div>
-
-          <div class="modal-body-custom">
-            <div class="form-row-2">
-              <div class="form-group">
-                <label class="form-label">Matière</label>
-                <select v-model="commentForm.subject" class="custom-select">
-                  <option value="Général">Général / Vie scolaire</option>
-                  <option v-for="s in availableSubjectNames" :key="s" :value="s">{{ s }}</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Enseignant</label>
-                <input v-model="commentForm.teacher" type="text" class="custom-input" placeholder="Ex: Professeur" />
-              </div>
-            </div>
-
-            <!-- Sentiment / Ton de l'observation -->
-            <div class="form-group">
-              <label class="form-label">Appréciation / Ton de la remarque</label>
-              <div class="sentiment-picker-row">
-                <button 
-                  type="button" 
-                  class="sent-pick-btn positive" 
-                  :class="{ 'selected': commentForm.sentiment === 'positive' }"
-                  @click="commentForm.sentiment = 'positive'"
-                >
-                  👍 {{ t('suivi.positive') }}
-                </button>
-                <button 
-                  type="button" 
-                  class="sent-pick-btn neutral" 
-                  :class="{ 'selected': commentForm.sentiment === 'neutral' }"
-                  @click="commentForm.sentiment = 'neutral'"
-                >
-                  ℹ️ {{ t('suivi.neutral') }}
-                </button>
-                <button 
-                  type="button" 
-                  class="sent-pick-btn negative" 
-                  :class="{ 'selected': commentForm.sentiment === 'negative' }"
-                  @click="commentForm.sentiment = 'negative'"
-                >
-                  ⚠️ {{ t('suivi.negative') }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Text Content -->
-            <div class="form-group">
-              <label class="form-label">Observation / Remarque détaillée</label>
-              <textarea 
-                v-model="commentForm.text" 
-                rows="4" 
-                class="custom-textarea" 
-                placeholder="Ex: Très bonne participation ce mois-ci. Les devoirs sont bien soignés..."
-              ></textarea>
-            </div>
-          </div>
-
-          <div class="modal-footer-custom">
-            <button class="btn-cancel" @click="closeCommentModal">Annuler</button>
-            <button class="btn-submit" :disabled="savingComment" @click="submitCommentForm">
-              <ion-spinner v-if="savingComment" name="crescent" class="btn-spinner" />
-              <span v-else>{{ t('suivi.saveCommentBtn') }}</span>
-            </button>
-          </div>
-        </div>
-      </ion-modal>
-
-      <!-- Delete Comment Alert -->
-      <ion-alert
-        :is-open="showDeleteAlert"
-        header="Confirmation"
-        :message="t('suivi.deleteCommentConfirm')"
-        :buttons="[
-          { text: 'Annuler', role: 'cancel', handler: () => { showDeleteAlert = false; } },
-          { text: 'Supprimer', role: 'destructive', handler: executeDeleteComment }
-        ]"
-      />
     </ion-content>
   </ion-page>
 </template>
@@ -398,10 +208,9 @@
 <script setup lang="ts">
 import {
   IonPage, IonHeader, IonToolbar, IonTitle, IonContent,
-  IonButtons, IonMenuButton, IonSpinner, IonIcon, IonModal, IonAlert
+  IonButtons, IonMenuButton, IonSpinner
 } from '@ionic/vue';
-import { createOutline, chatbubbleEllipsesOutline, closeOutline, trashOutline } from 'ionicons/icons';
-import { ref, computed, onMounted, onUnmounted, reactive } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { odoo } from '@/services/odoo';
 import { apiRequest } from '@/services/api';
 import { useRouter } from 'vue-router';
@@ -434,25 +243,9 @@ const behaviourItems = computed(() => [
   { key: 'care', label: t('suivi.care'), icon: '🎒', value: behaviourData.value.care || 5 },
 ]);
 
-const evalCriteria = [
-  { key: 'participation', label: 'Participation active', icon: '🙋‍♂️' },
-  { key: 'rules', label: 'Discipline & Règles', icon: '📜' },
-  { key: 'group_work', label: 'Travail d\'équipe', icon: '🤝' },
-  { key: 'punctuality', label: 'Ponctualité & Assiduité', icon: '⏰' },
-  { key: 'care', label: 'Soin & Devoirs', icon: '🎒' },
-];
-
 // Subjects / Progression Data
 const rawGrades = ref<any[]>([]);
 const selectedSemester = ref<'S1' | 'S2' | 'all'>('all');
-
-const availableSubjectNames = computed(() => {
-  const set = new Set<string>();
-  rawGrades.value.forEach(g => {
-    if (g.subject) set.add(g.subject);
-  });
-  return Array.from(set);
-});
 
 const filteredSubjects = computed(() => {
   if (rawGrades.value.length === 0) return [];
@@ -508,32 +301,6 @@ const filteredSubjects = computed(() => {
 
 // Comments Data
 const comments = ref<any[]>([]);
-
-// Modals State
-const showEvalModal = ref(false);
-const savingEval = ref(false);
-const evalForm = reactive({
-  semester: 'S1',
-  teacher_name: '',
-  participation: 5,
-  rules: 5,
-  group_work: 5,
-  punctuality: 5,
-  care: 5,
-  general_appreciation: ''
-});
-
-const showCommentModal = ref(false);
-const savingComment = ref(false);
-const commentForm = reactive({
-  subject: 'Général',
-  teacher: '',
-  sentiment: 'positive',
-  text: ''
-});
-
-const showDeleteAlert = ref(false);
-const commentToDelete = ref<any>(null);
 
 // Helpers
 const isArabic = (text: string) => /[\u0600-\u06FF]/.test(text || '');
@@ -595,115 +362,6 @@ const getSubjectIcon = (subjectName = '') => {
   if (s.includes('art') || s.includes('eps') || s.includes('فن') || s.includes('بدن')) return '🎨';
   if (s.includes('english') || s.includes('anglais')) return '🇬🇧';
   return '📚';
-};
-
-// Modal Handlers
-const openEvalModal = () => {
-  const savedUser = localStorage.getItem('parent_user');
-  let teacherName = 'Enseignant';
-  if (savedUser) {
-    try {
-      const u = JSON.parse(savedUser);
-      if (u.name) teacherName = u.name;
-    } catch (e) {}
-  }
-  evalForm.teacher_name = behaviourData.value.teacher_name || teacherName;
-  evalForm.semester = behaviourData.value.semester || 'S1';
-  evalForm.participation = behaviourData.value.participation || 5;
-  evalForm.rules = behaviourData.value.rules || 5;
-  evalForm.group_work = behaviourData.value.group_work || 5;
-  evalForm.punctuality = behaviourData.value.punctuality || 5;
-  evalForm.care = behaviourData.value.care || 5;
-  evalForm.general_appreciation = behaviourData.value.general_appreciation || '';
-  showEvalModal.value = true;
-};
-
-const closeEvalModal = () => {
-  showEvalModal.value = false;
-};
-
-const submitEvalForm = async () => {
-  if (!currentStudentId.value) return;
-  savingEval.value = true;
-  try {
-    await apiRequest('/api/school/behaviour/save', {
-      student_id: currentStudentId.value,
-      semester: evalForm.semester,
-      teacher_name: evalForm.teacher_name,
-      participation: evalForm.participation,
-      rules: evalForm.rules,
-      group_work: evalForm.group_work,
-      punctuality: evalForm.punctuality,
-      care: evalForm.care,
-      general_appreciation: evalForm.general_appreciation
-    });
-    closeEvalModal();
-    await fetchBehaviour(currentStudentId.value);
-  } catch (e) {
-    console.error('Erreur save evaluation:', e);
-  } finally {
-    savingEval.value = false;
-  }
-};
-
-const openCommentModal = () => {
-  const savedUser = localStorage.getItem('parent_user');
-  let teacherName = 'Enseignant';
-  if (savedUser) {
-    try {
-      const u = JSON.parse(savedUser);
-      if (u.name) teacherName = u.name;
-    } catch (e) {}
-  }
-  commentForm.teacher = teacherName;
-  commentForm.subject = availableSubjectNames.value.length > 0 ? availableSubjectNames.value[0] : 'Général';
-  commentForm.sentiment = 'positive';
-  commentForm.text = '';
-  showCommentModal.value = true;
-};
-
-const closeCommentModal = () => {
-  showCommentModal.value = false;
-};
-
-const submitCommentForm = async () => {
-  if (!currentStudentId.value || !commentForm.text.trim()) return;
-  savingComment.value = true;
-  try {
-    await apiRequest('/api/school/pedagogical-comments/create', {
-      student_id: currentStudentId.value,
-      teacher: commentForm.teacher,
-      subject: commentForm.subject,
-      sentiment: commentForm.sentiment,
-      text: commentForm.text
-    });
-    closeCommentModal();
-    await fetchComments(currentStudentId.value);
-  } catch (e) {
-    console.error('Erreur create comment:', e);
-  } finally {
-    savingComment.value = false;
-  }
-};
-
-const confirmDeleteComment = (c: any) => {
-  commentToDelete.value = c;
-  showDeleteAlert.value = true;
-};
-
-const executeDeleteComment = async () => {
-  if (!commentToDelete.value) return;
-  try {
-    await apiRequest('/api/school/pedagogical-comments/delete', { id: commentToDelete.value.id });
-    if (currentStudentId.value) {
-      await fetchComments(currentStudentId.value);
-    }
-  } catch (e) {
-    console.error('Erreur delete comment:', e);
-  } finally {
-    showDeleteAlert.value = false;
-    commentToDelete.value = null;
-  }
 };
 
 const fetchBehaviour = async (studentId: number) => {
@@ -861,33 +519,6 @@ onUnmounted(() => {
   margin: 2px 0 0 0;
   font-size: 0.76rem;
   color: #64748b;
-}
-
-/* Admin Action Button */
-.admin-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #4f46e5;
-  color: #ffffff;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 10px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.admin-action-btn.secondary {
-  background: #0ea5e9;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
-}
-
-.admin-action-btn:active {
-  transform: scale(0.96);
 }
 
 /* Cards */
@@ -1221,19 +852,6 @@ onUnmounted(() => {
   color: #2563eb;
 }
 
-.comment-delete-btn {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  font-size: 1.1rem;
-  cursor: pointer;
-  padding: 4px;
-}
-
-.comment-delete-btn:hover {
-  color: #ef4444;
-}
-
 .comment-box {
   background: #f8fafc;
   border-radius: 10px;
@@ -1282,260 +900,6 @@ onUnmounted(() => {
 .grade-low {
   background: #fef2f2;
   color: #dc2626;
-}
-
-/* ========================================================
-   MODALS STYLES
-   ======================================================== */
-.modal-wrapper-custom {
-  background: #ffffff;
-  border-radius: 20px 20px 0 0;
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 20px;
-}
-
-.modal-header-custom {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 18px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.modal-header-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.modal-icon-badge {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  background: #eef2ff;
-  color: #4f46e5;
-  font-size: 1.3rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-title {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.modal-subtitle {
-  margin: 2px 0 0 0;
-  font-size: 0.75rem;
-  color: #64748b;
-}
-
-.modal-close-btn {
-  background: #f1f5f9;
-  border: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  color: #64748b;
-  cursor: pointer;
-}
-
-.modal-body-custom {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-row-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.form-label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #334155;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.custom-select, .custom-input, .custom-textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #e2e8f0;
-  background: #f8fafc;
-  font-size: 0.88rem;
-  color: #0f172a;
-  font-weight: 600;
-  outline: none;
-  font-family: inherit;
-}
-
-.custom-select:focus, .custom-input:focus, .custom-textarea:focus {
-  border-color: #4f46e5;
-  background: #ffffff;
-}
-
-/* Criteria Star Picker */
-.criteria-eval-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
-}
-
-.criterion-eval-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid #edf2f7;
-}
-
-.criterion-eval-row:last-child {
-  border-bottom: none;
-}
-
-.crit-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.crit-icon {
-  font-size: 1.1rem;
-}
-
-.crit-label {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.crit-star-picker {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.picker-star {
-  background: transparent;
-  border: none;
-  font-size: 1.35rem;
-  color: #cbd5e1;
-  cursor: pointer;
-  padding: 0 1px;
-}
-
-.picker-star.filled {
-  color: #f59e0b;
-}
-
-.picker-val-badge {
-  font-size: 0.78rem;
-  font-weight: 800;
-  color: #475569;
-  margin-left: 6px;
-  min-width: 26px;
-}
-
-/* Sentiment Picker Row */
-.sentiment-picker-row {
-  display: flex;
-  gap: 8px;
-}
-
-.sent-pick-btn {
-  flex: 1;
-  padding: 8px 6px;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 10px;
-  background: #f8fafc;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-}
-
-.sent-pick-btn.positive.selected {
-  background: #ecfdf5;
-  border-color: #10b981;
-  color: #059669;
-}
-
-.sent-pick-btn.neutral.selected {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #2563eb;
-}
-
-.sent-pick-btn.negative.selected {
-  background: #fef2f2;
-  border-color: #ef4444;
-  color: #dc2626;
-}
-
-.modal-footer-custom {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.btn-cancel {
-  flex: 1;
-  padding: 12px;
-  border-radius: 12px;
-  background: #f1f5f9;
-  color: #475569;
-  border: none;
-  font-weight: 700;
-  font-size: 0.88rem;
-  cursor: pointer;
-}
-
-.btn-submit {
-  flex: 2;
-  padding: 12px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  color: #ffffff;
-  border: none;
-  font-weight: 800;
-  font-size: 0.88rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-spinner {
-  width: 20px;
-  height: 20px;
 }
 
 /* Animations */
