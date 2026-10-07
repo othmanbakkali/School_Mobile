@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- 1. Report Action: Bon de Livraison Boutique (Delivery Slip) -->
+        <record id="action_report_school_shop_delivery_slip" model="ir.actions.report">
+            <field name="name">Bon de Livraison Boutique</field>
+            <field name="model">school.shop.order</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">school_mobile_v2.report_school_shop_delivery_slip_template</field>
+            <field name="report_file">school_mobile_v2.report_school_shop_delivery_slip_template</field>
+            <field name="print_report_name">'Bon_Livraison_%s_%s' % ((object.student_id.name or 'Eleve').replace(' ', '_'), (object.delivery_slip_number or object.name or str(object.id)).replace('/', '_'))</field>
+            <field name="paperformat_id" ref="school_mobile_v2.paperformat_school_payment_receipt"/>
+            <field name="binding_model_id" ref="model_school_shop_order"/>
+            <field name="binding_type">report</field>
+        </record>
+
+        <!-- 2. Report Action: Reçu Justificatif Déduction Solde Wallet -->
+        <record id="action_report_school_shop_wallet_receipt" model="ir.actions.report">
+            <field name="name">Justificatif Débit Portefeuille (Achat)</field>
+            <field name="model">school.shop.order</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">school_mobile_v2.report_school_shop_wallet_receipt_template</field>
+            <field name="report_file">school_mobile_v2.report_school_shop_wallet_receipt_template</field>
+            <field name="print_report_name">'Justificatif_Debit_Wallet_%s_%s' % ((object.student_id.name or 'Eleve').replace(' ', '_'), (object.name or str(object.id)).replace('/', '_'))</field>
+            <field name="paperformat_id" ref="school_mobile_v2.paperformat_school_payment_receipt"/>
+            <field name="binding_model_id" ref="model_school_shop_order"/>
+            <field name="binding_type">report</field>
+        </record>
+
+        <!-- ================================================================= -->
+        <!-- Sub-template: Single Delivery Slip Box -->
+        <!-- ================================================================= -->
+        <template id="report_school_shop_delivery_slip_box">
+            <div t-attf-style="border: 2px #{'dashed #64748b' if is_duplicate else 'solid #5c2d54'}; border-radius: 12px; padding: 12px 16px; background: #{'#fcfcfd' if is_duplicate else '#ffffff'}; position: relative; margin: 0; box-sizing: border-box;">
+                
+                <!-- Top Header -->
+                <table style="width: 100%; border-bottom: 1.5px solid #{'#94a3b8' if is_duplicate else '#5c2d54'}; padding-bottom: 8px; margin-bottom: 8px; border-collapse: collapse;">
+                    <tr>
+                        <td style="width: 22%; vertical-align: middle;">
+                            <t t-if="res_company.logo">
+                                <img t-att-src="image_data_uri(res_company.logo)" style="max-height: 48px; max-width: 110px;" alt="Logo"/>
+                            </t>
+                            <t t-else="">
+                                <div style="font-size: 16px; font-weight: bold; color: #5c2d54;">AL IBDAE</div>
+                            </t>
+                        </td>
+
+                        <td style="width: 53%; text-align: center; vertical-align: middle;">
+                            <div style="font-size: 13px; font-weight: 800; color: #{'#334155' if is_duplicate else '#5c2d54'}; text-transform: uppercase; letter-spacing: 0.3px;">
+                                Groupe Scolaire Al Ibdae Al Alamiya
+                            </div>
+                            <div style="font-size: 12px; font-weight: bold; color: #334155; margin-top: 1px; direction: rtl;">
+                                مجموعة مدارس الإبداع العالمية
+                            </div>
+                            <div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">
+                                Boutique &amp; Fournitures Scolaires | Année : <strong style="color: #0f172a;"><t t-esc="doc.year_id.name or '2026-2027'"/></strong>
+                            </div>
+                        </td>
+
+                        <td style="width: 25%; text-align: right; vertical-align: middle;">
+                            <div t-attf-style="background: #{'#f1f5f9' if is_duplicate else '#fdf4ff'}; border: 1.5px solid #{'#cbd5e1' if is_duplicate else '#d946ef'}; border-radius: 8px; padding: 4px 8px; display: inline-block; text-align: center; min-width: 115px;">
+                                <div t-attf-style="font-size: 8.5px; font-weight: bold; color: #{'#475569' if is_duplicate else '#86198f'}; text-transform: uppercase;">
+                                    <t t-if="is_duplicate">Duplicata BL N°</t>
+                                    <t t-else="">Bon de Livraison N°</t>
+                                </div>
+                                <div t-attf-style="font-size: 13px; font-weight: 800; color: #{'#1e293b' if is_duplicate else '#701a75'};">
+                                    <t t-esc="doc.delivery_slip_number or doc.name"/>
+                                </div>
+                                <div t-if="not is_duplicate" style="font-size: 8px; font-weight: 800; color: #166534; background: #dcfce7; border: 1px solid #86efac; border-radius: 4px; padding: 1px 4px; margin-top: 2px; text-transform: uppercase;">
+                                    ORIGINAL - BORDEREAU
+                                </div>
+                                <div t-if="is_duplicate" style="font-size: 8px; font-weight: 800; color: #9a3412; background: #ffedd5; border: 1px solid #fdba74; border-radius: 4px; padding: 1px 4px; margin-top: 2px; text-transform: uppercase;">
+                                    DUPLICATA - ARCHIVE
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Title Banner -->
+                <div t-attf-style="text-align: center; background: #{'linear-gradient(135deg, #475569 0%, #1e293b 100%)' if is_duplicate else 'linear-gradient(135deg, #5c2d54 0%, #3b1636 100%)'}; color: #ffffff; padding: 5px 10px; border-radius: 6px; margin-bottom: 8px;">
+                    <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.5px;">BON DE LIVRAISON &amp; DÉCHARGE DE RÉCEPTION</span>
+                    <span style="font-size: 12px; font-weight: 800; margin: 0 8px;">/</span>
+                    <span style="font-size: 12px; font-weight: bold; direction: rtl;">وصل تسليم واستلام المقتنيات المدرسية</span>
+                </div>
+
+                <!-- Recipient & Order Info -->
+                <table style="width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <tr>
+                        <td style="padding: 6px 12px; width: 50%; border-right: 1px solid #e2e8f0;">
+                            <div style="font-size: 8.5px; text-transform: uppercase; color: #64748b; font-weight: 700;">Destinataire / Élève (التلميذ) :</div>
+                            <div style="font-size: 12px; font-weight: 800; color: #0f172a; margin-top: 1px;">
+                                <t t-esc="doc.student_id.display_name or doc.student_id.name"/>
+                            </div>
+                            <div style="font-size: 9.5px; color: #475569; margin-top: 2px;">
+                                Niveau : <strong><t t-esc="doc.level_id.name or 'Non défini'"/></strong> | Massar : <strong><t t-esc="doc.student_id.massar_number or '—'"/></strong>
+                            </div>
+                        </td>
+                        <td style="padding: 6px 12px; width: 50%;">
+                            <div style="font-size: 8.5px; text-transform: uppercase; color: #64748b; font-weight: 700;">Parent Responsable (ولي الأمر) :</div>
+                            <div style="font-size: 11.5px; font-weight: 700; color: #0f172a; margin-top: 1px;">
+                                <t t-esc="doc.parent_id.name or doc.student_id.parent_id.name or 'Non renseigné'"/>
+                            </div>
+                            <div style="font-size: 9.5px; color: #475569; margin-top: 2px;">
+                                Tél : <strong><t t-esc="doc.parent_id.phone or doc.student_id.parent_id.phone or '—'"/></strong> | Réf Commande : <strong><t t-esc="doc.name"/></strong>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Items Table -->
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
+                    <thead>
+                        <tr style="background: #f1f5f9; border-top: 1px solid #cbd5e1; border-bottom: 1.5px solid #cbd5e1;">
+                            <th style="padding: 5px 8px; font-size: 9px; text-align: left; color: #334155; text-transform: uppercase;">Désignation de l'article</th>
+                            <th style="padding: 5px 8px; font-size: 9px; text-align: center; color: #334155; text-transform: uppercase;">Catégorie</th>
+                            <th style="padding: 5px 8px; font-size: 9px; text-align: center; color: #334155; text-transform: uppercase;">Qté</th>
+                            <th style="padding: 5px 8px; font-size: 9px; text-align: right; color: #334155; text-transform: uppercase;">P.U (MAD)</th>
+                            <th style="padding: 5px 8px; font-size: 9px; text-align: right; color: #334155; text-transform: uppercase;">Total (MAD)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #e2e8f0; background: #ffffff;">
+                            <td style="padding: 6px 8px; font-size: 10.5px; font-weight: 750; color: #0f172a;">
+                                <t t-esc="doc.product_id.name"/>
+                            </td>
+                            <td style="padding: 6px 8px; font-size: 10px; text-align: center; color: #64748b;">
+                                <t t-if="doc.product_category == 'uniform'">Uniforme / Tenue</t>
+                                <t t-elif="doc.product_category == 'books'">Manuels &amp; Livres</t>
+                                <t t-elif="doc.product_category == 'supplies'">Fournitures</t>
+                                <t t-elif="doc.product_category == 'sport'">Sport</t>
+                                <t t-else="">Article Divers</t>
+                            </td>
+                            <td style="padding: 6px 8px; font-size: 11px; font-weight: 800; text-align: center; color: #0f172a;">
+                                <t t-esc="doc.quantity"/>
+                            </td>
+                            <td style="padding: 6px 8px; font-size: 10.5px; text-align: right; color: #475569;">
+                                <t t-esc="'%.2f' % doc.unit_price"/>
+                            </td>
+                            <td style="padding: 6px 8px; font-size: 11px; font-weight: 800; text-align: right; color: #5c2d54;">
+                                <t t-esc="'%.2f' % doc.amount_total"/>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Delivery Status & Payment Method Summary -->
+                <table style="width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 8px; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px;">
+                    <tr>
+                        <td style="padding: 6px 12px; width: 60%; font-size: 9.5px; color: #581c87;">
+                            Mode de règlement : <strong>Débit Portefeuille Portepay</strong> (<t t-esc="doc.transaction_id.receipt_number or 'Auto'"/>)<br/>
+                            Statut de livraison : <strong style="color: #15803d;">
+                                <t t-if="doc.state == 'paid'">Payé (En attente)</t>
+                                <t t-elif="doc.state == 'preparing'">En cours de préparation</t>
+                                <t t-elif="doc.state == 'delivered'">Livré au destinataire</t>
+                                <t t-elif="doc.state == 'cancelled'">Annulé</t>
+                                <t t-else="">-</t>
+                            </strong>
+                            <t t-if="doc.delivery_date"> | Date remise : <strong><t t-esc="str(doc.delivery_date)[:16]"/></strong></t>
+                        </td>
+                        <td style="padding: 6px 12px; width: 40%; text-align: right; vertical-align: middle;">
+                            <span style="font-size: 9px; color: #6b21a8; font-weight: 700; text-transform: uppercase;">Montant Total Débité :</span>
+                            <div style="font-size: 14px; font-weight: 900; color: #5c2d54;">
+                                <t t-esc="'%.2f' % doc.amount_total"/> MAD
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Signature Boxes -->
+                <table style="width: 100%; border-collapse: collapse; margin-top: 4px;">
+                    <tr>
+                        <td style="width: 50%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; height: 48px; vertical-align: top; background: #ffffff;">
+                            <div style="font-size: 8px; font-weight: 800; color: #475569; text-transform: uppercase;">
+                                Service Économat / Remis par :
+                            </div>
+                            <div style="font-size: 7.5px; color: #94a3b8; margin-top: 1px;">
+                                Signature &amp; Cachet de l'établissement
+                            </div>
+                        </td>
+                        <td style="width: 4%;"></td>
+                        <td style="width: 46%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; height: 48px; vertical-align: top; background: #ffffff;">
+                            <div style="font-size: 8px; font-weight: 800; color: #475569; text-transform: uppercase;">
+                                Émargement Réceptionnaire (Parent / Élève) :
+                            </div>
+                            <div style="font-size: 7.5px; color: #94a3b8; margin-top: 1px;">
+                                « Bon pour réception des articles conformes »
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+        </template>
+
+        <!-- Main Template: Delivery Slip (Original + Duplicata per page) -->
+        <template id="report_school_shop_delivery_slip_template">
+            <t t-call="web.basic_layout">
+                <t t-foreach="docs" t-as="doc">
+                    <div class="page" style="page-break-after: always; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+                        <!-- Original Copy -->
+                        <t t-set="is_duplicate" t-value="False"/>
+                        <t t-call="school_mobile_v2.report_school_shop_delivery_slip_box"/>
+
+                        <!-- Tear-off Scissors Line -->
+                        <div style="width: 100%; text-align: center; margin: 10px 0; position: relative; height: 16px;">
+                            <div style="border-top: 1.5px dashed #94a3b8; width: 100%; position: absolute; top: 8px; left: 0;"></div>
+                            <span style="background: #ffffff; padding: 0 10px; position: relative; font-size: 8.5px; color: #64748b; font-weight: bold; text-transform: uppercase;">
+                                ✂ Ligne de découpe / Partie École ✂
+                            </span>
+                        </div>
+
+                        <!-- Duplicata Copy -->
+                        <t t-set="is_duplicate" t-value="True"/>
+                        <t t-call="school_mobile_v2.report_school_shop_delivery_slip_box"/>
+                    </div>
+                </t>
+            </t>
+        </template>
+
+
+        <!-- ================================================================= -->
+        <!-- Sub-template: Single Wallet Debit Justification Receipt -->
+        <!-- ================================================================= -->
+        <template id="report_school_shop_wallet_receipt_box">
+            <div t-attf-style="border: 2px #{'dashed #64748b' if is_duplicate else 'solid #1e3a8a'}; border-radius: 12px; padding: 12px 16px; background: #{'#fcfcfd' if is_duplicate else '#ffffff'}; position: relative; margin: 0; box-sizing: border-box;">
+                
+                <!-- Top Header -->
+                <table style="width: 100%; border-bottom: 1.5px solid #{'#94a3b8' if is_duplicate else '#1e3a8a'}; padding-bottom: 8px; margin-bottom: 8px; border-collapse: collapse;">
+                    <tr>
+                        <td style="width: 22%; vertical-align: middle;">
+                            <t t-if="res_company.logo">
+                                <img t-att-src="image_data_uri(res_company.logo)" style="max-height: 48px; max-width: 110px;" alt="Logo"/>
+                            </t>
+                            <t t-else="">
+                                <div style="font-size: 16px; font-weight: bold; color: #1e3a8a;">AL IBDAE</div>
+                            </t>
+                        </td>
+
+                        <td style="width: 53%; text-align: center; vertical-align: middle;">
+                            <div style="font-size: 13px; font-weight: 800; color: #{'#334155' if is_duplicate else '#1e3a8a'}; text-transform: uppercase; letter-spacing: 0.3px;">
+                                Groupe Scolaire Al Ibdae Al Alamiya
+                            </div>
+                            <div style="font-size: 12px; font-weight: bold; color: #334155; margin-top: 1px; direction: rtl;">
+                                مجموعة مدارس الإبداع العالمية
+                            </div>
+                            <div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">
+                                Service Portefeuille Portepay | Année : <strong style="color: #0f172a;"><t t-esc="doc.year_id.name or '2026-2027'"/></strong>
+                            </div>
+                        </td>
+
+                        <td style="width: 25%; text-align: right; vertical-align: middle;">
+                            <div t-attf-style="background: #{'#f1f5f9' if is_duplicate else '#eff6ff'}; border: 1.5px solid #{'#cbd5e1' if is_duplicate else '#60a5fa'}; border-radius: 8px; padding: 4px 8px; display: inline-block; text-align: center; min-width: 115px;">
+                                <div t-attf-style="font-size: 8.5px; font-weight: bold; color: #{'#475569' if is_duplicate else '#1d4ed8'}; text-transform: uppercase;">
+                                    <t t-if="is_duplicate">Duplicata Débit N°</t>
+                                    <t t-else="">Justificatif Débit N°</t>
+                                </div>
+                                <div t-attf-style="font-size: 13px; font-weight: 800; color: #{'#1e293b' if is_duplicate else '#1e40af'};">
+                                    <t t-esc="doc.transaction_id.receipt_number or doc.name"/>
+                                </div>
+                                <div t-if="not is_duplicate" style="font-size: 8px; font-weight: 800; color: #166534; background: #dcfce7; border: 1px solid #86efac; border-radius: 4px; padding: 1px 4px; margin-top: 2px; text-transform: uppercase;">
+                                    ORIGINAL - PARENT
+                                </div>
+                                <div t-if="is_duplicate" style="font-size: 8px; font-weight: 800; color: #9a3412; background: #ffedd5; border: 1px solid #fdba74; border-radius: 4px; padding: 1px 4px; margin-top: 2px; text-transform: uppercase;">
+                                    DUPLICATA - COMPTABILITÉ
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Title Banner -->
+                <div t-attf-style="text-align: center; background: #{'linear-gradient(135deg, #475569 0%, #1e293b 100%)' if is_duplicate else 'linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%)'}; color: #ffffff; padding: 5px 10px; border-radius: 6px; margin-bottom: 8px;">
+                    <span style="font-size: 12px; font-weight: 800; letter-spacing: 0.5px;">JUSTIFICATIF DE PAIEMENT &amp; DÉDUCTION WALLET</span>
+                    <span style="font-size: 12px; font-weight: 800; margin: 0 8px;">/</span>
+                    <span style="font-size: 12px; font-weight: bold; direction: rtl;">وصل إثبات الدفع والخصم من رصيد المحفظة</span>
+                </div>
+
+                <!-- Student & Parent Summary -->
+                <table style="width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <tr>
+                        <td style="padding: 6px 12px; width: 50%; border-right: 1px solid #e2e8f0;">
+                            <div style="font-size: 8.5px; text-transform: uppercase; color: #64748b; font-weight: 700;">Nom de l'élève (اسم التلميذ) :</div>
+                            <div style="font-size: 12px; font-weight: 800; color: #0f172a; margin-top: 1px;">
+                                <t t-esc="doc.student_id.display_name or doc.student_id.name"/>
+                            </div>
+                            <div style="font-size: 9.5px; color: #475569; margin-top: 2px;">
+                                Niveau : <strong><t t-esc="doc.level_id.name or 'Non défini'"/></strong> | Massar : <strong><t t-esc="doc.student_id.massar_number or '—'"/></strong>
+                            </div>
+                        </td>
+                        <td style="padding: 6px 12px; width: 50%;">
+                            <div style="font-size: 8.5px; text-transform: uppercase; color: #64748b; font-weight: 700;">Date de Transaction :</div>
+                            <div style="font-size: 11.5px; font-weight: 700; color: #0f172a; margin-top: 1px;">
+                                <t t-esc="doc.date or fields.Datetime.now()"/>
+                            </div>
+                            <div style="font-size: 9.5px; color: #475569; margin-top: 2px;">
+                                Parent : <strong><t t-esc="doc.parent_id.name or doc.student_id.parent_id.name or '—'"/></strong>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Wallet Balances Breakdown Table (Before / Deduction / Remaining) -->
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 1.5px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
+                    <thead>
+                        <tr style="background: #e2e8f0;">
+                            <th style="padding: 5px 8px; font-size: 9px; text-align: center; color: #334155; text-transform: uppercase; width: 33%;">Solde Initial Avant Débit</th>
+                            <th style="padding: 5px 8px; font-size: 9px; text-align: center; color: #dc2626; text-transform: uppercase; width: 34%;">Montant Débité (Achat)</th>
+                            <th style="padding: 5px 8px; font-size: 9px; text-align: center; color: #166534; text-transform: uppercase; width: 33%;">Nouveau Solde Restant</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="background: #ffffff;">
+                            <td style="padding: 8px; font-size: 12px; font-weight: 750; text-align: center; color: #475569; border-right: 1px solid #e2e8f0;">
+                                <t t-esc="'%.2f' % doc.wallet_balance_before"/> MAD
+                            </td>
+                            <td style="padding: 8px; font-size: 13px; font-weight: 900; text-align: center; color: #dc2626; border-right: 1px solid #e2e8f0; background: #fef2f2;">
+                                - <t t-esc="'%.2f' % doc.amount_total"/> MAD
+                            </td>
+                            <td style="padding: 8px; font-size: 13px; font-weight: 900; text-align: center; color: #166534; background: #f0fdf4;">
+                                <t t-esc="'%.2f' % doc.wallet_balance_after"/> MAD
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Purchase Item Breakdown -->
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <tr>
+                        <td style="padding: 6px 12px;">
+                            <div style="font-size: 9.5px; color: #334155;">
+                                <strong>Article acheté :</strong> <t t-esc="doc.product_id.name"/> (Qté: <t t-esc="doc.quantity"/> x <t t-esc="'%.2f' % doc.unit_price"/> MAD)
+                            </div>
+                            <div style="font-size: 8.5px; color: #64748b; margin-top: 2px;">
+                                Réf Commande : <t t-esc="doc.name"/> | Bon de livraison associé : <t t-esc="doc.delivery_slip_number or 'BL-En cours'"/>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Legal Notice & Certification -->
+                <div style="font-size: 8px; color: #64748b; font-style: italic; line-height: 1.35; margin-bottom: 6px; text-align: center;">
+                    « Ce document certifie la déduction automatique sur le compte portefeuille électronique Portepay de l'élève. Il vaut reçu de paiement officiel et décharge de règlement. »
+                </div>
+
+                <!-- Signature -->
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="width: 50%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; height: 42px; vertical-align: top; background: #ffffff;">
+                            <div style="font-size: 8px; font-weight: 800; color: #475569; text-transform: uppercase;">
+                                Service Comptabilité &amp; Trésorerie :
+                            </div>
+                        </td>
+                        <td style="width: 4%;"></td>
+                        <td style="width: 46%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; height: 42px; vertical-align: top; background: #ffffff;">
+                            <div style="font-size: 8px; font-weight: 800; color: #475569; text-transform: uppercase;">
+                                Visa Parent Responsable :
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+        </template>
+
+        <!-- Main Template: Wallet Receipt -->
+        <template id="report_school_shop_wallet_receipt_template">
+            <t t-call="web.basic_layout">
+                <t t-foreach="docs" t-as="doc">
+                    <div class="page" style="page-break-after: always; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+                        <!-- Original Copy -->
+                        <t t-set="is_duplicate" t-value="False"/>
+                        <t t-call="school_mobile_v2.report_school_shop_wallet_receipt_box"/>
+
+                        <!-- Tear-off Scissors Line -->
+                        <div style="width: 100%; text-align: center; margin: 10px 0; position: relative; height: 16px;">
+                            <div style="border-top: 1.5px dashed #94a3b8; width: 100%; position: absolute; top: 8px; left: 0;"></div>
+                            <span style="background: #ffffff; padding: 0 10px; position: relative; font-size: 8.5px; color: #64748b; font-weight: bold; text-transform: uppercase;">
+                                ✂ Ligne de découpe / Souche Comptable ✂
+                            </span>
+                        </div>
+
+                        <!-- Duplicata Copy -->
+                        <t t-set="is_duplicate" t-value="True"/>
+                        <t t-call="school_mobile_v2.report_school_shop_wallet_receipt_box"/>
+                    </div>
+                </t>
+            </t>
+        </template>
+    </data>
+</odoo>

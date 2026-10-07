@@ -15,5 +15,19 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_school_shop_order" model="ir.sequence">
+            <field name="name">Séquence Commandes Boutique</field>
+            <field name="code">school.shop.order</field>
+            <field name="prefix">CMD/%(range_year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_school_shop_order_delivery" model="ir.sequence">
+            <field name="name">Séquence Bons de Livraison Boutique</field>
+            <field name="code">school.shop.order.delivery</field>
+            <field name="prefix">BL/%(range_year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

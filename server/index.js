@@ -3509,58 +3509,181 @@ app.post('/api/school/shop/products', async (req, res) => {
 });
 
 app.post('/api/school/shop/buy', async (req, res) => {
-    const { student_id, product_id } = req.body;
+    const { student_id, product_id, quantity = 1 } = req.body;
     try {
+        const parsedStudentId = parseInt(student_id);
+        const parsedProductId = parseInt(product_id);
+        const parsedQty = Math.max(1, parseInt(quantity) || 1);
+
+        if (!parsedStudentId || !parsedProductId) {
+            return res.status(400).json({ success: false, error: "student_id et product_id sont requis." });
+        }
+
         const adminUid = await getAdminUid();
         const products = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.shop.product', 'read',
-            [[parseInt(product_id)], ['name', 'price', 'stock']]
+            [[parsedProductId], ['name', 'price', 'stock']]
         ]);
         if (!products || products.length === 0) {
-            return res.status(400).json({ error: "Produit non trouvé" });
+            return res.status(400).json({ success: false, error: "Produit non trouvé" });
         }
         const product = products[0];
-        if (product.stock <= 0) {
-            return res.status(400).json({ error: "Rupture de stock" });
+        if (product.stock < parsedQty) {
+            return res.status(400).json({ success: false, error: "Stock insuffisant pour cet article" });
         }
+
+        const totalAmount = product.price * parsedQty;
 
         const student = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
-            [[parseInt(student_id)], ['wallet_balance']]
+            [[parsedStudentId], ['name', 'wallet_balance']]
         ]);
         const walletBalance = student && student.length > 0 ? (student[0].wallet_balance || 0.0) : 0.0;
-        if (walletBalance < product.price) {
-            return res.status(400).json({ error: "Solde insuffisant dans votre portefeuille" });
+        if (walletBalance < totalAmount) {
+            return res.status(400).json({ success: false, error: `Solde insuffisant dans votre portefeuille (${walletBalance.toFixed(2)} MAD vs ${totalAmount.toFixed(2)} MAD requis)` });
         }
 
-        // Update product stock
+        // 1. Décrémenter le stock
         await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.shop.product', 'write',
-            [[parseInt(product_id)], { stock: product.stock - 1 }]
+            [[parsedProductId], { stock: product.stock - parsedQty }]
         ]);
 
-        // Create debit transaction (which automatically updates student.wallet_balance)
-        await callOdoo('object', 'execute_kw', [
+        // 2. Créer la transaction de débit portefeuille
+        const txId = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.wallet.transaction', 'create',
             [[{
-                student_id: parseInt(student_id),
-                amount: product.price,
+                student_id: parsedStudentId,
+                amount: totalAmount,
                 type: 'debit',
-                description: `Achat Boutique: ${product.name}`
+                description: `Achat Boutique: ${product.name} (x${parsedQty})`
             }]]
         ]);
 
-        // Read updated balance
+        // 3. Créer la commande d'achat et bon de livraison
+        const newBalance = walletBalance - totalAmount;
+        let orderId = null;
+        try {
+            orderId = await callOdoo('object', 'execute_kw', [
+                ODOO_DB, adminUid, ADMIN_PASS, 'school.shop.order', 'create',
+                [[{
+                    student_id: parsedStudentId,
+                    product_id: parsedProductId,
+                    quantity: parsedQty,
+                    unit_price: product.price,
+                    wallet_balance_before: walletBalance,
+                    wallet_balance_after: newBalance,
+                    transaction_id: Array.isArray(txId) ? txId[0] : txId,
+                    state: 'paid'
+                }]]
+            ]);
+            if (Array.isArray(orderId)) orderId = orderId[0];
+        } catch (orderErr) {
+            console.warn('Erreur création school.shop.order:', orderErr.message);
+        }
+
+        // 4. Relire le solde mis à jour
         const updatedStudent = await callOdoo('object', 'execute_kw', [
             ODOO_DB, adminUid, ADMIN_PASS, 'school.student', 'read',
-            [[parseInt(student_id)], ['wallet_balance']]
+            [[parsedStudentId], ['wallet_balance']]
         ]);
-        const newBalance = updatedStudent && updatedStudent.length > 0 ? (updatedStudent[0].wallet_balance || 0.0) : (walletBalance - product.price);
+        const finalBalance = updatedStudent && updatedStudent.length > 0 ? (updatedStudent[0].wallet_balance || 0.0) : newBalance;
 
-        res.json({ success: true, balance: newBalance });
+        console.log(`🛍️ [Boutique] Achat réussi pour ${student[0]?.name} : ${product.name} (x${parsedQty}) -> Total: ${totalAmount} MAD, Commande #${orderId}, Nouveau solde: ${finalBalance} MAD`);
+
+        res.json({
+            success: true,
+            order_id: orderId,
+            transaction_id: Array.isArray(txId) ? txId[0] : txId,
+            balance: finalBalance,
+            amount: totalAmount,
+            product_name: product.name
+        });
     } catch (error) {
-        console.warn('Odoo purchase failed, returning mock success:', error.message);
-        res.json({ success: true, balance: 65.00 });
+        console.error('Erreur /api/school/shop/buy:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Liste des Commandes & Achats Boutique pour l'élève
+app.post('/api/school/shop/orders', async (req, res) => {
+    const { student_id } = req.body;
+    try {
+        const parsedStudentId = parseInt(student_id);
+        if (!parsedStudentId) {
+            return res.status(400).json({ success: false, message: "student_id requis" });
+        }
+
+        const adminUid = await getAdminUid();
+        const orders = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.shop.order', 'search_read',
+            [[['student_id', '=', parsedStudentId]]],
+            {
+                fields: [
+                    'id', 'name', 'date', 'product_id', 'product_category',
+                    'quantity', 'unit_price', 'amount_total',
+                    'wallet_balance_before', 'wallet_balance_after',
+                    'state', 'delivery_slip_number', 'delivery_date',
+                    'delivered_by', 'delivery_notes'
+                ],
+                order: 'date desc, id desc'
+            }
+        ]);
+
+        res.json({ success: true, orders: orders || [] });
+    } catch (error) {
+        console.warn('Erreur /api/school/shop/orders:', error.message);
+        res.json({ success: true, orders: [] });
+    }
+});
+
+// Téléchargement PDF du Bon de Livraison officiel
+app.get('/api/school/shop/delivery-slip/:id', async (req, res) => {
+    const orderId = parseInt(req.params.id);
+    if (!orderId) return res.status(400).send('ID de commande invalide');
+    try {
+        const adminUid = await getAdminUid();
+        const base64Pdf = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.shop.order', 'get_delivery_slip_pdf',
+            [[orderId]]
+        ]);
+
+        if (!base64Pdf) {
+            return res.status(404).send('Impossible de générer le bon de livraison');
+        }
+
+        const pdfBuffer = Buffer.from(base64Pdf, 'base64');
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="Bon_Livraison_${orderId}.pdf"`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Erreur delivery slip PDF:', error.message);
+        res.status(500).send(`Erreur lors de la génération du bon de livraison: ${error.message}`);
+    }
+});
+
+// Téléchargement PDF du Justificatif Débit Portefeuille (Achat Boutique)
+app.get('/api/school/shop/wallet-receipt/:id', async (req, res) => {
+    const orderId = parseInt(req.params.id);
+    if (!orderId) return res.status(400).send('ID de commande invalide');
+    try {
+        const adminUid = await getAdminUid();
+        const base64Pdf = await callOdoo('object', 'execute_kw', [
+            ODOO_DB, adminUid, ADMIN_PASS, 'school.shop.order', 'get_wallet_receipt_pdf',
+            [[orderId]]
+        ]);
+
+        if (!base64Pdf) {
+            return res.status(404).send('Impossible de générer le justificatif débit');
+        }
+
+        const pdfBuffer = Buffer.from(base64Pdf, 'base64');
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="Justificatif_Debit_Wallet_${orderId}.pdf"`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Erreur wallet debit receipt PDF:', error.message);
+        res.status(500).send(`Erreur lors de la génération du reçu: ${error.message}`);
     }
 });
 

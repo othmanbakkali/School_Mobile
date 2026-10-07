@@ -410,6 +410,7 @@ class SchoolStudent(models.Model):
     use_wallet = fields.Boolean(string='Utiliser Portefeuille', default=True)
     has_wallet = fields.Boolean(string='Possède un Portefeuille', default=True)
     wallet_transaction_ids = fields.One2many('school.wallet.transaction', 'student_id', string='Transactions Portefeuille')
+    shop_order_ids = fields.One2many('school.shop.order', 'student_id', string='Commandes & Achats Boutique')
     ludic_points = fields.Integer(string='Points XP / Réussite', default=100)
     revision_submission_ids = fields.One2many('school.revision.submission', 'student_id', string='Activités Réussite Réalisées')
 
@@ -1910,6 +1911,126 @@ class SchoolShopProduct(models.Model):
     description = fields.Text(string='Description')
     photo = fields.Binary(string='Photo')
     stock = fields.Integer(string='Stock disponible', default=10)
+    order_ids = fields.One2many('school.shop.order', 'product_id', string='Commandes')
+
+
+class SchoolShopOrder(models.Model):
+    _name = 'school.shop.order'
+    _description = 'Commandes & Livraisons Boutique'
+    _order = 'date desc, id desc'
+
+    def _default_year_id(self):
+        y = _get_current_year_record(self.env)
+        return y.id if y else False
+
+    name = fields.Char(string='N° Commande', readonly=True, copy=False, index=True)
+    date = fields.Datetime(string='Date de Commande', default=fields.Datetime.now, required=True, index=True)
+    student_id = fields.Many2one('school.student', string='Élève', required=True, ondelete='cascade', index=True)
+    parent_id = fields.Many2one('school.parent', string='Parent Responsable', related='student_id.parent_id', store=True, readonly=True)
+    level_id = fields.Many2one('school.level', string='Niveau / Classe', related='student_id.level_id', store=True, readonly=True)
+    year_id = fields.Many2one('school.year', string='Année Scolaire', default=_default_year_id, readonly=True)
+    
+    product_id = fields.Many2one('school.shop.product', string='Article Acheté', required=True)
+    product_category = fields.Selection(related='product_id.category', string='Catégorie', readonly=True)
+    quantity = fields.Integer(string='Quantité', default=1, required=True)
+    unit_price = fields.Float(string='Prix Unitaire (MAD)', digits=(16, 2), required=True)
+    amount_total = fields.Float(string='Total Débité (MAD)', compute='_compute_amount_total', store=True, digits=(16, 2))
+    
+    wallet_balance_before = fields.Float(string='Solde Wallet Avant (MAD)', digits=(16, 2), readonly=True)
+    wallet_balance_after = fields.Float(string='Solde Wallet Après (MAD)', digits=(16, 2), readonly=True)
+    transaction_id = fields.Many2one('school.wallet.transaction', string='Transaction Portefeuille', readonly=True)
+    
+    state = fields.Selection([
+        ('paid', 'Payé (Déduit du Wallet)'),
+        ('preparing', 'En Préparation'),
+        ('delivered', 'Livré au Destinataire'),
+        ('cancelled', 'Annulé / Remboursé'),
+    ], string='Statut Commande / Livraison', default='paid', required=True, index=True)
+    
+    delivery_slip_number = fields.Char(string='N° Bon de Livraison', readonly=True, copy=False, index=True)
+    delivery_date = fields.Datetime(string='Date de Livraison Effective', readonly=True)
+    delivered_by = fields.Char(string='Remis / Livré par')
+    delivery_notes = fields.Text(string='Remarques & Émargement')
+
+    @api.depends('quantity', 'unit_price')
+    def _compute_amount_total(self):
+        for o in self:
+            o.amount_total = (o.quantity or 1) * (o.unit_price or 0.0)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        curr_year = _get_current_year_record(self.env)
+        for vals in vals_list:
+            if not vals.get('year_id') and curr_year:
+                vals['year_id'] = curr_year.id
+            if not vals.get('name'):
+                seq = self.env['ir.sequence'].next_by_code('school.shop.order')
+                vals['name'] = seq or f"CMD/{fields.Date.today().year}/{self.env['school.shop.order'].search_count([]) + 1:05d}"
+            if not vals.get('delivery_slip_number'):
+                seq_bl = self.env['ir.sequence'].next_by_code('school.shop.order.delivery')
+                vals['delivery_slip_number'] = seq_bl or f"BL/{fields.Date.today().year}/{self.env['school.shop.order'].search_count([]) + 1:05d}"
+        return super(SchoolShopOrder, self).create(vals_list)
+
+    def action_set_preparing(self):
+        self.write({'state': 'preparing'})
+
+    def action_deliver(self):
+        for o in self:
+            vals = {
+                'state': 'delivered',
+                'delivery_date': fields.Datetime.now()
+            }
+            if not o.delivery_slip_number:
+                seq_bl = self.env['ir.sequence'].next_by_code('school.shop.order.delivery')
+                vals['delivery_slip_number'] = seq_bl or f"BL/{fields.Date.today().year}/{o.id:05d}"
+            o.write(vals)
+
+    def action_cancel(self):
+        for o in self:
+            if o.state == 'cancelled':
+                continue
+            if o.product_id:
+                o.product_id.stock += (o.quantity or 1)
+            if o.student_id and o.amount_total > 0:
+                self.env['school.wallet.transaction'].create({
+                    'student_id': o.student_id.id,
+                    'amount': o.amount_total,
+                    'type': 'credit',
+                    'description': f"Remboursement Commande {o.name} ({o.product_id.name})"
+                })
+            o.write({'state': 'cancelled'})
+
+    def action_print_delivery_slip(self):
+        """ Génère et télécharge le Bon de Livraison officiel """
+        for o in self:
+            if not o.delivery_slip_number:
+                seq_bl = self.env['ir.sequence'].next_by_code('school.shop.order.delivery')
+                o.delivery_slip_number = seq_bl or f"BL/{fields.Date.today().year}/{o.id:05d}"
+        return self.env.ref('school_mobile_v2.action_report_school_shop_delivery_slip').report_action(self)
+
+    def action_print_wallet_receipt(self):
+        """ Génère et télécharge le Reçu de Déduction de Solde Wallet """
+        return self.env.ref('school_mobile_v2.action_report_school_shop_wallet_receipt').report_action(self)
+
+    def get_delivery_slip_pdf(self):
+        """ Retourne le PDF du Bon de Livraison encodé en base64 """
+        self.ensure_one()
+        if not self.delivery_slip_number:
+            self.action_print_delivery_slip()
+        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
+            'school_mobile_v2.action_report_school_shop_delivery_slip', self.ids
+        )
+        import base64
+        return base64.b64encode(pdf_content).decode('utf-8')
+
+    def get_wallet_receipt_pdf(self):
+        """ Retourne le PDF du Justificatif Débit Wallet encodé en base64 """
+        self.ensure_one()
+        pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf(
+            'school_mobile_v2.action_report_school_shop_wallet_receipt', self.ids
+        )
+        import base64
+        return base64.b64encode(pdf_content).decode('utf-8')
 
 
 class SchoolStudentTransitionWizard(models.TransientModel):

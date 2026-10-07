@@ -170,6 +170,21 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_school_shop_order" model="ir.actions.act_window">
+        <field name="name">📦 Commandes &amp; Livraisons Boutique</field>
+        <field name="res_model">school.shop.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_filter_to_deliver': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Aucune commande boutique enregistrée pour le moment.
+            </p>
+            <p>
+                Les commandes passées par les parents ou élèves depuis l'application mobile apparaîtront ici automatiquement avec déduction de leur solde portefeuille.
+            </p>
+        </field>
+    </record>
+
 
     <record id="action_school_massar_import_wizard" model="ir.actions.act_window">
         <field name="name">Importer Fichier Excel MASSAR</field>
@@ -435,6 +450,13 @@
               name="Boutique" 
               parent="menu_mobile_v2_root" 
               action="action_school_shop_product" 
+              groups="group_school_staff"
+              sequence="98"/>
+
+    <menuitem id="menu_mobile_v2_shop_order" 
+              name="📦 Suivi Commandes &amp; Livraisons" 
+              parent="menu_mobile_v2_root" 
+              action="action_school_shop_order" 
               groups="group_school_staff"
               sequence="98"/>
 
@@ -1714,6 +1736,144 @@ records.action_reset_mobile_password()
                     <field name="description"/>
                 </sheet>
             </form>
+        </field>
+    </record>
+
+    <!-- =================================================== -->
+    <!-- COMMANDES & LIVRAISONS BOUTIQUE VIEWS               -->
+    <!-- =================================================== -->
+    <record id="view_school_shop_order_tree" model="ir.ui.view">
+        <field name="name">school.shop.order.list</field>
+        <field name="model">school.shop.order</field>
+        <field name="arch" type="xml">
+            <list string="Commandes &amp; Livraisons Boutique" 
+                  decoration-info="state == 'paid'" 
+                  decoration-warning="state == 'preparing'" 
+                  decoration-success="state == 'delivered'" 
+                  decoration-muted="state == 'cancelled'">
+                <field name="name" string="N° Commande"/>
+                <field name="delivery_slip_number" string="N° Bon Livraison"/>
+                <field name="date" string="Date Achat"/>
+                <field name="student_id" string="Élève"/>
+                <field name="level_id" string="Classe / Niveau"/>
+                <field name="parent_id" string="Parent Responsable"/>
+                <field name="product_id" string="Article"/>
+                <field name="quantity" string="Qté"/>
+                <field name="amount_total" string="Total Débité (MAD)" sum="Total Achats"/>
+                <field name="delivery_date" string="Date Livraison" optional="show"/>
+                <field name="state" widget="badge" 
+                       decoration-info="state == 'paid'" 
+                       decoration-warning="state == 'preparing'" 
+                       decoration-success="state == 'delivered'" 
+                       decoration-muted="state == 'cancelled'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_school_shop_order_form" model="ir.ui.view">
+        <field name="name">school.shop.order.form</field>
+        <field name="model">school.shop.order</field>
+        <field name="arch" type="xml">
+            <form string="Commande &amp; Livraison Boutique">
+                <header>
+                    <button name="action_set_preparing" 
+                            string="📦 Marquer en Préparation" 
+                            type="object" 
+                            class="oe_highlight" 
+                            invisible="state != 'paid'"/>
+                    
+                    <button name="action_deliver" 
+                            string="🚚 Confirmer la Livraison" 
+                            type="object" 
+                            class="oe_highlight" 
+                            invisible="state not in ('paid', 'preparing')"/>
+                    
+                    <button name="action_print_delivery_slip" 
+                            string="📄 Imprimer Bon de Livraison (PDF)" 
+                            type="object" 
+                            class="btn-secondary"/>
+                    
+                    <button name="action_print_wallet_receipt" 
+                            string="🧾 Justificatif Débit Wallet (PDF)" 
+                            type="object" 
+                            class="btn-secondary"/>
+                    
+                    <button name="action_cancel" 
+                            string="❌ Annuler &amp; Rembourser Wallet" 
+                            type="object" 
+                            invisible="state == 'cancelled'" 
+                            confirm="Êtes-vous sûr de vouloir annuler cette commande ? Le stock de l'article sera restauré et le montant intégralement recrédité sur le portefeuille Portepay de l'élève."/>
+                    
+                    <field name="state" widget="statusbar" statusbar_visible="paid,preparing,delivered"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <span class="o_form_label">Commande Boutique</span>
+                        <h1><field name="name" readonly="1"/></h1>
+                        <h3 invisible="not delivery_slip_number" class="text-muted">
+                            Bon de Livraison : <field name="delivery_slip_number" readonly="1" class="oe_inline"/>
+                        </h3>
+                    </div>
+
+                    <group>
+                        <group string="👤 Destinataire &amp; Responsable">
+                            <field name="student_id" options="{'no_create': True}"/>
+                            <field name="level_id" readonly="1"/>
+                            <field name="parent_id" readonly="1"/>
+                            <field name="date" readonly="1"/>
+                            <field name="year_id" readonly="1"/>
+                        </group>
+                        
+                        <group string="🛍️ Détail de l'Article Commandé">
+                            <field name="product_id" options="{'no_create': True}"/>
+                            <field name="product_category"/>
+                            <field name="quantity"/>
+                            <field name="unit_price"/>
+                            <field name="amount_total" class="oe_subtotal_footer_separator text-primary fw-bold fs-5"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="💳 Justification Débit Portefeuille Portepay">
+                            <field name="wallet_balance_before"/>
+                            <field name="wallet_balance_after"/>
+                            <field name="transaction_id" readonly="1"/>
+                        </group>
+
+                        <group string="🚚 Suivi &amp; Remise des Articles">
+                            <field name="delivery_date" readonly="state == 'delivered'"/>
+                            <field name="delivered_by" placeholder="Ex: M. Ahmed (Économat)"/>
+                            <field name="delivery_notes" placeholder="Remarques éventuelles sur la livraison..."/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_school_shop_order_search" model="ir.ui.view">
+        <field name="name">school.shop.order.search</field>
+        <field name="model">school.shop.order</field>
+        <field name="arch" type="xml">
+            <search string="Rechercher Commandes Boutique">
+                <field name="name" string="N° Commande ou BL"/>
+                <field name="delivery_slip_number"/>
+                <field name="student_id" string="Élève"/>
+                <field name="parent_id" string="Parent"/>
+                <field name="product_id" string="Article"/>
+                <field name="level_id" string="Classe"/>
+                
+                <separator/>
+                <filter name="filter_to_deliver" string="🚚 À Livrer / En cours" domain="[('state', 'in', ['paid', 'preparing'])]"/>
+                <filter name="filter_delivered" string="✅ Livrés au Parent/Élève" domain="[('state', '=', 'delivered')]"/>
+                <filter name="filter_cancelled" string="❌ Annulés" domain="[('state', '=', 'cancelled')]"/>
+                
+                <separator/>
+                <filter name="group_by_state" string="Statut Livraison" context="{'group_by': 'state'}"/>
+                <filter name="group_by_level" string="Classe / Niveau" context="{'group_by': 'level_id'}"/>
+                <filter name="group_by_product" string="Article" context="{'group_by': 'product_id'}"/>
+                <filter name="group_by_date" string="Date de Commande" context="{'group_by': 'date'}"/>
+            </search>
         </field>
     </record>
 
