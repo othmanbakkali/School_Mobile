@@ -40,7 +40,10 @@ export function getApiBaseUrl(): string {
   if (saved) return saved;
 
   const envApiUrl = import.meta.env.VITE_API_URL || '';
-  if (import.meta.env.DEV || (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost') || isCapacitor) {
+  if (isCapacitor) {
+    return envApiUrl || 'https://scolarite.alibdaealamia.ma';
+  }
+  if (import.meta.env.DEV || (typeof window !== 'undefined' && window.location && window.location.hostname === 'localhost')) {
     return envApiUrl || 'http://localhost:3000';
   }
 
