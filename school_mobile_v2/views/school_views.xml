@@ -1569,7 +1569,7 @@ records.action_reset_mobile_password()
                 <sheet>
                     <div class="alert alert-info d-flex align-items-center justify-content-between p-2 mb-3" role="alert" invisible="not receipt_number">
                         <div>
-                            <i class="fa fa-file-text-o fa-lg me-2"></i>
+                            <i class="fa fa-file-text-o fa-lg me-2" title="Reçu Officiel"/>
                             <strong>Reçu Officiel Émis : <field name="receipt_number" readonly="1" class="oe_inline font-monospace"/></strong>
                         </div>
                         <div>
@@ -1609,28 +1609,6 @@ records.action_reset_mobile_password()
                     </group>
                 </sheet>
             </form>
-        </field>
-    </record>
-
-    <record id="view_wallet_transaction_search" model="ir.ui.view">
-        <field name="name">school.wallet.transaction.search</field>
-        <field name="model">school.wallet.transaction</field>
-        <field name="arch" type="xml">
-            <search string="Recherche Transactions Portefeuille">
-                <field name="receipt_number" string="N° Reçu"/>
-                <field name="student_id" string="Élève"/>
-                <field name="level_id" string="Classe"/>
-                <field name="description" string="Description"/>
-                <separator/>
-                <filter name="filter_credit" string="Rechargements (Crédits)" domain="[('type', '=', 'credit')]"/>
-                <filter name="filter_debit" string="Achats / Débits" domain="[('type', '=', 'debit')]"/>
-                <group expand="0" string="Grouper par">
-                    <filter name="group_by_student" string="Élève" context="{'group_by': 'student_id'}"/>
-                    <filter name="group_by_level" string="Classe" context="{'group_by': 'level_id'}"/>
-                    <filter name="group_by_type" string="Type d'opération" context="{'group_by': 'type'}"/>
-                    <filter name="group_by_date" string="Date" context="{'group_by': 'date:month'}"/>
-                </group>
-            </search>
         </field>
     </record>
 
