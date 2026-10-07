@@ -404,6 +404,7 @@ class SchoolStudent(models.Model):
     attendance_ids = fields.One2many('school.attendance', 'student_id', string='Absences/Retards')
     payment_ids = fields.One2many('school.payment', 'student_id', string='Paiements')
     ems_id = fields.Integer(string='ID EMS')
+    transport_id = fields.Many2one('school.transport', string='Ligne de Transport')
     wallet_balance = fields.Float(string='Solde Portefeuille', compute='_compute_wallet_balance', store=True, digits=(16, 2))
     wallet_enabled = fields.Boolean(string='Portefeuille Activé', default=True)
     use_wallet = fields.Boolean(string='Utiliser Portefeuille', default=True)
