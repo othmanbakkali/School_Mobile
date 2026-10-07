@@ -1,8 +1,44 @@
+import base64
+import os
+
+def _apply_school_branding(env):
+    """
+    Applique le branding et le logo de l'école Groupe Scolaire Al Ibdae Al Alamiya
+    sur la société active et les paramètres d'affichage.
+    """
+    try:
+        logo_path = os.path.join(os.path.dirname(__file__), 'static', 'src', 'img', 'logo.png')
+        logo_data = False
+        if os.path.exists(logo_path):
+            with open(logo_path, 'rb') as f:
+                logo_data = base64.b64encode(f.read()).decode('utf-8')
+
+        companies = env['res.company'].search([])
+        for comp in companies:
+            vals = {
+                'name': 'Groupe Scolaire Al Ibdae Al Alamiya',
+                'email': 'contact@alibdaealamia.ma',
+                'website': 'https://alibdaealamia.ma',
+            }
+            if logo_data:
+                vals['logo'] = logo_data
+            comp.write(vals)
+
+        # Config param
+        Param = env['ir.config_parameter'].sudo()
+        Param.set_param('web.base.url', 'https://adminschool.alibdaealamia.ma')
+        if logo_data:
+            Param.set_param('database.favicon', logo_data)
+    except Exception as e:
+        print(f"[Debrand] Erreur branding: {e}")
+
+
 def post_init_hook(env):
     """
     Crée automatiquement après l'installation :
     1. Les droits d'accès pour school.level et school.attendance
     2. Les vues et menus pour ces deux modèles
+    3. Le branding de l'école
     """
     # =============================================
     # DROITS D'ACCÈS
@@ -109,3 +145,7 @@ def post_init_hook(env):
     if 'school.mobile.tab' in env:
         env['school.mobile.tab']._seed_default_tabs()
 
+    # =============================================
+    # APPLICATION BRANDING ALIBDAE
+    # =============================================
+    _apply_school_branding(env)
