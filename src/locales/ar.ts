@@ -288,5 +288,33 @@ export const ar: any = {
     addCommentDesc: "ملاحظة وتوجيه رسمي من الأستاذ لملف التلميذ",
     saveCommentBtn: "نشر الملاحظة",
     deleteCommentConfirm: "هل تريد حذف هذه الملاحظة البيداغوجية ؟"
+  },
+  transport: {
+    title: "النقل المدرسي",
+    subtitle: "التتبع المباشر والحي لحافلة النقل المدرسي",
+    loading: "جاري تحميل بيانات النقل المدرسي...",
+    notRegistered: "ابنكم غير مسجل في خدمة النقل المدرسي.",
+    driverSection: "👤 السائق المسؤول",
+    certifiedDriver: "سائق معتمد لدى المؤسسة",
+    vehicleSection: "🚘 المركبة والمواعيد",
+    vehicleLabel: "المركبة",
+    defaultVehicle: "حافلة مدرسية",
+    scheduleLabel: "المواعيد",
+    morningLabel: "الصباح :",
+    eveningLabel: "المساء :",
+    trackingSection: "📍 حالة الرحلة (اليوم)",
+    inProgress: "الرحلة جارية",
+    morningInProgress: "الرحلة جارية (جولة الصباح)",
+    morningInProgressDesc: "الحافلة في الطريق • جمع التلاميذ والتوجه إلى المدرسة (07:30 - 08:30)",
+    morningArrived: "وصلت إلى المدرسة",
+    morningArrivedDesc: "وصل جميع التلاميذ إلى المدرسة بأمان • موعد الرحلة القادمة على 16:00",
+    eveningInProgress: "الرحلة جارية (جولة المساء)",
+    eveningInProgressDesc: "الحافلة في الطريق • إيصال التلاميذ إلى منازلهم (16:00 - 17:30)",
+    eveningArrived: "اكتملت الرحلة / وصل الجميع",
+    eveningArrivedDesc: "تم إيصال جميع التلاميذ إلى منازلهم بنجاح وأمان",
+    suspended: "الخدمة متوقفة",
+    suspendedDesc: "خدمة النقل المدرسي في عطلة نهاية الأسبوع (تستأنف صباح الاثنين)",
+    waitingMorning: "في التحضير بالمستودع",
+    waitingMorningDesc: "الحافلة جاهزة • انطلاق الجولة مقرر على الساعة 07:30"
   }
 };

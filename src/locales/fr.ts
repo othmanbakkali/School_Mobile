@@ -288,5 +288,33 @@ export const fr: any = {
     addCommentDesc: "Observation officielle de l'enseignant pour le dossier de l'élève",
     saveCommentBtn: "Publier la Remarque",
     deleteCommentConfirm: "Voulez-vous supprimer cette remarque pédagogique ?"
+  },
+  transport: {
+    title: "Transport Scolaire",
+    subtitle: "Suivi en temps réel de la navette scolaire",
+    loading: "Chargement des infos de transport...",
+    notRegistered: "Votre enfant n'est pas inscrit au service de transport scolaire.",
+    driverSection: "👤 Chauffeur Assigné",
+    certifiedDriver: "Chauffeur agréé Smart School",
+    vehicleSection: "🚘 Véhicule & Horaires",
+    vehicleLabel: "Véhicule",
+    defaultVehicle: "Bus Scolaire standard",
+    scheduleLabel: "Horaires",
+    morningLabel: "Matin :",
+    eveningLabel: "Soir :",
+    trackingSection: "📍 État du trajet (Aujourd'hui)",
+    inProgress: "Trajet en cours",
+    morningInProgress: "Trajet en cours (Ramassage matin)",
+    morningInProgressDesc: "Navette en route • Ramassage des élèves en cours vers l'école (07h30 - 08h30)",
+    morningArrived: "Arrivé à l'école",
+    morningArrivedDesc: "Tous les élèves sont arrivés à l'école en sécurité • Prochain départ à 16h00",
+    eveningInProgress: "Trajet en cours (Retour soir)",
+    eveningInProgressDesc: "Navette en route • Dépose des élèves aux domiciles (16h00 - 17h30)",
+    eveningArrived: "Trajet terminé / Arrivé",
+    eveningArrivedDesc: "Tous les élèves ont été déposés à leurs domiciles avec succès",
+    suspended: "Service suspendu",
+    suspendedDesc: "Le service de transport est au repos le week-end (Reprise lundi matin)",
+    waitingMorning: "En préparation au dépôt",
+    waitingMorningDesc: "Bus inspecté • Départ de la tournée prévu à 07h30"
   }
 };
